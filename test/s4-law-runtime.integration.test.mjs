@@ -95,6 +95,10 @@ test('S4 actual HTTP: complete scoped exports, archived history, audit linkage a
 
   await t.test('every enabled administrator can query and export, with exact archive-inclusive scope', async () => {
     for (const cookie of cookies) {
+      const auditList = await request('/admin-api/audit?kind=user&user_id=1&from=1000&to=2000&action=review.submit&page_size=100', { cookie });
+      assert.equal(auditList.value.data.total, 340);
+      assert.equal(auditList.value.data.items.length, 100);
+      assert.equal(auditList.headers.get('cache-control'), 'no-store');
       const read = await request('/admin-api/law-query?' + criteria + '&log_page_size=100&content_page_size=100', { cookie });
       assert.equal(read.value.data.query.target, 'user:1'); assert.equal(read.value.data.complete, false);
       assert.equal(read.value.data.log_pagination.total, 340); assert.equal(read.value.data.audit_pagination.total, 340);

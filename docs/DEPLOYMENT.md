@@ -435,3 +435,66 @@ chmod 0600 "$preview_log_dir/stdout.json" "$preview_log_dir/stderr.txt" "$previe
 ### S3 数据兼容回退
 
 上文普通代码/静态回退流程不能直接套到已迁移的S3数据：S2的旧公开gate不认识v2的`publicationBlocked`、批准依据和处理/公开分离，简单切回`8ddcdc5`或旧静态产物可能重新公开应受限内容。迁移后故障先保持维护状态、停止所有写入并留存失败时新数据、SQLite及journal；优先使用兼容schema v2且保留同一公开gate的修复/回退版本。若确需恢复迁移前完整备份，须单独评估停写后新增内容、账号及删除状态的取舍，验证隔离恢复并同步核对应用、静态产物、运行数据和缓存后再开放；不能只回退两份JSON、把正常代码回退当作可自动倒退运行数据的授权，或绕过S2恢复隔离标志。
+
+## S6 OPS-20 本机部署准备度（2026-10-07）
+
+`node scripts/check-deployment-readiness.mjs` 是只读检查器；新增工具和本地合成测试不代表已授权部署、读取生产个人资料、重启服务或执行生产写入自验。首次启用 S5 的独立注销账本仍按 [S5 操作单](compliance/S5_OPERATIONS.md) 在停写维护窗口执行，检查器不会初始化账本。生产候选须固定完整提交、保持 S3/S4/S5 的数据与回退兼容边界。
+
+### 本机静态配置
+
+在固定候选中，以计划运行候选的服务身份、使用已核准的实际环境运行。程序不加载或 `source` 环境文件，不自行改权限、创建目录、建表、重放队列、启动服务、写日志、制作备份或解除恢复隔离。检查器复用 `runtime-config` 的生产路径/启动预检、`backup-preflight` 的备份秘密隔离和目的地选择、`trustedProxyRules` 的代理规则、`StaticReleasePublisher.readDeploymentProof()` 的发布拓扑，以及 S5 的绑定和账本链校验；不会另设一套备份或恢复规范。
+
+现有生产变量包括 `NODE_ENV=production`、`DATA_DIR`、`STATE_DB_PATH`、`ADMIN_SECRET_FILE`、`ADMIN_ORIGIN`、`PUBLIC_RESOURCE_ORIGIN`、`TRUSTED_PROXIES`、`PUBLIC_DIR`、`PUBLIC_RELEASES_DIR`、`DELETION_LEDGER_DIR`，以及现有备份配置。检查器要求既有 SQLite、日志表、日志 queue/归档目录、访问日志文件和有效静态发布已经存在；全新空环境不会被当作部署准备完毕。所有路径必须私下核对，口令、token、原始配置和个人数据不要放进参数或回传材料。
+
+另外三个变量仅向检查器明确操作者选择的实际位置/预算，不替服务、Caddy 或 timer 配置它们：
+
+| 检查变量 | 对应既有操作配置 | 检查范围 |
+|---|---|---|
+| `S2_ACCESS_LOG` | Caddy S2 snippet 的 `{$S2_ACCESS_LOG:/var/log/nkustudy/access.jsonl}` 实际展开后的现存文件 | 必须明确绝对路径，检查可读、私密、常规非链接文件；不读日志内容。程序不会把 snippet 的默认值当作实际生效证明 |
+| `ENTRY_LOG_ARCHIVE_DIR` | 既有 `archive-entry-logs.mjs <CADDY-LOG-DIR> <PRIVATE-ARCHIVE-DIR>` 的第二参数 | 必须已存在、私密且当前身份可写，与入口日志源目录分离并位于公开树之外；不执行归档或 timer |
+| `DEPLOYMENT_MIN_FREE_BYTES` | 操作者结合现有保留窗口、每日增长、备份/构建临时空间制定的正整数剩余空间预算 | 对运行数据、SQLite、静态发布、入口归档和账本所在文件系统分别检查。不是默认保留天数，也不能替代增长预测或磁盘告警 |
+
+```sh
+node scripts/check-deployment-readiness.mjs
+```
+
+输出只含固定检查 ID、状态和错误码。缺关键变量、日志表/事件唯一索引、归档写权限、静态发布、独立且已绑定的注销账本，或存在 `.restore-quarantine`，都会使 `localStaticReady:false`。缺配置不会由开发环境默认值补成通过。非空日志 JSON 队列只报告待恢复失败，不读队列原文、不重放；既有 [S2 存储健康工具](compliance/S2_SERVER_ACCEPTANCE.md) 和日志故障恢复流程仍负责内容校验与恢复。检查器通过仅说明检查当时的文件/配置及 schema 条件满足，不证明可 fsync、事务写入成功、留存完整、全部注销作业完成或进程已经使用这些配置。
+
+SQLite 用 `readonly`、`query_only` 和读事务检查完整性、固定日志 schema、注销绑定及作业 schema，不查询/导出业务用户或日志行。已有在线 WAL/SHM 可被查询；SQLite 读锁可能触碰现有 SHM 锁元数据，这不是业务数据写入。WAL 库缺 WAL 或 SHM 时返回 `DATABASE_WAL_SIDECARS_REQUIRED/pending` 并且不开库，防止读连接替它创建文件。不能删除 WAL/SHM、用忽略 WAL 的 `immutable` 读取来“让检查通过”，也不能拿未经核准的主文件复制当一致快照。维护窗口中的隔离一致快照可用于 schema 复核，但须另列它与正在运行服务的差异；检查器不转换 journal mode。文件读取可能更新 atime；这次检查既不冻结写入者，也不是跨文件一致性快照。
+
+POSIX 模式和 `access` 仅针对当前身份；Windows ACL、未知平台、不可用的容量接口以及依赖未能检查的项目会保持 `pending`，不算静态通过。Caddy 与归档 timer 若用不同身份，当前身份读/写失败不能用 root 重跑后的通过掩盖，应分别由相应受控身份核对并在人工回执说明。工具本身无法证明 systemd 有效环境、实际 service User/Group、单写进程、上游代理拓扑或实际 Caddy 日志展开值。
+
+### 显式合成 HTTP 探针及日志验证
+
+默认命令没有 HTTP、云端或通知访问。仅在已确认目标是隔离合成服务时可添加独立参数；该参数是操作者对合成来源的断言，localhost 本身不证明没有接生产数据：
+
+```sh
+node scripts/check-deployment-readiness.mjs \
+  --synthetic-localhost-origin=http://127.0.0.1:8787
+```
+
+允许的 origin 仅为有显式端口的 `http://127.0.0.1:<PORT>` 或 `http://[::1]:<PORT>`；不支持 DNS 名称、真实站点、HTTPS、凭据、路径、query 或 fragment。程序不读取浏览器 Cookie，不携带认证、不跟随重定向；每个 GET 有 3 秒整体超时和 8 KiB 响应上限。只访问 `/api/v1/health` 与未登录的 `/api/v1/me`，核对 `no-store`、`nosniff`、健康状态、已配置的注销能力/零 pending，以及未登录拒绝；不输出正文、origin、ledger 水位或标识。这里的 `syntheticReady:true` 只对应这两个 GET，不能证明用户/管理员日志成功写入、HTTPS、安全头、CDN 缓存或真实注销链路。
+
+日志写入/故障/重放/归档和备份恢复仍用真实已有模块在临时合成目录做定向测试，避免只读检查器向待部署环境插入探针。OPS-20 合成检查覆盖故意缺日志表、缺事件列/唯一索引、只读归档/queue、缺日志配置、恢复隔离、缺账本/错谱系及 WAL 边界；操作者纠正测试夹具后重新核对通过，检查器从未自动修复。
+
+```sh
+node --test test/deployment-readiness.test.mjs test/backup-preflight.test.mjs \
+  test/runtime-config.test.mjs test/s2-durability.test.mjs test/s5-deletion-ledger.test.mjs
+```
+
+### 结果与生产回执边界
+
+| 字段或退出码 | 含义 |
+|---|---|
+| `localStaticReady` | 本次所有静态必需检查通过；显式关闭的远端目的地可以跳过，关闭不是远端验收 |
+| `syntheticRequested:false`、`syntheticReady:null` | 未运行 HTTP 探针；对应检查保持 `pending` |
+| `syntheticRequested:true`、`syntheticReady` | 显式合成 GET 探针结果，独立于静态配置结果 |
+| `localChecksPassed` | 静态通过且所有请求执行的合成 GET 通过 |
+| exit `0` | 仅 `localChecksPassed:true`；生产仍待验 |
+| exit `1` | 本次要求的本机静态/合成检查失败或仍无法验证；不能继续声称本机检查通过 |
+| exit `2` | 不支持/重复参数；不会回显输入 |
+| `productionStatus:pending`、`productionReady:false`、`ops20Accepted:false` | 工具始终保留生产验收边界，不导入人工“已通过”开关来消除待验项 |
+
+后续另获生产授权后，维护者按 [S2 服务器验收](compliance/S2_SERVER_ACCEPTANCE.md)、S3/S4 交付说明及 [S5 操作单](compliance/S5_OPERATIONS.md) 留受控脱敏回执：实际服务身份/环境与单写进程、HTTPS/入口安全头/防火墙、可信代理及真实源端口解释、私密及派生公开内容缓存/CDN、实际 Caddy 脱敏样本/保留配置/归档 timer、日志持久化与恢复、增长容量/外部监控、一致加密备份及隔离恢复、最新权威注销头和历史覆盖/作业/远端清理。只回传固定版本、状态、计数和固定码，真实原件保留在受控位置。生产告知/隐私页、自定义文案、真机和人工交付验收仍独立留待。
+
+本轮仍遵守用户暂缓边界：真实通知不接通、不启用、不发测试；私密 R2 不启用、不发 PUT/GET。静态关闭目的地、历史通知反馈、本机 HTTP 成功或日志测试通过均不能关闭这些生产待验项。当前 S6 的定向合成证据见 [deployment 证据摘要](compliance/evidence/S6-local-20261007/deployment/summary.json)。

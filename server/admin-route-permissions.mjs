@@ -84,8 +84,8 @@ export const ADMIN_ROUTE_PERMISSIONS = Object.freeze({
   "GET /admin-api/reviews/:id": "content.read",
   "PATCH /admin-api/reviews/:id": "content.edit",
   // 审计与依法调取
-  "GET /admin-api/audit": "audit.read",
   // C-08: every enabled administrator; no additional query/export role.
+  "GET /admin-api/audit": AUTH,
   "GET /admin-api/law-query": AUTH,
   "GET /admin-api/law-export": AUTH,
   "GET /admin-api/law-logs": AUTH,

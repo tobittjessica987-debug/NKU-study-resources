@@ -1,0 +1,34 @@
+{
+  "scope": "admin.astro strict typing and verified UI corrections",
+  "baseline_admin_errors": 1206,
+  "independent_strict_script_errors": 0,
+  "full_astro_check": "Parent-owned; round1 had no admin errors. Final combined gate remains parent-owned.",
+  "test_totals": {
+    "tests": 39,
+    "pass": 39,
+    "fail": 0
+  },
+  "behavioral_fixes": [
+    "Donation statistics status text uses its own unique span id; loading success/failure preserves status filter options.",
+    "Image-cleanup status reads server-provided nested data counts."
+  ],
+  "runtime_guards": [
+    "Required DOM helpers check the expected constructor. Optional/dynamic nodes return null.",
+    "Navigation allows absent unlocked tabs, then falls back to a locked tab or an empty list.",
+    "Empty DragEvent dataTransfer returns no files; filesystem entry methods are narrowed by their actual runtime flags/methods.",
+    "Loaded manifest and persisted course UID are checked before file operations."
+  ],
+  "sources": {
+    "src/pages/admin.astro": "0e40b9c46a4d4d9b6e6ea78423d649042f85e9facac3116a40b666726d692418",
+    "src/lib/admin-types.ts": "718f8f98265853ce70366f95a8a5bbf4311704ca1f4e93f3fcc60d7c3f7d7fe8",
+    "test/admin-ui-contracts.test.mjs": "f298527c0ea3fee06484ab94b5996242c48c9d1d1bb4c783887e5d697c564a68"
+  },
+  "constraints": [
+    "No ts-nocheck/ts-ignore, strict disablement, check exclusion, blanket any, or unknown double assertions.",
+    "No server files, production data, pushes, PRs, or commits changed by this agent."
+  ],
+  "limits": [
+    "Synthetic DOM runs the actual extracted and TypeScript-compiled functions/bindings; it is not a full browser acceptance test.",
+    "TypeScript declarations describe server contracts; they do not add schema validation to every successful JSON response."
+  ]
+}

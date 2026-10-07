@@ -1,0 +1,244 @@
+TAP version 13
+# Subtest: admin status aggregates publish and R2 cleanup warnings
+ok 1 - admin status aggregates publish and R2 cleanup warnings
+  ---
+  duration_ms: 0.981334
+  type: 'test'
+  ...
+# Subtest: admin server uses shared runtime paths and no direct runtime JSON writes
+ok 2 - admin server uses shared runtime paths and no direct runtime JSON writes
+  ---
+  duration_ms: 0.673834
+  type: 'test'
+  ...
+# Subtest: public writes use persistent limits and queued read-modify-write
+ok 3 - public writes use persistent limits and queued read-modify-write
+  ---
+  duration_ms: 0.422416
+  type: 'test'
+  ...
+# Subtest: legacy destructive R2 routes are disabled and safe route remains admin-only
+ok 4 - legacy destructive R2 routes are disabled and safe route remains admin-only
+  ---
+  duration_ms: 0.177167
+  type: 'test'
+  ...
+# Subtest: public v1 routing remains separate from mini-program administration
+ok 5 - public v1 routing remains separate from mini-program administration
+  ---
+  duration_ms: 0.746041
+  type: 'test'
+  ...
+# Subtest: static publish warnings remain in management responses and are visible in the admin UI
+ok 6 - static publish warnings remain in management responses and are visible in the admin UI
+  ---
+  duration_ms: 0.529959
+  type: 'test'
+  ...
+# Subtest: donation statistics loading preserves filter options and applies selected status/source
+ok 7 - donation statistics loading preserves filter options and applies selected status/source
+  ---
+  duration_ms: 35.706417
+  type: 'test'
+  ...
+# Subtest: a donation statistics load failure remains visible without erasing filter options
+ok 8 - a donation statistics load failure remains visible without erasing filter options
+  ---
+  duration_ms: 8.063542
+  type: 'test'
+  ...
+# Subtest: image cleanup shows nested server counts and restores the action after success
+ok 9 - image cleanup shows nested server counts and restores the action after success
+  ---
+  duration_ms: 9.985166
+  type: 'test'
+  ...
+# Subtest: image cleanup failure preserves the action and displays the failure
+ok 10 - image cleanup failure preserves the action and displays the failure
+  ---
+  duration_ms: 8.680042
+  type: 'test'
+  ...
+# Subtest: declining image cleanup does not send a request or disable the control
+ok 11 - declining image cleanup does not send a request or disable the control
+  ---
+  duration_ms: 12.479083
+  type: 'test'
+  ...
+# Subtest: DOM helpers distinguish required nodes, optional nodes, and the expected element type
+ok 12 - DOM helpers distinguish required nodes, optional nodes, and the expected element type
+  ---
+  duration_ms: 5.988083
+  type: 'test'
+  ...
+# Subtest: initial navigation prefers allowed tabs and retains the all-locked and empty-list fallbacks
+ok 13 - initial navigation prefers allowed tabs and retains the all-locked and empty-list fallbacks
+  ---
+  duration_ms: 14.495583
+  type: 'test'
+  ...
+# Subtest: query filters keep exact log actions, Beijing time, reference and independent pages; export omits all pagination
+ok 14 - query filters keep exact log actions, Beijing time, reference and independent pages; export omits all pagination
+  ---
+  duration_ms: 2.496459
+  type: 'test'
+  ...
+# Subtest: invalid ranges and references are rejected without a request; malformed stored time never throws
+ok 15 - invalid ranges and references are rejected without a request; malformed stored time never throws
+  ---
+  duration_ms: 11.194042
+  type: 'test'
+  ...
+# Subtest: GET requests retain the admin cookie, bypass cache and report HTTP/JSON errors
+ok 16 - GET requests retain the admin cookie, bypass cache and report HTTP/JSON errors
+  ---
+  duration_ms: 12.008584
+  type: 'test'
+  ...
+# Subtest: a stalled GET request exits loading with a timeout error
+ok 17 - a stalled GET request exits loading with a timeout error
+  ---
+  duration_ms: 5.641166
+  type: 'test'
+  ...
+# Subtest: query results expose full totals and four independent pagination positions
+ok 18 - query results expose full totals and four independent pagination positions
+  ---
+  duration_ms: 1.137458
+  type: 'test'
+  ...
+# Subtest: loading and failed queries clear old records; an empty successful scope stays distinct from an error
+ok 19 - loading and failed queries clear old records; an empty successful scope stays distinct from an error
+  ---
+  duration_ms: 0.284833
+  type: 'test'
+  ...
+# Subtest: an older query response or failure cannot replace newer results or changed filters
+ok 20 - an older query response or failure cannot replace newer results or changed filters
+  ---
+  duration_ms: 0.287291
+  type: 'test'
+  ...
+# Subtest: malformed pagination, inconsistent counts, target and filters are visible query errors
+ok 21 - malformed pagination, inconsistent counts, target and filters are visible query errors
+  ---
+  duration_ms: 0.662375
+  type: 'test'
+  ...
+# Subtest: law history uses the dedicated GET endpoint, filters and independent pages
+ok 22 - law history uses the dedicated GET endpoint, filters and independent pages
+  ---
+  duration_ms: 0.5395
+  type: 'test'
+  ...
+# Subtest: a failed history refresh is an error, and stale history does not appear under new filters
+ok 23 - a failed history refresh is an error, and stale history does not appear under new filters
+  ---
+  duration_ms: 0.425792
+  type: 'test'
+  ...
+# Subtest: complete export downloads the validated full JSON and server filename using current filters
+ok 24 - complete export downloads the validated full JSON and server filename using current filters
+  ---
+  duration_ms: 0.423917
+  type: 'test'
+  ...
+# Subtest: partial, inconsistent, malformed and mismatched export packages never download
+ok 25 - partial, inconsistent, malformed and mismatched export packages never download
+  ---
+  duration_ms: 0.39825
+  type: 'test'
+  ...
+# Subtest: HTTP failures and HTML downloads remain visible errors without a fake export file
+ok 26 - HTTP failures and HTML downloads remain visible errors without a fake export file
+  ---
+  duration_ms: 0.859
+  type: 'test'
+  ...
+# Subtest: a valid HTTP attachment preserves the server JSON bytes and UTF-8 filename
+ok 27 - a valid HTTP attachment preserves the server JSON bytes and UTF-8 filename
+  ---
+  duration_ms: 0.447459
+  type: 'test'
+  ...
+# Subtest: an export arriving after filters change or a newer export cannot download or replace state
+ok 28 - an export arriving after filters change or a newer export cannot download or replace state
+  ---
+  duration_ms: 0.570958
+  type: 'test'
+  ...
+# Subtest: 401 query, export and history invoke the session expiry handler
+ok 29 - 401 query, export and history invoke the session expiry handler
+  ---
+  duration_ms: 0.153333
+  type: 'test'
+  ...
+# Subtest: the real query service contract renders empty collections, pages beyond 300 and full exports through the controller
+ok 30 - the real query service contract renders empty collections, pages beyond 300 and full exports through the controller
+  ---
+  duration_ms: 2.773875
+  type: 'test'
+  ...
+# Subtest: one-row save serializes only allowed explicit changes; rows and settings stay independent
+ok 31 - one-row save serializes only allowed explicit changes; rows and settings stay independent
+  ---
+  duration_ms: 1.61125
+  type: 'test'
+  ...
+# Subtest: cancel and rerender hydration do not discard another row or settings draft
+ok 32 - cancel and rerender hydration do not discard another row or settings draft
+  ---
+  duration_ms: 0.2255
+  type: 'test'
+  ...
+# Subtest: HTTP, HTML, timeout, and rejected network saves exit saving and retain draft
+ok 33 - HTTP, HTML, timeout, and rejected network saves exit saving and retain draft
+  ---
+  duration_ms: 0.245375
+  type: 'test'
+  ...
+# Subtest: conflict requires explicit field decisions before saving latest revision
+ok 34 - conflict requires explicit field decisions before saving latest revision
+  ---
+  duration_ms: 0.328708
+  type: 'test'
+  ...
+# Subtest: drop conflicted draft loads server record only for that row
+ok 35 - drop conflicted draft loads server record only for that row
+  ---
+  duration_ms: 0.084041
+  type: 'test'
+  ...
+# Subtest: saving does not lose changes made while request was in flight
+ok 36 - saving does not lose changes made while request was in flight
+  ---
+  duration_ms: 0.071666
+  type: 'test'
+  ...
+# Subtest: returning a submitted field to the old saved value during saving remains a newer draft
+ok 37 - returning a submitted field to the old saved value during saving remains a newer draft
+  ---
+  duration_ms: 0.167042
+  type: 'test'
+  ...
+# Subtest: failed save preserves the explicit return to the old value during saving
+ok 38 - failed save preserves the explicit return to the old value during saving
+  ---
+  duration_ms: 0.068542
+  type: 'test'
+  ...
+# Subtest: missing save acknowledgement or overlong reply never clears the draft
+ok 39 - missing save acknowledgement or overlong reply never clears the draft
+  ---
+  duration_ms: 0.33975
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 442.740208

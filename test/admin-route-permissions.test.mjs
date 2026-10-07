@@ -39,8 +39,8 @@ test("declared permissions are valid permission points", () => {
   }
 });
 
-test("C-08 law routes require an authenticated administrator without an additional role", () => {
-  for (const endpoint of ['law-query', 'law-export', 'law-logs']) {
+test("C-08 audit and law routes require an authenticated administrator without an additional role", () => {
+  for (const endpoint of ['audit', 'law-query', 'law-export', 'law-logs']) {
     assert.equal(ADMIN_ROUTE_PERMISSIONS[`GET /admin-api/${endpoint}`], "__auth__");
   }
 });

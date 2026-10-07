@@ -1,5 +1,6 @@
-﻿---
+---
 import Layout from "../../layouts/Layout.astro";
+import type { ResourceFile, ResourceSection } from "../../lib/resources";
 import { courses, countFiles, fileUrl, formatBytes, manifest, totalSize, visibleFiles } from "../../lib/resources";
 import { markdownToHtml } from "../../lib/markdown";
 
@@ -12,7 +13,7 @@ export function getStaticPaths() {
 
 const { course } = Astro.props;
 
-function fileParts(section, file) {
+function fileParts(section: ResourceSection, file: ResourceFile) {
   const parts = String(file.path || file.title || "").split("/").filter(Boolean);
   if (parts[0] === section.title) parts.shift();
   return parts;
@@ -21,13 +22,14 @@ function fileParts(section, file) {
 const sortedSections = course.sections.map((section) => {
   const files = visibleFiles(section.files);
   const directFiles = [];
-  const groups = new Map();
+  const groups = new Map<string, ResourceFile[]>();
   for (const file of files) {
     const parts = fileParts(section, file);
     if (parts.length > 1) {
       const groupTitle = parts[0];
-      if (!groups.has(groupTitle)) groups.set(groupTitle, []);
-      groups.get(groupTitle).push(file);
+      const members = groups.get(groupTitle) ?? [];
+      members.push(file);
+      groups.set(groupTitle, members);
     } else {
       directFiles.push(file);
     }
@@ -41,7 +43,7 @@ const sortedSections = course.sections.map((section) => {
 });
 
 
-const directDownloadUrl = (file) => {
+const directDownloadUrl = (file: ResourceFile) => {
   const url = fileUrl(course, file);
   const separator = url.includes("?") ? "&" : "?";
   const disposition = `attachment; filename*=UTF-8''${encodeURIComponent(file.title || "download")}`;
@@ -49,9 +51,10 @@ const directDownloadUrl = (file) => {
 };
 
 const contributors = course.contributors ?? [];
+const grades = course.grades ?? [];
 const blockedTag = "无固定年级";
 const hiddenMetaTags = new Set([...(course.hiddenMetaTags ?? []), ...(manifest.hiddenMetaTags ?? [])]);
-const showMetaTag = (tag) => tag && tag !== blockedTag && !hiddenMetaTags.has(tag);
+const showMetaTag = (tag: string | undefined) => tag && tag !== blockedTag && !hiddenMetaTags.has(tag);
 const visibleTags = (course.tags ?? []).filter(showMetaTag);
 ---
 
@@ -77,10 +80,10 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
       </div>
       <div class="panel-body">
         <div class="course-summary markdown-body" set:html={markdownToHtml(course.summary)} />
-        {course.grades?.length > 0 && (
+        {grades.length > 0 && (
           <>
             <h3 style="margin-top: 20px;">适用提示</h3>
-            <div class="course-tips markdown-body" set:html={markdownToHtml(course.grades.join("\n"))} />
+            <div class="course-tips markdown-body" set:html={markdownToHtml(grades.join("\n"))} />
           </>
         )}
         {visibleTags.length > 0 && (
@@ -123,7 +126,7 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
                       <div class="file-list">
                         {group.files.map((file) => (
                           <div class="file-row" data-search={`${section.title} ${group.title} ${file.title} ${file.description ?? ""}`}>
-                            <input class="resource-file-check" type="checkbox" aria-label={`閫夋嫨 ${file.title}`} data-url={directDownloadUrl(file)} data-fetch-url={fileUrl(course, file)} data-name={file.title} data-folder={`${section.title}/${group.title}`} />
+                            <input class="resource-file-check" type="checkbox" aria-label={`选择 ${file.title}`} data-url={directDownloadUrl(file)} data-fetch-url={fileUrl(course, file)} data-name={file.title} data-folder={`${section.title}/${group.title}`} />
                             <div>
                               <strong>{file.title}</strong>
                               {file.description && <div class="file-description markdown-body" set:html={markdownToHtml(file.description)} />}
@@ -139,7 +142,7 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
                     <div class="file-list">
                       {section.directFiles.map((file) => (
                         <div class="file-row" data-search={`${section.title} ${file.title} ${file.description ?? ""}`}>
-                          <input class="resource-file-check" type="checkbox" aria-label={`閫夋嫨 ${file.title}`} data-url={directDownloadUrl(file)} data-fetch-url={fileUrl(course, file)} data-name={file.title} data-folder={section.title} />
+                          <input class="resource-file-check" type="checkbox" aria-label={`选择 ${file.title}`} data-url={directDownloadUrl(file)} data-fetch-url={fileUrl(course, file)} data-name={file.title} data-folder={section.title} />
                           <div>
                             <strong>{file.title}</strong>
                             {file.description && <div class="file-description markdown-body" set:html={markdownToHtml(file.description)} />}
@@ -164,26 +167,27 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
   </section>
 
   <script>
+    import { requireElement, errorMessage } from "../../lib/browser-dom";
     import JSZip from "jszip";
 
     const courseTitle = document.querySelector(".topbar h1")?.textContent?.trim() || "课程资源";
-    const input = document.querySelector("#resource-search");
-    const sections = Array.from(document.querySelectorAll("#resource-list .resource-section"));
-    const empty = document.querySelector("#resource-empty");
-    const checks = Array.from(document.querySelectorAll(".resource-file-check"));
-    const selectVisible = document.querySelector("#select-visible-files");
-    const downloadSelected = document.querySelector("#download-selected-files");
-    const saveZipLink = document.querySelector("#save-zip-link");
-    const clearSelected = document.querySelector("#clear-selected-files");
-    const selectedCount = document.querySelector("#selected-file-count");
+    const input = requireElement("#resource-search", HTMLInputElement);
+    const sections = Array.from(document.querySelectorAll<HTMLDetailsElement>("#resource-list .resource-section"));
+    const empty = document.querySelector<HTMLElement>("#resource-empty");
+    const checks = Array.from(document.querySelectorAll<HTMLInputElement>(".resource-file-check"));
+    const selectVisible = requireElement("#select-visible-files", HTMLInputElement);
+    const downloadSelected = requireElement("#download-selected-files", HTMLButtonElement);
+    const saveZipLink = requireElement("#save-zip-link", HTMLAnchorElement);
+    const clearSelected = requireElement("#clear-selected-files", HTMLButtonElement);
+    const selectedCount = requireElement("#selected-file-count", HTMLElement);
     let currentZipUrl = "";
 
-    function safeZipName(value) {
+    function safeZipName(value: unknown) {
       return String(value || "file").replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim();
     }
 
     function visibleChecks() {
-      return checks.filter((check) => !check.closest(".file-row")?.hidden && !check.closest(".resource-section")?.hidden && !check.closest(".resource-subsection")?.hidden);
+      return checks.filter((check) => !check.closest<HTMLElement>(".file-row")?.hidden && !check.closest<HTMLElement>(".resource-section")?.hidden && !check.closest<HTMLElement>(".resource-subsection")?.hidden);
     }
 
     function updateSelectionState() {
@@ -208,19 +212,19 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
       const keyword = input.value.trim().toLowerCase();
       let visibleSections = 0;
       for (const section of sections) {
-        const rows = Array.from(section.querySelectorAll(".file-row"));
+        const rows = Array.from(section.querySelectorAll<HTMLElement>(".file-row"));
         let visibleRows = 0;
         for (const row of rows) {
-          const matched = row.dataset.search.toLowerCase().includes(keyword);
+          const matched = (row.dataset.search || "").toLowerCase().includes(keyword);
           row.hidden = keyword ? !matched : false;
           if (matched || !keyword) visibleRows += 1;
         }
-        const sectionMatched = section.dataset.search.toLowerCase().includes(keyword);
+        const sectionMatched = (section.dataset.search || "").toLowerCase().includes(keyword);
         const shouldShow = keyword ? sectionMatched || visibleRows > 0 : true;
-        for (const subsection of Array.from(section.querySelectorAll(".resource-subsection"))) {
-          const subsectionRows = Array.from(subsection.querySelectorAll(".file-row"));
+        for (const subsection of Array.from(section.querySelectorAll<HTMLDetailsElement>(".resource-subsection"))) {
+          const subsectionRows = Array.from(subsection.querySelectorAll<HTMLElement>(".file-row"));
           const visibleSubRows = subsectionRows.filter((row) => !row.hidden).length;
-          const subsectionMatched = subsection.dataset.search.toLowerCase().includes(keyword);
+          const subsectionMatched = (subsection.dataset.search || "").toLowerCase().includes(keyword);
           const showSubsection = keyword ? subsectionMatched || visibleSubRows > 0 : true;
           subsection.hidden = !showSubsection;
           subsection.open = keyword ? showSubsection : subsection.open;
@@ -242,10 +246,12 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
       downloadSelected.textContent = "正在打包 0%";
       try {
         const zip = new JSZip();
-        const usedNames = new Map();
+        const usedNames = new Map<string, number>();
         for (let index = 0; index < selected.length; index += 1) {
           const check = selected[index];
-          const response = await fetch(check.dataset.fetchUrl || check.dataset.url, {
+          const resourceUrl = check.dataset.fetchUrl || check.dataset.url;
+          if (!resourceUrl) throw new Error("资源下载地址缺失");
+          const response = await fetch(resourceUrl, {
             mode: "cors",
             credentials: "omit",
             cache: "no-store",
@@ -279,7 +285,7 @@ const visibleTags = (course.tags ?? []).filter(showMetaTag);
         link.remove();
         downloadSelected.textContent = originalText;
       } catch (error) {
-        alert(`${error.message || "批量下载失败"}\n\n如果一直失败，需要给 resources.nkustudy.top 配置允许跨域读取的 CORS。`);
+        alert(`${errorMessage(error, "批量下载失败")}\n\n如果一直失败，需要给 resources.nkustudy.top 配置允许跨域读取的 CORS。`);
         downloadSelected.textContent = originalText;
       } finally {
         updateSelectionState();

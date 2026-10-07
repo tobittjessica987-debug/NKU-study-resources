@@ -1,0 +1,779 @@
+
+> nkustudy@0.1.0 check
+> astro check
+
+21:04:35 [types] Generated 31ms
+21:04:35 [check] Getting diagnostics for Astro files in <REPO>...
+docs/compliance/evidence/S5-browser-20261007/nkustudy-s5-browser.mjs:7:7 - warning ts(6133): 'require' is declared but its value is never read.
+
+7 const require=createRequire(root+'/package.json'), Database=require('better-sqlite3');
+        ~~~~~~~
+
+docs/compliance/evidence/S5-browser-20261007/nkustudy-s5-manual-fixtures.mjs:4:7 - warning ts(6133): 'require' is declared but its value is never read.
+
+4 const require=createRequire('<REPO>/package.json'),Database=require('better-sqlite3');
+        ~~~~~~~
+
+public/qrcode-generator.js:1781:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1781     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1759:9 - warning ts(6133): '_data' is declared but its value is never read.
+
+1759     var _data = data;
+             ~~~~~
+public/qrcode-generator.js:1739:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1739     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1730:9 - warning ts(6133): '_data' is declared but its value is never read.
+
+1730     var _data = data;
+             ~~~~~
+public/qrcode-generator.js:1675:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1675     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1618:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1618     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:949:25 - warning ts(6133): 'i' is declared but its value is never read.
+
+949         return function(i, j) { return j % 3 == 0; };
+                            ~
+public/qrcode-generator.js:947:28 - warning ts(6133): 'j' is declared but its value is never read.
+
+947         return function(i, j) { return i % 2 == 0; };
+                               ~
+public/qrcode-generator.js:29:7 - warning ts(80002): This constructor function may be converted to a class declaration.
+
+29   var qrcode = function(typeNumber, errorCorrectionLevel) {
+         ~~~~~~
+
+scripts/build-learning-compass-snapshot.mjs:120:11 - warning ts(6133): 'chunksById' is declared but its value is never read.
+
+120     const chunksById = new Map((guide.chunks || []).map((chunk) => [chunk.chunk_id, chunk]));
+              ~~~~~~~~~~
+
+scripts/upload-guide-sources.mjs:13:10 - warning ts(6133): 'createReadStream' is declared but its value is never read.
+
+13 import { createReadStream, existsSync, readFileSync } from "node:fs";
+            ~~~~~~~~~~~~~~~~
+
+server/admin-server.mjs:1349:10 - warning ts(6133): 'readPrivacy' is declared but its value is never read.
+
+1349 function readPrivacy() {
+              ~~~~~~~~~~~
+server/admin-server.mjs:1121:10 - warning ts(6133): 'objectKey' is declared but its value is never read.
+
+1121 function objectKey(...parts) {
+              ~~~~~~~~~
+server/admin-server.mjs:1051:48 - warning ts(6133): 'ip' is declared but its value is never read.
+
+1051 function requirePhoneVerifiedUgcUser(req, res, ip) {
+                                                    ~~
+server/admin-server.mjs:68:37 - warning ts(6133): 'maskPhone' is declared but its value is never read.
+
+68 import { createWechatPhoneVerifier, maskPhone } from "./wechat-phone.mjs";
+                                       ~~~~~~~~~
+server/admin-server.mjs:22:28 - warning ts(6133): 'ManifestConflictError' is declared but its value is never read.
+
+22 import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+                              ~~~~~~~~~~~~~~~~~~~~~
+server/admin-server.mjs:22:10 - warning ts(6133): 'manifestRevision' is declared but its value is never read.
+
+22 import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+            ~~~~~~~~~~~~~~~~
+
+server/r2-sync-merge.mjs:3:10 - warning ts(6133): 'cloneFile' is declared but its value is never read.
+
+3 function cloneFile(file, existing) {
+           ~~~~~~~~~
+
+src/pages/admin.astro:3962:27 - warning ts(6133): 'value' is declared but its value is never read.
+
+3962             ${series.map((value, index) => `<circle data-index="${index}" cx="${pointXs[index].toFixed(1)}" cy="${points[index].split(",")[1]}" r="2.5" fill="currentColor" />`).join("")}
+                               ~~~~~
+src/pages/admin.astro:3517:13 - warning ts(6385): 'returnValue' is deprecated.
+
+3517       event.returnValue = "";
+                 ~~~~~~~~~~~
+src/pages/admin.astro:2901:26 - warning ts(6387): The signature '(commandId: string, showUI?: boolean | undefined, value?: string | undefined): boolean' of 'document.execCommand' is deprecated.
+
+2901                 document.execCommand("insertHTML", false, `
+                              ~~~~~~~~~~~
+src/pages/admin.astro:1574:14 - warning ts(6133): 'sortSections' is declared but its value is never read.
+
+1574     function sortSections(course: AdminTypes.AdminCourse) {
+                  ~~~~~~~~~~~~
+src/pages/admin.astro:1357:11 - warning ts(6133): 'makeId' is declared but its value is never read.
+
+1357     const makeId = (title: string) => title
+               ~~~~~~
+
+src/pages/donate.astro:116:18 - warning ts(6133): 'checkPayEnabled' is declared but its value is never read.
+
+116   async function checkPayEnabled() {
+                     ~~~~~~~~~~~~~~~
+
+src/pages/report.astro:91:13 - warning ts(6385): 'returnValue' is deprecated.
+
+91       event.returnValue = "";
+               ~~~~~~~~~~~
+
+src/pages/reviews.astro:572:36 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+572       if (basicEditor) basicEditor.value = "";
+                                       ~~~~~
+src/pages/reviews.astro:571:38 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+571       if (contentValue) contentValue.value = "";
+                                         ~~~~~
+src/pages/reviews.astro:562:32 - error ts(18046): 'error' is of type 'unknown'.
+
+562         statusEl.textContent = error.message;
+                                   ~~~~~
+src/pages/reviews.astro:558:40 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+558         if (contentValue) contentValue.value = "";
+                                           ~~~~~
+src/pages/reviews.astro:557:38 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+557         if (basicEditor) basicEditor.value = "";
+                                         ~~~~~
+src/pages/reviews.astro:555:14 - error ts(2339): Property 'reset' does not exist on type 'Element'.
+
+555         form.reset();
+                 ~~~~~
+src/pages/reviews.astro:528:54 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+528         : String(basicEditor?.value || contentValue?.value || data.get("content") || "").trim();
+                                                         ~~~~~
+src/pages/reviews.astro:528:31 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+528         : String(basicEditor?.value || contentValue?.value || data.get("content") || "").trim();
+                                  ~~~~~
+src/pages/reviews.astro:527:63 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+527         ? String(contentEditor?.getValue?.() || contentValue?.value || "").trim()
+                                                                  ~~~~~
+src/pages/reviews.astro:524:33 - error ts(2345): Argument of type 'Element' is not assignable to parameter of type 'HTMLFormElement'.
+  Type 'Element' is missing the following properties from type 'HTMLFormElement': acceptCharset, action, autocomplete, elements, and 148 more.
+
+524       const data = new FormData(form);
+                                    ~~~~
+src/pages/reviews.astro:513:31 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+513       publicAnnouncementPanel.hidden = true;
+                                  ~~~~~~
+src/pages/reviews.astro:513:7 - error ts(18047): 'publicAnnouncementPanel' is possibly 'null'.
+
+513       publicAnnouncementPanel.hidden = true;
+          ~~~~~~~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:511:44 - error ts(2339): Property 'dataset' does not exist on type 'Element'.
+
+511       const text = publicAnnouncementPanel.dataset.announcement || "";
+                                               ~~~~~~~
+src/pages/reviews.astro:511:20 - error ts(18047): 'publicAnnouncementPanel' is possibly 'null'.
+
+511       const text = publicAnnouncementPanel.dataset.announcement || "";
+                       ~~~~~~~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:507:13 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+507       panel.hidden = true;
+                ~~~~~~
+src/pages/reviews.astro:507:7 - error ts(18047): 'panel' is possibly 'null'.
+
+507       panel.hidden = true;
+          ~~~~~
+src/pages/reviews.astro:503:7 - error ts(18047): 'panel' is possibly 'null'.
+
+503       panel.scrollIntoView({ behavior: "smooth", block: "start" });
+          ~~~~~
+src/pages/reviews.astro:502:25 - error ts(2339): Property 'elements' does not exist on type 'Element'.
+
+502       if (teacher) form.elements.teacher.value = teacher;
+                            ~~~~~~~~
+src/pages/reviews.astro:502:20 - error ts(18047): 'form' is possibly 'null'.
+
+502       if (teacher) form.elements.teacher.value = teacher;
+                       ~~~~
+src/pages/reviews.astro:501:29 - error ts(2339): Property 'elements' does not exist on type 'Element'.
+
+501       if (courseTitle) form.elements.courseTitle.value = courseTitle;
+                                ~~~~~~~~
+src/pages/reviews.astro:501:24 - error ts(18047): 'form' is possibly 'null'.
+
+501       if (courseTitle) form.elements.courseTitle.value = courseTitle;
+                           ~~~~
+src/pages/reviews.astro:500:13 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+500       panel.hidden = false;
+                ~~~~~~
+src/pages/reviews.astro:500:7 - error ts(18047): 'panel' is possibly 'null'.
+
+500       panel.hidden = false;
+          ~~~~~
+src/pages/reviews.astro:493:7 - error ts(18047): 'panel' is possibly 'null'.
+
+493       panel.scrollIntoView({ behavior: "smooth", block: "start" });
+          ~~~~~
+src/pages/reviews.astro:492:13 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+492       panel.hidden = false;
+                ~~~~~~
+src/pages/reviews.astro:492:7 - error ts(18047): 'panel' is possibly 'null'.
+
+492       panel.hidden = false;
+          ~~~~~
+src/pages/reviews.astro:480:33 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+480         publicAnnouncementPanel.hidden = !announcementText || dismissed;
+                                    ~~~~~~
+src/pages/reviews.astro:480:9 - error ts(18047): 'publicAnnouncementPanel' is possibly 'null'.
+
+480         publicAnnouncementPanel.hidden = !announcementText || dismissed;
+            ~~~~~~~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:479:33 - error ts(2339): Property 'dataset' does not exist on type 'Element'.
+
+479         publicAnnouncementPanel.dataset.announcement = announcementText;
+                                    ~~~~~~~
+src/pages/reviews.astro:479:9 - error ts(18047): 'publicAnnouncementPanel' is possibly 'null'.
+
+479         publicAnnouncementPanel.dataset.announcement = announcementText;
+            ~~~~~~~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:478:9 - error ts(18047): 'publicAnnouncement' is possibly 'null'.
+
+478         publicAnnouncement.innerHTML = markdownToHtml(announcementText);
+            ~~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:475:18 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+475           hintEl.hidden = !hint;
+                     ~~~~~~
+src/pages/reviews.astro:470:22 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+470         announcement.hidden = !announcementText;
+                         ~~~~~~
+src/pages/reviews.astro:470:9 - error ts(18047): 'announcement' is possibly 'null'.
+
+470         announcement.hidden = !announcementText;
+            ~~~~~~~~~~~~
+src/pages/reviews.astro:469:9 - error ts(18047): 'announcement' is possibly 'null'.
+
+469         announcement.innerHTML = markdownToHtml(announcementText);
+            ~~~~~~~~~~~~
+src/pages/reviews.astro:438:38 - error ts(7006): Parameter 'pages' implicitly has an 'any' type.
+
+438     function renderPagination(total, pages) {
+                                         ~~~~~
+src/pages/reviews.astro:438:31 - error ts(7006): Parameter 'total' implicitly has an 'any' type.
+
+438     function renderPagination(total, pages) {
+                                  ~~~~~
+src/pages/reviews.astro:407:34 - error ts(18047): 'b.rank' is possibly 'null'.
+
+407         .sort((a, b) => a.rank - b.rank)
+                                     ~~~~~~
+src/pages/reviews.astro:407:25 - error ts(18047): 'a.rank' is possibly 'null'.
+
+407         .sort((a, b) => a.rank - b.rank)
+                            ~~~~~~
+src/pages/reviews.astro:406:27 - error ts(18047): 'item.rank' is possibly 'null'.
+
+406         .filter((item) => item.rank < 3 || partialShown++ < 20)
+                              ~~~~~~~~~
+src/pages/reviews.astro:398:30 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+398       const keyword = search.value.trim().toLowerCase();
+                                 ~~~~~
+src/pages/reviews.astro:398:23 - error ts(18047): 'search' is possibly 'null'.
+
+398       const keyword = search.value.trim().toLowerCase();
+                          ~~~~~~
+src/pages/reviews.astro:390:31 - error ts(7006): Parameter 'keyword' implicitly has an 'any' type.
+
+390     function rankGroup(group, keyword) {
+                                  ~~~~~~~
+src/pages/reviews.astro:390:24 - error ts(7006): Parameter 'group' implicitly has an 'any' type.
+
+390     function rankGroup(group, keyword) {
+                           ~~~~~
+src/pages/reviews.astro:369:30 - error ts(7006): Parameter 'keyword' implicitly has an 'any' type.
+
+369     function matchRank(name, keyword) {
+                                 ~~~~~~~
+src/pages/reviews.astro:369:24 - error ts(7006): Parameter 'name' implicitly has an 'any' type.
+
+369     function matchRank(name, keyword) {
+                           ~~~~
+src/pages/reviews.astro:354:28 - error ts(7005): Variable 'reviews' implicitly has an 'any[]' type.
+
+354       for (const review of reviews) {
+                               ~~~~~~~
+src/pages/reviews.astro:348:40 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+348       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
+                                           ~~~~~~
+src/pages/reviews.astro:348:35 - error ts(7006): Parameter 'sum' implicitly has an 'any' type.
+
+348       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
+                                      ~~~
+src/pages/reviews.astro:346:28 - error ts(7006): Parameter 'items' implicitly has an 'any' type.
+
+346     function averageRating(items) {
+                               ~~~~~
+src/pages/reviews.astro:342:25 - error ts(7006): Parameter 'key' implicitly has an 'any' type.
+
+342     function reviewPath(key) {
+                            ~~~
+src/pages/reviews.astro:338:21 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+338     function keyFor(review) {
+                        ~~~~~~
+src/pages/reviews.astro:320:65 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+320       if (!advancedEditorVisible) syncReviewContent(basicEditor.value);
+                                                                    ~~~~~
+src/pages/reviews.astro:315:33 - error ts(2339): Property 'focus' does not exist on type 'Element'.
+
+315         if (focus) basicEditor?.focus?.();
+                                    ~~~~~
+src/pages/reviews.astro:313:127 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+313         const current = (contentEditorReady ? contentEditor?.getValue?.() : "") || String(basicEditor?.value || contentValue?.value || "");
+                                                                                                                                  ~~~~~
+src/pages/reviews.astro:313:104 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+313         const current = (contentEditorReady ? contentEditor?.getValue?.() : "") || String(basicEditor?.value || contentValue?.value || "");
+                                                                                                           ~~~~~
+src/pages/reviews.astro:310:102 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+310         if (contentEditorReady) contentEditor?.setValue?.(String(contentValue?.value || basicEditor?.value || ""));
+                                                                                                         ~~~~~
+src/pages/reviews.astro:310:80 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+310         if (contentEditorReady) contentEditor?.setValue?.(String(contentValue?.value || basicEditor?.value || ""));
+                                                                                   ~~~~~
+src/pages/reviews.astro:300:52 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+300       if (advancedEditorPanel) advancedEditorPanel.hidden = !visible;
+                                                       ~~~~~~
+src/pages/reviews.astro:298:39 - error ts(7006): Parameter 'visible' implicitly has an 'any' type.
+
+298     function setAdvancedEditorVisible(visible, { focus = false } = {}) {
+                                          ~~~~~~~
+src/pages/reviews.astro:292:67 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+292       if (basicEditor && basicEditor.value !== value) basicEditor.value = value;
+                                                                      ~~~~~
+src/pages/reviews.astro:292:38 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+292       if (basicEditor && basicEditor.value !== value) basicEditor.value = value;
+                                         ~~~~~
+src/pages/reviews.astro:291:38 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+291       if (contentValue) contentValue.value = value;
+                                         ~~~~~
+src/pages/reviews.astro:290:32 - error ts(7006): Parameter 'value' implicitly has an 'any' type.
+
+290     function syncReviewContent(value) {
+                                   ~~~~~
+src/pages/reviews.astro:286:46 - error ts(2339): Property 'setValue' does not exist on type 'never'.
+
+286       if (contentEditorReady) contentEditor?.setValue?.(current);
+                                                 ~~~~~~~~
+src/pages/reviews.astro:276:38 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+276       if (contentValue) contentValue.value = current;
+                                         ~~~~~
+src/pages/reviews.astro:274:125 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+274       const current = (contentEditorReady ? contentEditor?.getValue?.() : "") || String(contentValue?.value || basicEditor?.value || "");
+                                                                                                                                ~~~~~
+src/pages/reviews.astro:274:103 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+274       const current = (contentEditorReady ? contentEditor?.getValue?.() : "") || String(contentValue?.value || basicEditor?.value || "");
+                                                                                                          ~~~~~
+src/pages/reviews.astro:273:35 - error ts(7006): Parameter 'nextMode' implicitly has an 'any' type.
+
+273     function remountContentEditor(nextMode, { focus = true } = {}) {
+                                      ~~~~~~~~
+src/pages/reviews.astro:251:42 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+251           if (contentValue) contentValue.value = value;
+                                             ~~~~~
+src/pages/reviews.astro:250:71 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+250           if (basicEditor && basicEditor.value !== value) basicEditor.value = value;
+                                                                          ~~~~~
+src/pages/reviews.astro:250:42 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+250           if (basicEditor && basicEditor.value !== value) basicEditor.value = value;
+                                             ~~~~~
+src/pages/reviews.astro:244:80 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+244           contentEditor!.setValue?.(String(contentValue?.value || basicEditor?.value || ""));
+                                                                                   ~~~~~
+src/pages/reviews.astro:244:58 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+244           contentEditor!.setValue?.(String(contentValue?.value || basicEditor?.value || ""));
+                                                             ~~~~~
+src/pages/reviews.astro:228:59 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+228         value: String(contentValue?.value || basicEditor?.value || ""),
+                                                              ~~~~~
+src/pages/reviews.astro:228:37 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+228         value: String(contentValue?.value || basicEditor?.value || ""),
+                                        ~~~~~
+src/pages/reviews.astro:226:36 - error ts(2345): Argument of type 'Element' is not assignable to parameter of type 'string | HTMLElement'.
+  Type 'Element' is missing the following properties from type 'HTMLElement': accessKey, accessKeyLabel, autocapitalize, autocorrect, and 129 more.
+
+226         contentEditor = new Vditor(contentEditorNode, {
+                                       ~~~~~~~~~~~~~~~~~
+src/pages/reviews.astro:212:45 - error ts(7006): Parameter 'event' implicitly has an 'any' type.
+
+212       root.addEventListener("pointerdown", (event) => {
+                                                ~~~~~
+src/pages/reviews.astro:210:76 - error ts(18046): 'button' is of type 'unknown'.
+
+210         button.addEventListener("mousedown", () => window.setTimeout(() => button.blur(), 0));
+                                                                               ~~~~~~
+src/pages/reviews.astro:210:9 - error ts(18046): 'button' is of type 'unknown'.
+
+210         button.addEventListener("mousedown", () => window.setTimeout(() => button.blur(), 0));
+            ~~~~~~
+src/pages/reviews.astro:209:72 - error ts(18046): 'button' is of type 'unknown'.
+
+209         button.addEventListener("focus", () => window.setTimeout(() => button.blur(), 0));
+                                                                           ~~~~~~
+src/pages/reviews.astro:209:9 - error ts(18046): 'button' is of type 'unknown'.
+
+209         button.addEventListener("focus", () => window.setTimeout(() => button.blur(), 0));
+            ~~~~~~
+src/pages/reviews.astro:208:9 - error ts(18046): 'button' is of type 'unknown'.
+
+208         button.tabIndex = -1;
+            ~~~~~~
+src/pages/reviews.astro:206:11 - error ts(18046): 'button' is of type 'unknown'.
+
+206           button.closest?.(".vditor-toolbar__item")?.setAttribute("aria-label", label);
+              ~~~~~~
+src/pages/reviews.astro:205:11 - error ts(18046): 'button' is of type 'unknown'.
+
+205           button.closest?.(".vditor-toolbar__item")?.setAttribute("title", label);
+              ~~~~~~
+src/pages/reviews.astro:204:11 - error ts(18046): 'button' is of type 'unknown'.
+
+204           button.setAttribute("data-tooltip", label);
+              ~~~~~~
+src/pages/reviews.astro:203:11 - error ts(18046): 'button' is of type 'unknown'.
+
+203           button.setAttribute("aria-label", label);
+              ~~~~~~
+src/pages/reviews.astro:202:11 - error ts(18046): 'button' is of type 'unknown'.
+
+202           button.title = label;
+              ~~~~~~
+src/pages/reviews.astro:200:76 - error ts(18046): 'button' is of type 'unknown'.
+
+200         const label = button.getAttribute("aria-label") || labels[type] || button.title;
+                                                                               ~~~~~~
+src/pages/reviews.astro:200:60 - error ts(7053): Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ bold: string; italic: string; strike: string; headings: string; link: string; list: string; "ordered-list": string; check: string; quote: string; code: string; line: string; table: string; preview: string; fullscreen: string; }'.
+
+200         const label = button.getAttribute("aria-label") || labels[type] || button.title;
+                                                               ~~~~~~~~~~~~
+src/pages/reviews.astro:200:23 - error ts(18046): 'button' is of type 'unknown'.
+
+200         const label = button.getAttribute("aria-label") || labels[type] || button.title;
+                          ~~~~~~
+src/pages/reviews.astro:199:22 - error ts(18046): 'button' is of type 'unknown'.
+
+199         const type = button.dataset?.type || "";
+                         ~~~~~~
+src/pages/reviews.astro:197:68 - error ts(18046): 'button' is of type 'unknown'.
+
+197       const blurToolbar = () => toolbarNodes().forEach((button) => button.blur?.());
+                                                                       ~~~~~~
+src/pages/reviews.astro:179:35 - error ts(7006): Parameter 'root' implicitly has an 'any' type.
+
+179     function enhanceVditorToolbar(root) {
+                                      ~~~~
+src/pages/reviews.astro:163:22 - error ts(7005): Variable 'editorSettings' implicitly has an 'any' type.
+
+163       const source = editorSettings?.[mode]?.toolbar;
+                         ~~~~~~~~~~~~~~
+src/pages/reviews.astro:151:25 - error ts(7006): Parameter 'value' implicitly has an 'any' type.
+
+151     const escapeHtml = (value) => String(value ?? "")
+                            ~~~~~
+src/pages/reviews.astro:146:9 - error ts(7034): Variable 'editorSettings' implicitly has type 'any' in some locations where its type cannot be determined.
+
+146     let editorSettings = null;
+            ~~~~~~~~~~~~~~
+src/pages/reviews.astro:140:9 - error ts(7034): Variable 'reviews' implicitly has type 'any[]' in some locations where its type cannot be determined.
+
+140     let reviews = [];
+            ~~~~~~~
+src/pages/reviews.astro:117:130 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+117     const existingCourses = new Set(Array.from(document.querySelectorAll("#course-title-options option")).map((option) => option.value));
+                                                                                                                                     ~~~~~
+src/pages/reviews.astro:143:9 - warning ts(6133): 'advancedEditorMounted' is declared but its value is never read.
+
+143     let advancedEditorMounted = false;
+            ~~~~~~~~~~~~~~~~~~~~~
+
+src/pages/courses/[id].astro:227:37 - error ts(2304): Cannot find name 'sub'.
+
+227           const subsectionMatched = sub(section.dataset.search || "").toLowerCase().includes(keyword);
+                                        ~~~
+
+src/pages/reviews/detail.astro:280:5 - error ts(18047): 'sortOrderEl' is possibly 'null'.
+
+280     sortOrderEl.addEventListener("change", () => {
+        ~~~~~~~~~~~
+src/pages/reviews/detail.astro:276:5 - error ts(18047): 'sortFieldEl' is possibly 'null'.
+
+276     sortFieldEl.addEventListener("change", () => {
+        ~~~~~~~~~~~
+src/pages/reviews/detail.astro:272:22 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+272         paginationEl.hidden = true;
+                         ~~~~~~
+src/pages/reviews/detail.astro:272:9 - error ts(18047): 'paginationEl' is possibly 'null'.
+
+272         paginationEl.hidden = true;
+            ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:271:9 - error ts(18047): 'listEl' is possibly 'null'.
+
+271         listEl.innerHTML = "";
+            ~~~~~~
+src/pages/reviews/detail.astro:270:62 - error ts(18046): 'error' is of type 'unknown'.
+
+270         summaryEl.innerHTML = `<p class="empty">${escapeHtml(error.message || "评价加载失败。")}</p>`;
+                                                                 ~~~~~
+src/pages/reviews/detail.astro:270:9 - error ts(18047): 'summaryEl' is possibly 'null'.
+
+270         summaryEl.innerHTML = `<p class="empty">${escapeHtml(error.message || "评价加载失败。")}</p>`;
+            ~~~~~~~~~
+src/pages/reviews/detail.astro:265:22 - error ts(2339): Property 'href' does not exist on type 'Element'.
+
+265           submitLink.href = "/reviews/#submit";
+                         ~~~~
+src/pages/reviews/detail.astro:265:11 - error ts(18047): 'submitLink' is possibly 'null'.
+
+265           submitLink.href = "/reviews/#submit";
+              ~~~~~~~~~~
+src/pages/reviews/detail.astro:264:24 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+264           paginationEl.hidden = true;
+                           ~~~~~~
+src/pages/reviews/detail.astro:264:11 - error ts(18047): 'paginationEl' is possibly 'null'.
+
+264           paginationEl.hidden = true;
+              ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:263:11 - error ts(18047): 'listEl' is possibly 'null'.
+
+263           listEl.innerHTML = "";
+              ~~~~~~
+src/pages/reviews/detail.astro:262:11 - error ts(18047): 'summaryEl' is possibly 'null'.
+
+262           summaryEl.innerHTML = `<p class="empty">还没有公开的评价，或该评价尚未通过审核。</p>`;
+              ~~~~~~~~~
+src/pages/reviews/detail.astro:261:11 - error ts(18047): 'teacherEl' is possibly 'null'.
+
+261           teacherEl.textContent = key;
+              ~~~~~~~~~
+src/pages/reviews/detail.astro:260:11 - error ts(18047): 'titleEl' is possibly 'null'.
+
+260           titleEl.textContent = "未找到评价";
+              ~~~~~~~
+src/pages/reviews/detail.astro:258:52 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+258         const group = (data.reviews || []).filter((review) => keyFor(review) === key);
+                                                       ~~~~~~
+src/pages/reviews/detail.astro:252:20 - error ts(2339): Property 'href' does not exist on type 'Element'.
+
+252         submitLink.href = "/reviews/#submit";
+                       ~~~~
+src/pages/reviews/detail.astro:252:9 - error ts(18047): 'submitLink' is possibly 'null'.
+
+252         submitLink.href = "/reviews/#submit";
+            ~~~~~~~~~~
+src/pages/reviews/detail.astro:251:9 - error ts(18047): 'listEl' is possibly 'null'.
+
+251         listEl.innerHTML = "";
+            ~~~~~~
+src/pages/reviews/detail.astro:250:9 - error ts(18047): 'summaryEl' is possibly 'null'.
+
+250         summaryEl.innerHTML = `<p class="empty">缺少评价索引。</p>`;
+            ~~~~~~~~~
+src/pages/reviews/detail.astro:223:7 - error ts(18047): 'summaryEl' is possibly 'null'.
+
+223       summaryEl.innerHTML = `
+          ~~~~~~~~~
+src/pages/reviews/detail.astro:219:7 - error ts(18047): 'teacherEl' is possibly 'null'.
+
+219       teacherEl.textContent = first.teacher;
+          ~~~~~~~~~
+src/pages/reviews/detail.astro:218:7 - error ts(18047): 'titleEl' is possibly 'null'.
+
+218       titleEl.textContent = first.courseTitle;
+          ~~~~~~~
+src/pages/reviews/detail.astro:216:36 - error ts(2345): Argument of type 'unknown' is not assignable to parameter of type 'number'.
+
+216       const maxCount = Math.max(1, ...Object.values(counts));
+                                       ~~~~~~~~~~~~~~~~~~~~~~~~
+src/pages/reviews/detail.astro:211:26 - error ts(7006): Parameter 'group' implicitly has an 'any' type.
+
+211     function renderGroup(group) {
+                             ~~~~~
+src/pages/reviews/detail.astro:190:7 - error ts(18047): 'listEl' is possibly 'null'.
+
+190       listEl.innerHTML = pageItems.map((review) => {
+          ~~~~~~
+src/pages/reviews/detail.astro:183:7 - error ts(18047): 'paginationEl' is possibly 'null'.
+
+183       paginationEl.append(prev, label, next);
+          ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:157:7 - error ts(18047): 'paginationEl' is possibly 'null'.
+
+157       paginationEl.innerHTML = "";
+          ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:156:20 - error ts(2339): Property 'hidden' does not exist on type 'Element'.
+
+156       paginationEl.hidden = sortedGroup.length <= pageSize;
+                       ~~~~~~
+src/pages/reviews/detail.astro:156:7 - error ts(18047): 'paginationEl' is possibly 'null'.
+
+156       paginationEl.hidden = sortedGroup.length <= pageSize;
+          ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:143:29 - error ts(7005): Variable 'currentGroup' implicitly has an 'any[]' type.
+
+143       const chronological = currentGroup
+                                ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:142:29 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+142     function floorNumberFor(review) {
+                                ~~~~~~
+src/pages/reviews/detail.astro:125:33 - error ts(7005): Variable 'currentGroup' implicitly has an 'any[]' type.
+
+125       const withOriginalIndex = currentGroup.map((review, index) => ({ review, index }));
+                                    ~~~~~~~~~~~~
+src/pages/reviews/detail.astro:123:33 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+123       const order = sortOrderEl.value;
+                                    ~~~~~
+src/pages/reviews/detail.astro:123:21 - error ts(18047): 'sortOrderEl' is possibly 'null'.
+
+123       const order = sortOrderEl.value;
+                        ~~~~~~~~~~~
+src/pages/reviews/detail.astro:122:33 - error ts(2339): Property 'value' does not exist on type 'Element'.
+
+122       const field = sortFieldEl.value;
+                                    ~~~~~
+src/pages/reviews/detail.astro:122:21 - error ts(18047): 'sortFieldEl' is possibly 'null'.
+
+122       const field = sortFieldEl.value;
+                        ~~~~~~~~~~~
+src/pages/reviews/detail.astro:118:18 - error ts(2339): Property 'href' does not exist on type 'Element'.
+
+118       submitLink.href = `/reviews/?${params.toString()}#submit`;
+                     ~~~~
+src/pages/reviews/detail.astro:118:7 - error ts(18047): 'submitLink' is possibly 'null'.
+
+118       submitLink.href = `/reviews/?${params.toString()}#submit`;
+          ~~~~~~~~~~
+src/pages/reviews/detail.astro:112:31 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+112     function updateSubmitLink(review) {
+                                  ~~~~~~
+src/pages/reviews/detail.astro:105:36 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+105       return items.reduce((counts, review) => {
+                                       ~~~~~~
+src/pages/reviews/detail.astro:105:28 - error ts(7006): Parameter 'counts' implicitly has an 'any' type.
+
+105       return items.reduce((counts, review) => {
+                               ~~~~~~
+src/pages/reviews/detail.astro:104:27 - error ts(7006): Parameter 'items' implicitly has an 'any' type.
+
+104     function ratingCounts(items) {
+                              ~~~~~
+src/pages/reviews/detail.astro:100:40 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+100       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
+                                           ~~~~~~
+src/pages/reviews/detail.astro:100:35 - error ts(7006): Parameter 'sum' implicitly has an 'any' type.
+
+100       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
+                                      ~~~
+src/pages/reviews/detail.astro:98:28 - error ts(7006): Parameter 'items' implicitly has an 'any' type.
+
+98     function averageRating(items) {
+                              ~~~~~
+src/pages/reviews/detail.astro:94:21 - error ts(7006): Parameter 'review' implicitly has an 'any' type.
+
+94     function keyFor(review) {
+                       ~~~~~~
+src/pages/reviews/detail.astro:75:25 - error ts(7006): Parameter 'value' implicitly has an 'any' type.
+
+75     const escapeHtml = (value) => String(value ?? "")
+                           ~~~~~
+src/pages/reviews/detail.astro:72:9 - error ts(7034): Variable 'currentGroup' implicitly has type 'any[]' in some locations where its type cannot be determined.
+
+72     let currentGroup = [];
+           ~~~~~~~~~~~~
+
+test/donate.test.mjs:170:9 - warning ts(6133): 'realPrepay' is declared but its value is never read.
+
+170   const realPrepay = jsapiPrepay;
+            ~~~~~~~~~~
+test/donate.test.mjs:165:28 - warning ts(6133): 'url' is declared but its value is never read.
+
+165   const fetchStub = async (url, options) => {
+                               ~~~
+test/donate.test.mjs:93:9 - warning ts(6198): All destructured elements are unused.
+
+93   const { publicExponent, modulus } = { };
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test/donate.test.mjs:75:23 - warning ts(6133): 'h' is declared but its value is never read.
+
+75     r.writeHead = (s, h) => { r.status = s; };
+                         ~
+test/donate.test.mjs:72:24 - warning ts(6133): 'pathname' is declared but its value is never read.
+
+72   const req = (method, pathname, headers = {}) => ({ method, headers });
+                          ~~~~~~~~
+
+test/law-response-audit.test.mjs:179:39 - warning ts(6133): 'req' is declared but its value is never read.
+
+179     const server = http.createServer((req, res) => {
+                                          ~~~
+
+test/public-api-router.test.mjs:60:107 - warning ts(6133): 'h' is declared but its value is never read.
+
+60     const res2 = { headers: {}, writableEnded: false, destroyed: false, status: 0, body: "", writeHead(s, h) { this.status = s; }, end(b) { this.body = b; this.writableEnded = true; } };
+                                                                                                             ~
+
+test/qwen-provider-mapping.test.mjs:5:10 - warning ts(80006): This may be converted to an async function.
+
+5 function withFetchStub(stub, fn) {
+           ~~~~~~~~~~~~~
+
+test/review-reaction.test.mjs:15:18 - warning ts(6133): 'path' is declared but its value is never read.
+
+15     async update(path, mutator) {
+                    ~~~~
+
+test/s3-moderation.integration.test.mjs:180:11 - warning ts(6133): 'original' is declared but its value is never read.
+
+180     const original=structuredClone(current.data); const row=current.data.items.find(item=>item.id===a); row.hidden=true; row.handled_by='forged-actor';
+              ~~~~~~~~
+
+Result (197 files):
+- 149 errors
+- 0 warnings
+- 38 hints

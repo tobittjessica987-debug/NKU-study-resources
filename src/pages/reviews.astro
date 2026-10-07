@@ -111,55 +111,58 @@ import "vditor/dist/index.css";
     import MarkdownIt from "markdown-it";
     import { normalizeMarkdown } from "../lib/markdown";
     import { requestUserJson, reviewSubmissionMessage } from "../lib/user-submissions-controller.js";
+    import { readPublicReviewList, readReviewEditorSettings, requiredReviewElement, reviewPageErrorMessage } from "../lib/review-page-types";
+    import type { PublicReview, ReviewEditorSettings, ReviewGroup } from "../lib/review-page-types";
 
     const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
     const pageSize = 10;
-    const existingCourses = new Set(Array.from(document.querySelectorAll("#course-title-options option")).map((option) => option.value));
-    const indexEl = document.querySelector<HTMLElement>("#review-index")!;
-    const pagination = document.querySelector<HTMLElement>("#review-pagination")!;
-    const search = document.querySelector("#review-search");
-    const openButton = document.querySelector("#open-review-form");
-    const closeButton = document.querySelector("#close-review-form");
-    const panel = document.querySelector("#review-submit-panel");
-    const form = document.querySelector("#review-form");
-    const statusEl = document.querySelector<HTMLElement>("#review-submit-status")!;
-    const announcement = document.querySelector("#review-announcement");
-    const publicAnnouncement = document.querySelector("#review-public-announcement");
-    const publicAnnouncementPanel = document.querySelector("#review-public-announcement-panel");
-    const closeAnnouncement = document.querySelector("#close-review-announcement");
-    const toggleEditorButton = document.querySelector("#toggle-review-editor");
-    const toggleEditorModeButton = document.querySelector("#toggle-review-editor-mode");
-    const editorModeHint = document.querySelector("#review-editor-mode-hint");
-    const advancedModeHint = document.querySelector("#review-advanced-mode-hint");
-    const basicEditor = document.querySelector("#review-basic-content");
-    const advancedEditorPanel = document.querySelector("#review-advanced-editor-panel");
-    const contentHint = document.querySelector("#review-content-hint");
-    const contentEditorNode = document.querySelector("#review-content-editor");
-    const contentValue = document.querySelector("#review-content-value");
+    const existingCourses = new Set(Array.from(document.querySelectorAll<HTMLOptionElement>("#course-title-options option")).map((option) => option.value));
+    const indexEl = requiredReviewElement("#review-index", HTMLElement);
+    const pagination = requiredReviewElement("#review-pagination", HTMLElement);
+    const search = requiredReviewElement("#review-search", HTMLInputElement);
+    const openButton = requiredReviewElement("#open-review-form", HTMLButtonElement);
+    const closeButton = requiredReviewElement("#close-review-form", HTMLButtonElement);
+    const panel = requiredReviewElement("#review-submit-panel", HTMLElement);
+    const form = requiredReviewElement("#review-form", HTMLFormElement);
+    const courseTitleInput = requiredReviewElement('#review-form [name="courseTitle"]', HTMLInputElement);
+    const teacherInput = requiredReviewElement('#review-form [name="teacher"]', HTMLInputElement);
+    const statusEl = requiredReviewElement("#review-submit-status", HTMLElement);
+    const announcement = requiredReviewElement("#review-announcement", HTMLElement);
+    const publicAnnouncement = requiredReviewElement("#review-public-announcement", HTMLElement);
+    const publicAnnouncementPanel = requiredReviewElement("#review-public-announcement-panel", HTMLElement);
+    const closeAnnouncement = requiredReviewElement("#close-review-announcement", HTMLButtonElement);
+    const toggleEditorButton = requiredReviewElement("#toggle-review-editor", HTMLButtonElement);
+    const toggleEditorModeButton = requiredReviewElement("#toggle-review-editor-mode", HTMLButtonElement);
+    const editorModeHint = requiredReviewElement("#review-editor-mode-hint", HTMLElement);
+    const advancedModeHint = requiredReviewElement("#review-advanced-mode-hint", HTMLElement);
+    const basicEditor = requiredReviewElement("#review-basic-content", HTMLTextAreaElement);
+    const advancedEditorPanel = requiredReviewElement("#review-advanced-editor-panel", HTMLElement);
+    const contentHint = requiredReviewElement("#review-content-hint", HTMLElement);
+    const contentEditorNode = requiredReviewElement("#review-content-editor", HTMLElement);
+    const contentValue = requiredReviewElement("#review-content-value", HTMLInputElement);
     const urlParams = new URLSearchParams(window.location.search);
-    let reviews = [];
+    let reviews: PublicReview[] = [];
     let currentPage = 1;
     let contentEditor: Vditor | null = null;
-    let advancedEditorMounted = false;
     let advancedEditorVisible = false;
-    let contentEditorMode = "ir";
-    let editorSettings = null;
+    let contentEditorMode: "ir" | "sv" = "ir";
+    let editorSettings: ReviewEditorSettings | null = null;
     let contentEditorReady = false;
     let saving = false;
     let loadFailed = false;
 
-    const escapeHtml = (value) => String(value ?? "")
+    const escapeHtml = (value: unknown) => String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
 
-    function markdownToHtml(value = "") {
-      return markdown.render(normalizeMarkdown(value));
+    function markdownToHtml(value: unknown = "") {
+      return markdown.render(normalizeMarkdown(String(value ?? "")));
     }
 
-    function toolbarFor(mode = "user") {
+    function toolbarFor(mode: "user" | "admin" = "user") {
       const source = editorSettings?.[mode]?.toolbar;
       const toolbar = Array.isArray(source) && source.length
         ? source
@@ -170,14 +173,14 @@ import "vditor/dist/index.css";
     async function loadEditorSettings() {
       try {
         const data = await requestUserJson("/editor-settings");
-        editorSettings = data.data || null;
+        editorSettings = readReviewEditorSettings(data.data);
       } catch {
         editorSettings = null;
       }
     }
 
-    function enhanceVditorToolbar(root) {
-      const labels = {
+    function enhanceVditorToolbar(root: HTMLElement) {
+      const labels: Record<string, string> = {
         bold: "粗体 Ctrl+B",
         italic: "斜体 Ctrl+I",
         strike: "删除线",
@@ -193,7 +196,7 @@ import "vditor/dist/index.css";
         preview: "预览",
         fullscreen: "全屏",
       };
-      const toolbarNodes = () => Array.from(root.querySelectorAll(".vditor-toolbar button, .vditor-toolbar [data-type], .vditor-toolbar__item"));
+      const toolbarNodes = () => Array.from(root.querySelectorAll<HTMLElement>(".vditor-toolbar button, .vditor-toolbar [data-type], .vditor-toolbar__item"));
       const blurToolbar = () => toolbarNodes().forEach((button) => button.blur?.());
       toolbarNodes().forEach((button) => {
         const type = button.dataset?.type || "";
@@ -210,7 +213,7 @@ import "vditor/dist/index.css";
         button.addEventListener("mousedown", () => window.setTimeout(() => button.blur(), 0));
       });
       root.addEventListener("pointerdown", (event) => {
-        if (!event.target?.closest?.(".vditor-toolbar")) window.setTimeout(blurToolbar, 0);
+        if (!(event.target instanceof Element) || !event.target.closest(".vditor-toolbar")) window.setTimeout(blurToolbar, 0);
       });
     }
 
@@ -233,9 +236,6 @@ import "vditor/dist/index.css";
         toolbarConfig: { pin: false },
         preview: {
           actions: ["desktop", "tablet", "mobile"],
-          markdown: {
-            breaks: true,
-          },
         },
         after() {
           window.clearTimeout(fallbackTimer);
@@ -251,7 +251,6 @@ import "vditor/dist/index.css";
           if (contentValue) contentValue.value = value;
         },
         });
-        advancedEditorMounted = true;
       } catch {
         window.clearTimeout(fallbackTimer);
         contentEditor = null;
@@ -270,7 +269,11 @@ import "vditor/dist/index.css";
       }
     }
 
-    function remountContentEditor(nextMode, { focus = true } = {}) {
+    function setAdvancedContent(value: string) {
+      contentEditor?.setValue(value);
+    }
+
+    function remountContentEditor(nextMode: "ir" | "sv", { focus = true } = {}) {
       const current = (contentEditorReady ? contentEditor?.getValue?.() : "") || String(contentValue?.value || basicEditor?.value || "");
       contentEditorMode = nextMode;
       if (contentValue) contentValue.value = current;
@@ -279,15 +282,14 @@ import "vditor/dist/index.css";
       } catch {}
       contentEditor = null;
       contentEditorReady = false;
-      advancedEditorMounted = false;
       if (contentEditorNode) contentEditorNode.innerHTML = "";
       updateEditorModeUi();
       mountContentEditor();
-      if (contentEditorReady) contentEditor?.setValue?.(current);
+      if (contentEditorReady) setAdvancedContent(current);
       if (focus) requestAnimationFrame(() => contentEditor?.focus?.());
     }
 
-    function syncReviewContent(value) {
+    function syncReviewContent(value: string) {
       if (contentValue) contentValue.value = value;
       if (basicEditor && basicEditor.value !== value) basicEditor.value = value;
       if (contentEditorReady && contentEditor && contentEditor.getValue?.() !== value) {
@@ -295,7 +297,7 @@ import "vditor/dist/index.css";
       }
     }
 
-    function setAdvancedEditorVisible(visible, { focus = false } = {}) {
+    function setAdvancedEditorVisible(visible: boolean, { focus = false } = {}) {
       advancedEditorVisible = visible;
       if (advancedEditorPanel) advancedEditorPanel.hidden = !visible;
       if (toggleEditorButton) toggleEditorButton.textContent = visible ? "普通编辑" : "高级编辑";
@@ -335,38 +337,39 @@ import "vditor/dist/index.css";
       updateEditorModeUi();
     }
 
-    function keyFor(review) {
+    function keyFor(review: PublicReview) {
       return `${review.courseTitle}-${review.teacher}`;
     }
 
-    function reviewPath(key) {
+    function reviewPath(key: string) {
       return `/reviews/detail/?key=${encodeURIComponent(key)}`;
     }
 
-    function averageRating(items) {
+    function averageRating(items: PublicReview[]) {
       if (!items.length) return 0;
       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
       return total / items.length;
     }
 
     function groupedReviews() {
-      const groups = new Map();
+      const groups = new Map<string, PublicReview[]>();
       for (const review of reviews) {
         const key = keyFor(review);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(review);
+        const group = groups.get(key);
+        if (group) group.push(review);
+        else groups.set(key, [review]);
       }
       return Array.from(groups, ([key, group]) => ({
         key,
-        courseTitle: group[0]?.courseTitle || "",
-        teacher: group[0]?.teacher || "",
+        courseTitle: String(group[0]?.courseTitle || ""),
+        teacher: String(group[0]?.teacher || ""),
         reviews: group,
         average: averageRating(group),
       })).sort((a, b) => b.reviews.length - a.reviews.length || b.average - a.average || a.key.localeCompare(b.key, "zh-CN"));
     }
 
     // 评价搜索仅匹配课程名与老师：课程名分级(前缀/中间连续、按序全字、部分按序)，老师仅连续子串。
-    function matchRank(name, keyword) {
+    function matchRank(name: string, keyword: string): number | null {
       if (!keyword) return 0;
       const at = name.indexOf(keyword);
       if (at === 0) return 0;
@@ -387,7 +390,7 @@ import "vditor/dist/index.css";
       return null;
     }
 
-    function rankGroup(group, keyword) {
+    function rankGroup(group: ReviewGroup, keyword: string): number | null {
       if (!keyword) return 0;
       const nameRank = matchRank(String(group.courseTitle || "").toLowerCase(), keyword);
       if (nameRank !== null) return nameRank;
@@ -399,7 +402,7 @@ import "vditor/dist/index.css";
       if (!keyword) return groupedReviews();
       const ranked = groupedReviews()
         .map((group) => ({ group, rank: rankGroup(group, keyword) }))
-        .filter((item) => item.rank !== null);
+        .filter((item): item is { group: ReviewGroup; rank: number } => item.rank !== null);
       if (!ranked.length) return [];
       let partialShown = 0;
       return ranked
@@ -435,7 +438,7 @@ import "vditor/dist/index.css";
       renderPagination(groups.length, pages);
     }
 
-    function renderPagination(total, pages) {
+    function renderPagination(total: number, pages: number) {
       pagination.hidden = total <= pageSize;
       pagination.innerHTML = "";
       if (total <= pageSize) return;
@@ -459,17 +462,16 @@ import "vditor/dist/index.css";
 
     async function loadReviews() {
       try {
-        const data = await requestUserJson("/review-api/reviews");
-        if (data.ok !== true || !Array.isArray(data.reviews)) throw new Error("评价列表返回结果不完整。请重试。");
-        reviews = data.reviews || [];
+        const data = readPublicReviewList(await requestUserJson("/review-api/reviews"));
+        reviews = data.reviews;
         loadFailed = false;
-        const announcementText = data.rules?.announcement || "";
+        const announcementText = String(data.rules?.announcement || "");
         const minLength = Number(data.rules?.minLength || 5);
         if (contentHint) contentHint.textContent = `最短允许 ${minLength} 字，最多 2000 字；${data.rules?.moderationRequired === false ? "按当前规则，符合内容检查要求的评价可自动公开，其余等待审核。" : "提交后等待审核。"}`;
         announcement.innerHTML = markdownToHtml(announcementText);
         announcement.hidden = !announcementText;
-        const hint = data.rules?.submission_hint || "";
-        const hintEl = document.querySelector("#review-submission-hint");
+        const hint = String(data.rules?.submission_hint || "");
+        const hintEl = document.querySelector<HTMLElement>("#review-submission-hint");
         if (hintEl) {
           hintEl.textContent = hint;
           hintEl.hidden = !hint;
@@ -480,7 +482,7 @@ import "vditor/dist/index.css";
         publicAnnouncementPanel.hidden = !announcementText || dismissed;
       } catch (error) {
         loadFailed = true;
-        indexEl.innerHTML = `<div class="review-load-error"><p class="empty">${escapeHtml((error as Error).message || "评价加载失败，请重试。")}</p><button class="button secondary" id="review-retry" type="button">重试加载</button></div>`;
+        indexEl.innerHTML = `<div class="review-load-error"><p class="empty">${escapeHtml(reviewPageErrorMessage(error, "评价加载失败，请重试。"))}</p><button class="button secondary" id="review-retry" type="button">重试加载</button></div>`;
         pagination.hidden = true;
         document.querySelector("#review-retry")?.addEventListener("click", () => loadReviews());
         return;
@@ -498,8 +500,8 @@ import "vditor/dist/index.css";
       const teacher = urlParams.get("teacher") || "";
       if (!courseTitle && !teacher && window.location.hash !== "#submit") return;
       panel.hidden = false;
-      if (courseTitle) form.elements.courseTitle.value = courseTitle;
-      if (teacher) form.elements.teacher.value = teacher;
+      if (courseTitle) courseTitleInput.value = courseTitle;
+      if (teacher) teacherInput.value = teacher;
       panel.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
@@ -559,7 +561,7 @@ import "vditor/dist/index.css";
         setAdvancedEditorVisible(false);
         await loadReviews();
       } catch (error) {
-        statusEl.textContent = error.message;
+        statusEl.textContent = reviewPageErrorMessage(error, "尚未确认提交结果，请稍后重试。");
       } finally {
         saving = false;
         lockedFields.forEach(({ field, disabled }) => { field.disabled = disabled; });

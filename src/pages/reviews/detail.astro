@@ -57,28 +57,30 @@ import Layout from "../../layouts/Layout.astro";
   <script>
     import MarkdownIt from "markdown-it";
     import { normalizeMarkdown } from "../../lib/markdown";
+    import { readPublicReviewList, requiredReviewElement, reviewPageErrorMessage } from "../../lib/review-page-types";
+    import type { PublicReview } from "../../lib/review-page-types";
 
     const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
-    const titleEl = document.querySelector("#review-detail-title");
-    const teacherEl = document.querySelector("#review-detail-teacher");
-    const summaryEl = document.querySelector("#review-summary");
-    const listEl = document.querySelector("#review-detail-list");
-    const paginationEl = document.querySelector("#review-detail-pagination");
-    const submitLink = document.querySelector("#detail-submit-review");
-    const sortFieldEl = document.querySelector("#review-sort-field");
-    const sortOrderEl = document.querySelector("#review-sort-order");
+    const titleEl = requiredReviewElement("#review-detail-title", HTMLElement);
+    const teacherEl = requiredReviewElement("#review-detail-teacher", HTMLElement);
+    const summaryEl = requiredReviewElement("#review-summary", HTMLElement);
+    const listEl = requiredReviewElement("#review-detail-list", HTMLElement);
+    const paginationEl = requiredReviewElement("#review-detail-pagination", HTMLElement);
+    const submitLink = requiredReviewElement("#detail-submit-review", HTMLAnchorElement);
+    const sortFieldEl = requiredReviewElement("#review-sort-field", HTMLSelectElement);
+    const sortOrderEl = requiredReviewElement("#review-sort-order", HTMLSelectElement);
     const pageSize = 10;
     let currentPage = 1;
-    let currentGroup = [];
-    let sortedGroup = [];
+    let currentGroup: PublicReview[] = [];
+    let sortedGroup: PublicReview[] = [];
 
-    const escapeHtml = (value) => String(value ?? "")
+    const escapeHtml = (value: unknown) => String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-    const markdownToHtml = (value = "") => markdown.render(normalizeMarkdown(value));
+    const markdownToHtml = (value: unknown = "") => markdown.render(normalizeMarkdown(String(value ?? "")));
 
     function keyFromLocation() {
       const params = new URLSearchParams(window.location.search);
@@ -91,29 +93,29 @@ import Layout from "../../layouts/Layout.astro";
       return "";
     }
 
-    function keyFor(review) {
+    function keyFor(review: PublicReview) {
       return `${review.courseTitle}-${review.teacher}`;
     }
 
-    function averageRating(items) {
+    function averageRating(items: PublicReview[]) {
       if (!items.length) return 0;
       const total = items.reduce((sum, review) => sum + Number(review.rating || 0), 0);
       return total / items.length;
     }
 
-    function ratingCounts(items) {
-      return items.reduce((counts, review) => {
+    function ratingCounts(items: PublicReview[]) {
+      return items.reduce<Record<number, number>>((counts, review) => {
         const rating = Math.max(1, Math.min(5, Number(review.rating || 0)));
         counts[rating] = (counts[rating] || 0) + 1;
         return counts;
       }, { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
     }
 
-    function updateSubmitLink(review) {
+    function updateSubmitLink(review: PublicReview) {
       if (!review) return;
       const params = new URLSearchParams({
-        courseTitle: review.courseTitle || "",
-        teacher: review.teacher || "",
+        courseTitle: String(review.courseTitle || ""),
+        teacher: String(review.teacher || ""),
       });
       submitLink.href = `/reviews/?${params.toString()}#submit`;
     }
@@ -139,7 +141,7 @@ import Layout from "../../layouts/Layout.astro";
       return withOriginalIndex.map((entry) => entry.review);
     }
 
-    function floorNumberFor(review) {
+    function floorNumberFor(review: PublicReview) {
       const chronological = currentGroup
         .map((item, index) => ({ item, index }))
         .sort((left, right) => {
@@ -208,15 +210,16 @@ import Layout from "../../layouts/Layout.astro";
       renderPagination();
     }
 
-    function renderGroup(group) {
+    function renderGroup(group: PublicReview[]) {
+      if (!group.length) return;
       currentGroup = group;
       currentPage = 1;
       const average = averageRating(group);
       const counts = ratingCounts(group);
       const maxCount = Math.max(1, ...Object.values(counts));
       const first = group[0];
-      titleEl.textContent = first.courseTitle;
-      teacherEl.textContent = first.teacher;
+      titleEl.textContent = String(first.courseTitle ?? "");
+      teacherEl.textContent = String(first.teacher ?? "");
       document.title = `${first.courseTitle} / ${first.teacher} | NKUStudy`;
       updateSubmitLink(first);
 
@@ -253,9 +256,10 @@ import Layout from "../../layouts/Layout.astro";
         return;
       }
       try {
-        const response = await fetch("/review-api/reviews");
-        const data = await response.json();
-        const group = (data.reviews || []).filter((review) => keyFor(review) === key);
+        const response = await fetch("/review-api/reviews", { cache: "no-store" });
+        if (!response.ok) throw new Error("评价加载失败，请稍后重试。");
+        const data = readPublicReviewList(await response.json());
+        const group = data.reviews.filter((review) => keyFor(review) === key);
         if (!group.length) {
           titleEl.textContent = "未找到评价";
           teacherEl.textContent = key;
@@ -267,7 +271,7 @@ import Layout from "../../layouts/Layout.astro";
         }
         renderGroup(group);
       } catch (error) {
-        summaryEl.innerHTML = `<p class="empty">${escapeHtml(error.message || "评价加载失败。")}</p>`;
+        summaryEl.innerHTML = `<p class="empty">${escapeHtml(reviewPageErrorMessage(error, "评价加载失败。"))}</p>`;
         listEl.innerHTML = "";
         paginationEl.hidden = true;
       }

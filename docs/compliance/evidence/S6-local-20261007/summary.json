@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "stage": "S6",
+  "date": "2026-10-07",
+  "scope": "LOCAL_SYNTHETIC_ONLY",
+  "baseCommit": "6c17f679fb5dbb8591466240377ca9cd1b13f762",
+  "branch": "codex/s6-delivery-20261007",
+  "status": "local_automatic_acceptance_passed_browser_deferred_production_pending",
+  "authorization": [
+    "C-18",
+    "C-19"
+  ],
+  "environment": {
+    "node": "v22.23.2",
+    "platform": "Darwin",
+    "tmpdir": "/private/tmp"
+  },
+  "subagents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "xhigh",
+    "tracks": [
+      "admin types and UI contracts",
+      "documentation consistency and review page types",
+      "read-only deployment readiness"
+    ],
+    "review": "admin author reviewed readiness; readiness author reviewed public UI; main window integrated and reviewed all"
+  },
+  "checks": {
+    "fullSuite": {
+      "command": "TMPDIR=/private/tmp npm test",
+      "exitCode": 0,
+      "tests": 573,
+      "passed": 573,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "evidence": "full-suite-final.tap"
+    },
+    "typecheck": {
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 npm run check",
+      "exitCode": 0,
+      "files": 202,
+      "errors": 0,
+      "warnings": 0,
+      "hints": 37,
+      "evidence": "type-final.log"
+    },
+    "apiDocs": {
+      "command": "npm run check:api-docs",
+      "exitCode": 0,
+      "routes": 131,
+      "evidence": "api-docs.log"
+    },
+    "fixtures": {
+      "command": "npm run check:fixtures",
+      "exitCode": 0,
+      "evidence": "fixtures.log"
+    },
+    "content": {
+      "command": "DATA_DIR=\"$PWD/src/data/fixtures\" npm run check:content",
+      "exitCode": 0,
+      "evidence": "content.log"
+    },
+    "encoding": {
+      "command": "DATA_DIR=\"$PWD/src/data/fixtures\" npm run audit:encoding",
+      "exitCode": 0,
+      "jsonFiles": 9,
+      "evidence": "encoding.log"
+    },
+    "build": {
+      "command": "DATA_DIR=\"$PWD/src/data/fixtures\" NODE_ENV=test NKUSTUDY_FIXTURE_BUILD=1 node node_modules/astro/bin/astro.mjs build --outDir /private/tmp/nkustudy-s6-build-20261007",
+      "exitCode": 0,
+      "pages": 14,
+      "evidence": "build-final.log",
+      "reasonForIndependentOutput": "Preserve S5 manual acceptance static directory; no production publish"
+    },
+    "publicApiSmoke": {
+      "command": "TMPDIR=/private/tmp npm run smoke:public-api",
+      "exitCode": 0,
+      "guides": 18,
+      "variants": 29,
+      "etag": 304,
+      "publicAdmin": 404,
+      "disabledAuth": 503,
+      "evidence": "smoke.log"
+    }
+  },
+  "baseline": {
+    "typeErrors": 1656,
+    "warnings": 0,
+    "hints": 38,
+    "exitCode": 1,
+    "evidence": "type-baseline.log"
+  },
+  "intermediate": {
+    "round1TypeErrors": 149,
+    "round1Evidence": "type-round1.log",
+    "initialFullSuite": {
+      "tests": 573,
+      "passed": 573,
+      "evidence": "full-suite-initial.tap",
+      "note": "Before final explicit port 80 normalization fix; final suite rerun separately"
+    }
+  },
+  "newTestsInFinalSuite": {
+    "adminUi": 7,
+    "deploymentReadiness": 11,
+    "legacyReviewTypes": 6,
+    "publicUiContracts": 3
+  },
+  "reviewCorrections": [
+    "CLI import exception previously bypassed redaction: moved import inside catch boundary, added subprocess cases",
+    "Preserved legacy review field coercion instead of rejecting publicly visible historical rows",
+    "Preserved fallback for Error with empty message",
+    "Explicit port 80 accepted despite URL normalization; omitted/zero/out-of-range/remote origins still rejected"
+  ],
+  "sourceDigestFile": "source-sha256.json",
+  "sourceFiles": 215,
+  "browser": {
+    "status": "deferred_by_user",
+    "executed": false,
+    "startupAttempt": "Automatic approval review failed because stream disconnected; command not executed; not an unsafe-action determination",
+    "userDecision": "先完成其他检查，浏览器验收后补",
+    "retryAfterDecision": false
+  },
+  "s5Manual": {
+    "userFeedback": "页面与登录正常，尚未最终注销",
+    "pageAndLoginPassed": true,
+    "finalDeletionPassed": false,
+    "readback": "../S5-browser-20261007/manual-readback.json"
+  },
+  "productionReady": false,
+  "productionAccessed": false,
+  "cloudAccessed": false,
+  "notificationsSent": false,
+  "pushed": false,
+  "prUpdated": false,
+  "deployed": false,
+  "remaining": [
+    "S6 browser interactions and S5 final deletion normal/pending/error UI",
+    "Fixed candidate Linux and production deployment, S3 visibility/count migration and cache evidence",
+    "S4 actual downloaded file/private delivery receipt",
+    "S5 authoritative latest deletion ledger and isolated restore; real avatar/old cache and legacy exceptions",
+    "Real WeChat and private remote backup acceptance; real notifications user-deferred",
+    "Verified organization/contact/duty roster/category retention and final filing facts"
+  ],
+  "logNormalization": "Repository copies strip ANSI escapes and trailing whitespace; main logs replace absolute repository path with <REPO>. Test outcomes and diagnostics are unchanged."
+}

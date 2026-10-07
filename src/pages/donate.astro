@@ -80,13 +80,15 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
 
 <script is:inline src="/qrcode-generator.js"></script>
 <script>
-  const box = document.querySelector("#donate-box");
-  const statusEl = document.querySelector("#donate-status");
+  import { requireElement, errorMessage } from "../lib/browser-dom";
+  type DonateRecord = { date: string; nickname: string; usage: string };
+  const box = requireElement("#donate-box", HTMLElement);
+  const statusEl = requireElement("#donate-status", HTMLElement);
   const amounts = String(box?.dataset.amounts || "5,10,15").split(",").map(Number).filter(Boolean);
   let selected = amounts[0] || 0;
-  let pollTimer = null;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-  const chipsWrap = document.querySelector("#donate-amounts");
+  const chipsWrap = requireElement("#donate-amounts", HTMLElement);
   amounts.forEach((value, index) => {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -101,15 +103,15 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
     chipsWrap.append(chip);
   });
 
-  const customInput = document.querySelector("#donate-custom-input");
+  const customInput = requireElement("#donate-custom-input", HTMLInputElement);
   customInput?.addEventListener("input", () => {
     selected = 0;
     chipsWrap.querySelectorAll(".donate-amount-chip").forEach((item) => item.classList.remove("active"));
   });
 
-  const qrWrap = document.querySelector("#donate-qr");
-  const qrCanvas = document.querySelector("#donate-qr-canvas");
-  const qrAmount = document.querySelector("#donate-qr-amount");
+  const qrWrap = requireElement("#donate-qr", HTMLElement);
+  const qrCanvas = requireElement("#donate-qr-canvas", HTMLElement);
+  const qrAmount = requireElement("#donate-qr-amount", HTMLElement);
 
   async function checkPayEnabled() {
     try {
@@ -132,15 +134,15 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           amount,
-          nickname: document.querySelector("#donate-nickname")?.value.trim().slice(0, 32) || "",
-          remark: document.querySelector("#donate-remark")?.value.trim().slice(0, 200) || "",
+          nickname: document.querySelector<HTMLInputElement>("#donate-nickname")?.value.trim().slice(0, 32) || "",
+          remark: document.querySelector<HTMLInputElement>("#donate-remark")?.value.trim().slice(0, 200) || "",
         }),
       });
       const data = await response.json();
       if (!response.ok || data.code !== 0) throw new Error(data.message || "下单失败");
       const { code_url: codeUrl, out_trade_no: outTradeNo } = data.data;
       qrCanvas.innerHTML = "";
-      // @ts-ignore vendor UMD
+      if (typeof window.qrcode !== "function") throw new Error("二维码组件尚未加载，请稍后重试");
       const qr = window.qrcode(0, "M");
       qr.addData(codeUrl);
       qr.make();
@@ -150,7 +152,7 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
       statusEl.textContent = "";
       pollStatus(outTradeNo);
     } catch (error) {
-      statusEl.textContent = error.message || "下单失败，请稍后重试";
+      statusEl.textContent = errorMessage(error, "下单失败，请稍后重试");
     }
   });
 
@@ -158,8 +160,8 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
     try {
       const response = await fetch("/api/v1/donate");
       const data = await response.json();
-      const records = Array.isArray(data?.data?.records) ? data.data.records : [];
-      const table = document.querySelector("#donate-records-table");
+      const records: DonateRecord[] = Array.isArray(data?.data?.records) ? data.data.records : [];
+      const table = requireElement("#donate-records-table", HTMLElement);
       if (!records.length) {
         table.innerHTML = '<p style="font-size:13px;color:var(--muted);margin:0;">暂无捐赠记录，成为第一位支持者吧。</p>';
         return;
@@ -170,14 +172,15 @@ const amounts = (Array.isArray(donate.amounts) ? donate.amounts : DEFAULT_DONATE
   }
   loadRecords();
 
-  function pollStatus(outTradeNo) {
+  function pollStatus(outTradeNo: string) {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(async () => {
       try {
         const response = await fetch(`/api/v1/donate/order-status?out_trade_no=${encodeURIComponent(outTradeNo)}`);
         const data = await response.json();
         if (response.ok && data.data?.status === "paid") {
-          clearInterval(pollTimer);
+          if (pollTimer) clearInterval(pollTimer);
+          pollTimer = null;
           qrWrap.hidden = true;
           statusEl.style.color = "#16a34a";
           statusEl.textContent = "支付成功，感谢你对 NKUStudy 的支持！";

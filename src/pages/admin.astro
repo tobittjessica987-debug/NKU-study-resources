@@ -372,7 +372,7 @@ import "vditor/dist/index.css";
                 <option value="jsapi">小程序</option>
                 <option value="native">网页扫码</option>
               </select>
-              <span class="muted" id="donate-stats-status"></span>
+              <span class="muted" id="donate-stats-message"></span>
             </div>
             <div id="donate-stats-body" style="margin-top: 14px;"></div>
             <div class="filter-row" id="donate-stats-pager" style="margin-top: 10px;"></div>
@@ -882,6 +882,8 @@ import "vditor/dist/index.css";
 
   <script>
     import Vditor from "vditor";
+    import type * as AdminTypes from "../lib/admin-types";
+    import { requireAdminElement, findAdminElement, adminElements, adminErrorMessage } from "../lib/admin-types";
     import { r2SyncStatus, statusWithWarnings } from "../lib/admin-response-warnings.js";
     import { createModerationDraftStore } from "../lib/moderation-drafts.js";
     import { createLawQueryController, createLawLogController, formatLawTime } from "../lib/law-query-controller.js";
@@ -973,13 +975,81 @@ import "vditor/dist/index.css";
       __markdownEditorRef?: Vditor;
     };
 
-    let state = null;
+    type ModerationResponse = AdminTypes.ContentResponse<ModerationDocument> & {
+      itemRevisions: Record<string, string>; settingsRevision: string;
+    };
+    type ModerationItemResponse = AdminTypes.DataResponse<ModerationRecord> & { itemRevision: string; publicEligible: boolean };
+    type ModerationSettingsResponse = AdminTypes.DataResponse<ModerationDocument> & { settingsRevision: string; rulesProvenance?: RulesProvenance };
+    type NotifyDocument = { bots: NotifyBot[]; updated: string; guide_feedback_enabled?: boolean };
+    type AdminApiResponses = {
+      "/manifest": AdminTypes.ManifestResponse;
+      "/manifest-draft": AdminTypes.ManifestResponse;
+      "/r2-publish": AdminTypes.ManifestResponse;
+      "/sync-r2-all": AdminTypes.ManifestResponse;
+      "/sync-r2": AdminTypes.ManifestResponse & { course: AdminTypes.AdminCourse };
+      "/manifest-verify": AdminTypes.DataResponse<{ report: {
+        consistentFiles: number; moved: unknown[]; deleted: unknown[]; newInR2: unknown[];
+        retainedEmptyCourses: unknown[]; newCourses: unknown[];
+      } }>;
+      "/reviews": ModerationResponse;
+      "/feedback": ModerationResponse;
+      "/reviews/settings": ModerationSettingsResponse;
+      "/feedback/settings": ModerationSettingsResponse;
+      "/participate": AdminTypes.ContentResponse<AdminTypes.ContentPage>;
+      "/about": AdminTypes.ContentResponse<AdminTypes.ContentPage>;
+      "/privacy": AdminTypes.ContentResponse<AdminTypes.ContentPage>;
+      "/home": AdminTypes.ContentResponse<AdminTypes.ContentPage>;
+      "/footer": AdminTypes.ContentResponse<AdminTypes.FooterDocument>;
+      "/links": AdminTypes.ContentResponse<AdminTypes.LinksDocument>;
+      "/donate": AdminTypes.ContentResponse<AdminTypes.DonateDocument>;
+      "/donate-pay": AdminTypes.DataResponse<AdminTypes.DonatePayDocument>;
+      "/donate-stats": AdminTypes.DataResponse<{ summary: AdminTypes.DonationSummary; recent: AdminTypes.DonationOrder[] }>;
+      "/editor-settings": AdminTypes.DataResponse<AdminTypes.EditorSettingsDocument>;
+      "/backup-settings": AdminTypes.DataResponse<AdminTypes.BackupDocument>;
+      "/backup-run": AdminTypes.AdminActionResponse & { complete: boolean; webdav?: { verified: boolean }[]; r2?: { verified: boolean }[] };
+      "/visit-stats": AdminTypes.AdminActionResponse & AdminTypes.VisitStatsResponse;
+      "/accounts": AdminTypes.DataResponse<AdminTypes.AccountsDocument>;
+      "/mp-users": AdminTypes.DataResponse<AdminTypes.MpUsersDocument>;
+      "/session": AdminTypes.DataResponse<AdminTypes.SessionDocument>;
+      "/login": AdminTypes.DataResponse<AdminTypes.SessionDocument>;
+      "/service-keys": AdminTypes.DataResponse<AdminTypes.ServiceKeysDocument>;
+      "/ai-settings": AdminTypes.DataResponse<AdminTypes.AiSettings>;
+      "/ai-settings/test": AdminTypes.DataResponse<{ ok: boolean; model?: string; latency_ms?: number; preview?: string; reason?: string; error?: string }>;
+      "/notify-settings": AdminTypes.DataResponse<NotifyDocument>;
+      "/content-images/cleanup": AdminTypes.DataResponse<{ scanned: number; removed: number; kept: number }>;
+    };
+    type AdminApiResult<Path extends string> = Path extends keyof AdminApiResponses ? AdminApiResponses[Path]
+      : Path extends `/service-keys/${string}` ? AdminTypes.DataResponse<AdminTypes.ServiceKeysDocument>
+      : Path extends `/audit?${string}` ? AdminTypes.DataResponse<AdminTypes.AuditDocument> & { logHealth?: Record<string, { ok: boolean }> }
+      : Path extends `/reviews/${string}` | `/feedback/${string}` ? ModerationItemResponse
+      : AdminTypes.AdminActionResponse;
+
+
+    function loadedManifest(): AdminTypes.AdminManifest {
+      if (!state) throw new Error("课程清单尚未加载，请重新加载后再操作。");
+      return state;
+    }
+
+    function requireCourseUid(course: AdminTypes.AdminCourse): string {
+      if (!course.uid) throw new Error("请先保存课程，再操作服务器上的资源文件。");
+      return course.uid;
+    }
+
+    function isFileEntry(entry: FileSystemEntry): entry is FileSystemFileEntry {
+      return entry.isFile && "file" in entry && typeof entry.file === "function";
+    }
+
+    function isDirectoryEntry(entry: FileSystemEntry): entry is FileSystemDirectoryEntry {
+      return entry.isDirectory && "createReader" in entry && typeof entry.createReader === "function";
+    }
+
+    let state: AdminTypes.AdminManifest | null = null;
     let manifestRevision = "";
-    let selectedId = null;
-    let originalCourseHashes = new Map();
-    let originalCourseBasePaths = new WeakMap();
-    let originalCourseUids = new Set();
-    const contentRevisions = new Map();
+    let selectedId: string | null = null;
+    let originalCourseHashes = new Map<string, string>();
+    let originalCourseBasePaths = new WeakMap<AdminTypes.AdminCourse, string>();
+    let originalCourseUids = new Set<string>();
+    const contentRevisions = new Map<string, string>();
     let reviewState: ModerationDocument | null = null;
     let feedbackState: ModerationDocument | null = null;
     const moderationDrafts: Record<ModerationKind, ModerationDraftStore> = {
@@ -993,54 +1063,54 @@ import "vditor/dist/index.css";
     const moderationEditorsOpen: Record<ModerationKind, Set<string>> = { reviews: new Set(), feedback: new Set() };
     let reportsAdminPage = 1;
     let moderationDepartureConfirmed = false;
-    let aboutState = null;
-    let homeState = null;
-    let footerState = null;
-    let statsState = null;
-    let participateState = null;
-    let linksState = null;
-    let backupState = null;
-    let editorSettingsState = null;
+    let aboutState: AdminTypes.ContentPage | null = null;
+    let homeState: AdminTypes.ContentPage | null = null;
+    let footerState: AdminTypes.FooterDocument | null = null;
+    let statsState: AdminTypes.VisitStatsResponse | null = null;
+    let participateState: AdminTypes.ContentPage | null = null;
+    let linksState: AdminTypes.LinksDocument | null = null;
+    let backupState: AdminTypes.BackupDocument | null = null;
+    let editorSettingsState: AdminTypes.EditorSettingsDocument | null = null;
     const adminPageSize = 10;
     let reviewAdminPage = 1;
     let reviewAdminSelected = "";
     let feedbackAdminPage = 1;
-    const selectedAdminFiles = new WeakSet();
+    const selectedAdminFiles = new WeakSet<AdminTypes.AdminFile>();
 
-    const loginPanel = document.querySelector("#login-panel");
-    const loginForm = document.querySelector("#login-form");
-    const loginStatus = document.querySelector("#login-status");
-    const adminApp = document.querySelector("#admin-app");
-    const workbench = document.querySelector(".admin-workbench");
-    const collapseTreeButton = document.querySelector("#collapse-tree");
-    const resizer = document.querySelector("#admin-resizer");
-    const treeEl = document.querySelector("#admin-course-tree");
-    const editorEl = document.querySelector("#editor");
-    const editorTitle = document.querySelector("#editor-title");
-    const searchEl = document.querySelector("#admin-search");
-    const publishStatus = document.querySelector("#publish-status");
-    const manifestSettings = document.querySelector("#manifest-settings");
-    const resourceAdminPanel = document.querySelector("#resource-admin-panel");
+    const loginPanel = requireAdminElement("#login-panel", HTMLElement);
+    const loginForm = requireAdminElement("#login-form", HTMLFormElement);
+    const loginStatus = requireAdminElement("#login-status", HTMLElement);
+    const adminApp = requireAdminElement("#admin-app", HTMLElement);
+    const workbench = requireAdminElement(".admin-workbench", HTMLElement);
+    const collapseTreeButton = requireAdminElement("#collapse-tree", HTMLButtonElement);
+    const resizer = requireAdminElement("#admin-resizer", HTMLButtonElement);
+    const treeEl = requireAdminElement("#admin-course-tree", HTMLElement);
+    const editorEl = requireAdminElement("#editor", HTMLElement);
+    const editorTitle = requireAdminElement("#editor-title", HTMLElement);
+    const searchEl = requireAdminElement("#admin-search", HTMLInputElement);
+    const publishStatus = requireAdminElement("#publish-status", HTMLElement);
+    const manifestSettings = requireAdminElement("#manifest-settings", HTMLElement);
+    const resourceAdminPanel = requireAdminElement("#resource-admin-panel", HTMLElement);
     const reviewAdminPanel = document.querySelector<HTMLDivElement>("#review-admin-panel")!;
     const reviewRulesEditor = document.querySelector<HTMLDivElement>("#review-rules-editor")!;
     const reviewAdminList = document.querySelector<HTMLDivElement>("#review-admin-list")!;
-    document.querySelector("#catalog-add-submit").addEventListener("click", async () => {
-      const status = document.querySelector("#catalog-add-status");
-      const name = document.querySelector("#catalog-add-name").value.trim();
-      const categories = document.querySelector("#catalog-add-category").value.trim();
-      const term = document.querySelector("#catalog-add-term").value.trim();
-      const teachers = document.querySelector("#catalog-add-teachers").value.trim();
+    requireAdminElement("#catalog-add-submit", HTMLButtonElement).addEventListener("click", async () => {
+      const status = requireAdminElement("#catalog-add-status", HTMLElement);
+      const name = requireAdminElement("#catalog-add-name", HTMLInputElement).value.trim();
+      const categories = requireAdminElement("#catalog-add-category", HTMLInputElement).value.trim();
+      const term = requireAdminElement("#catalog-add-term", HTMLInputElement).value.trim();
+      const teachers = requireAdminElement("#catalog-add-teachers", HTMLInputElement).value.trim();
       if (name.length < 2) { status.textContent = "请填写课程名称（至少 2 个字）。"; return; }
       if (!teachers) { status.textContent = "请至少填写一位任课教师。"; return; }
       status.textContent = "提交中...";
       try {
         await api("/catalog/courses", { method: "POST", body: JSON.stringify({ name, categories, terms: term, teachers }) });
         for (const id of ["catalog-add-name", "catalog-add-category", "catalog-add-term", "catalog-add-teachers"]) {
-          document.querySelector("#" + id).value = "";
+          requireAdminElement("#" + id, HTMLInputElement).value = "";
         }
         status.textContent = `已加入目录池：${name}。网页与小程序评价即可使用。`;
       } catch (error) {
-        status.textContent = error.message;
+        status.textContent = adminErrorMessage(error);
       }
     });
     const reviewAdminSidebar = document.querySelector<HTMLDivElement>("#review-admin-sidebar")!;
@@ -1055,91 +1125,91 @@ import "vditor/dist/index.css";
     const feedbackSettingsEditor = document.querySelector<HTMLDivElement>("#feedback-settings-editor")!;
     const feedbackRulesEditor = document.querySelector<HTMLDivElement>("#feedback-rules-editor")!;
     const feedbackAdminStatus = document.querySelector<HTMLSpanElement>("#feedback-admin-status")!;
-    const linksAdminPanel = document.querySelector("#links-admin-panel");
-    const linksSettingsEditor = document.querySelector("#links-settings-editor");
-    const linksAdminList = document.querySelector("#links-admin-list");
-    const linksAdminStatus = document.querySelector("#links-admin-status");
-    const participateAdminPanel = document.querySelector("#participate-admin-panel");
-    const participateAdminEditor = document.querySelector("#participate-admin-editor");
-    const participateAdminStatus = document.querySelector("#participate-admin-status");
-    const aboutAdminPanel = document.querySelector("#about-admin-panel");
-    const aboutAdminEditor = document.querySelector("#about-admin-editor");
-    const donateAdminPanel = document.querySelector("#donate-admin-panel");
-    const privacyAdminPanel = document.querySelector("#privacy-admin-panel");
+    const linksAdminPanel = requireAdminElement("#links-admin-panel", HTMLElement);
+    const linksSettingsEditor = requireAdminElement("#links-settings-editor", HTMLElement);
+    const linksAdminList = requireAdminElement("#links-admin-list", HTMLElement);
+    const linksAdminStatus = requireAdminElement("#links-admin-status", HTMLElement);
+    const participateAdminPanel = requireAdminElement("#participate-admin-panel", HTMLElement);
+    const participateAdminEditor = requireAdminElement("#participate-admin-editor", HTMLElement);
+    const participateAdminStatus = requireAdminElement("#participate-admin-status", HTMLElement);
+    const aboutAdminPanel = requireAdminElement("#about-admin-panel", HTMLElement);
+    const aboutAdminEditor = requireAdminElement("#about-admin-editor", HTMLElement);
+    const donateAdminPanel = requireAdminElement("#donate-admin-panel", HTMLElement);
+    const privacyAdminPanel = requireAdminElement("#privacy-admin-panel", HTMLElement);
     const reportsAdminPanel = document.querySelector<HTMLDivElement>("#reports-admin-panel")!;
     const reportsList = document.querySelector<HTMLDivElement>("#reports-list")!;
-    const lawAdminPanel = document.querySelector("#law-admin-panel");
-    const donateAdminStatus = document.querySelector("#donate-admin-status");
-    const privacyAdminEditor = document.querySelector("#privacy-admin-editor");
-    const privacyAdminStatus = document.querySelector("#privacy-admin-status");
-    let privacyState = null;
-    const donateRecordsEditor = document.querySelector("#donate-records-editor");
-    const donateStatsBody = document.querySelector("#donate-stats-body");
-    const donateAdminEditor = document.querySelector("#donate-admin-editor");
-    const donatePayEditor = document.querySelector("#donate-pay-editor");
-    let donateState = null;
-    let donatePayState = null;
-    const aboutAdminStatus = document.querySelector("#about-admin-status");
-    const homeAdminPanel = document.querySelector("#home-admin-panel");
-    const homeAdminEditor = document.querySelector("#home-admin-editor");
-    const homeAdminStatus = document.querySelector("#home-admin-status");
-    const footerAdminPanel = document.querySelector("#footer-admin-panel");
-    const footerAdminEditor = document.querySelector("#footer-admin-editor");
-    const footerAdminStatus = document.querySelector("#footer-admin-status");
-    const editorSettingsAdminPanel = document.querySelector("#editor-settings-admin-panel");
-    const editorSettingsAdminStatus = document.querySelector("#editor-settings-admin-status");
-    const editorUserSettings = document.querySelector("#editor-user-settings");
-    const editorAdminSettings = document.querySelector("#editor-admin-settings");
-    const statsAdminPanel = document.querySelector("#stats-admin-panel");
-    const statsAdminSummary = document.querySelector("#stats-admin-summary");
-    const statsAdminPages = document.querySelector("#stats-admin-pages");
-    const statsAdminVisitors = document.querySelector("#stats-admin-visitors");
-    const statsAdminStatus = document.querySelector("#stats-admin-status");
-    const statsAdminChart = document.querySelector("#stats-admin-chart");
-    const statsAdminCategories = document.querySelector("#stats-admin-categories");
-    const backupAdminPanel = document.querySelector("#backup-admin-panel");
-    const backupAdminStatus = document.querySelector("#backup-admin-status");
-    const backupSettingsEditor = document.querySelector("#backup-settings-editor");
-    const webdavSettingsEditor = document.querySelector("#webdav-settings-editor");
-    const accountsAdminPanel = document.querySelector("#accounts-admin-panel");
-    const accountsAdminStatus = document.querySelector("#accounts-admin-status");
-    const accountsAdminList = document.querySelector("#accounts-admin-list");
-    const mpUsersAdminPanel = document.querySelector("#mp-users-admin-panel");
-    const serviceKeysAdminPanel = document.querySelector("#service-keys-admin-panel");
-    const aiAdminPanel = document.querySelector("#ai-admin-panel");
+    const lawAdminPanel = requireAdminElement("#law-admin-panel", HTMLElement);
+    const donateAdminStatus = requireAdminElement("#donate-admin-status", HTMLElement);
+    const privacyAdminEditor = requireAdminElement("#privacy-admin-editor", HTMLElement);
+    const privacyAdminStatus = requireAdminElement("#privacy-admin-status", HTMLElement);
+    let privacyState: AdminTypes.ContentPage | null = null;
+    const donateRecordsEditor = findAdminElement("#donate-records-editor", HTMLElement);
+    const donateStatsBody = requireAdminElement("#donate-stats-body", HTMLElement);
+    const donateAdminEditor = requireAdminElement("#donate-admin-editor", HTMLElement);
+    const donatePayEditor = requireAdminElement("#donate-pay-editor", HTMLElement);
+    let donateState: AdminTypes.DonateDocument | null = null;
+    let donatePayState: AdminTypes.DonatePayDocument | null = null;
+    const aboutAdminStatus = requireAdminElement("#about-admin-status", HTMLElement);
+    const homeAdminPanel = requireAdminElement("#home-admin-panel", HTMLElement);
+    const homeAdminEditor = requireAdminElement("#home-admin-editor", HTMLElement);
+    const homeAdminStatus = requireAdminElement("#home-admin-status", HTMLElement);
+    const footerAdminPanel = requireAdminElement("#footer-admin-panel", HTMLElement);
+    const footerAdminEditor = requireAdminElement("#footer-admin-editor", HTMLElement);
+    const footerAdminStatus = requireAdminElement("#footer-admin-status", HTMLElement);
+    const editorSettingsAdminPanel = requireAdminElement("#editor-settings-admin-panel", HTMLElement);
+    const editorSettingsAdminStatus = requireAdminElement("#editor-settings-admin-status", HTMLElement);
+    const editorUserSettings = requireAdminElement("#editor-user-settings", HTMLElement);
+    const editorAdminSettings = requireAdminElement("#editor-admin-settings", HTMLElement);
+    const statsAdminPanel = requireAdminElement("#stats-admin-panel", HTMLElement);
+    const statsAdminSummary = requireAdminElement("#stats-admin-summary", HTMLElement);
+    const statsAdminPages = requireAdminElement("#stats-admin-pages", HTMLElement);
+    const statsAdminVisitors = requireAdminElement("#stats-admin-visitors", HTMLElement);
+    const statsAdminStatus = requireAdminElement("#stats-admin-status", HTMLElement);
+    const statsAdminChart = requireAdminElement("#stats-admin-chart", HTMLElement);
+    const statsAdminCategories = requireAdminElement("#stats-admin-categories", HTMLElement);
+    const backupAdminPanel = requireAdminElement("#backup-admin-panel", HTMLElement);
+    const backupAdminStatus = requireAdminElement("#backup-admin-status", HTMLElement);
+    const backupSettingsEditor = requireAdminElement("#backup-settings-editor", HTMLElement);
+    const webdavSettingsEditor = requireAdminElement("#webdav-settings-editor", HTMLElement);
+    const accountsAdminPanel = requireAdminElement("#accounts-admin-panel", HTMLElement);
+    const accountsAdminStatus = requireAdminElement("#accounts-admin-status", HTMLElement);
+    const accountsAdminList = requireAdminElement("#accounts-admin-list", HTMLElement);
+    const mpUsersAdminPanel = requireAdminElement("#mp-users-admin-panel", HTMLElement);
+    const serviceKeysAdminPanel = requireAdminElement("#service-keys-admin-panel", HTMLElement);
+    const aiAdminPanel = requireAdminElement("#ai-admin-panel", HTMLElement);
     bindAiAdminEvents();
-    const mpUsersAdminStatus = document.querySelector("#mp-users-admin-status");
-    const mpUsersSummary = document.querySelector("#mp-users-summary");
-    const mpUsersList = document.querySelector("#mp-users-list");
-    const notifyAdminPanel = document.querySelector("#notify-admin-panel");
-    const notifyAdminStatus = document.querySelector("#notify-admin-status");
+    const mpUsersAdminStatus = requireAdminElement("#mp-users-admin-status", HTMLElement);
+    const mpUsersSummary = requireAdminElement("#mp-users-summary", HTMLElement);
+    const mpUsersList = requireAdminElement("#mp-users-list", HTMLElement);
+    const notifyAdminPanel = requireAdminElement("#notify-admin-panel", HTMLElement);
+    const notifyAdminStatus = requireAdminElement("#notify-admin-status", HTMLElement);
     const notifyOpsPurpose = document.querySelector<HTMLInputElement>("#notify-purpose-ops")!;
-    document.querySelector("#notify-guide-feedback-save").addEventListener("click", async () => {
-      const status = document.querySelector("#notify-guide-feedback-status");
+    requireAdminElement("#notify-guide-feedback-save", HTMLButtonElement).addEventListener("click", async () => {
+      const status = requireAdminElement("#notify-guide-feedback-status", HTMLElement);
       status.textContent = "保存中...";
       try {
-        await api("/notify-settings", { method: "POST", body: JSON.stringify({ guide_feedback_enabled: document.querySelector("#notify-guide-feedback-enabled").checked }) });
+        await api("/notify-settings", { method: "POST", body: JSON.stringify({ guide_feedback_enabled: requireAdminElement("#notify-guide-feedback-enabled", HTMLInputElement).checked }) });
         status.textContent = "已保存。";
       } catch (error) {
-        status.textContent = error.message;
+        status.textContent = adminErrorMessage(error);
       }
     });
-    let mpUsersState = null;
+    let mpUsersState: AdminTypes.MpUsersDocument | null = null;
     let mpUsersSort = "recent";
     let mpUsersDays = 0;
     let mpUsersKeyword = "";
     type NotifyBot = { id: string; name: string; webhookUrl: string; enabled: boolean; purposes?: string[]; signSecretConfigured: boolean };
     let notifyState: { bots: NotifyBot[]; updated: string; loaded: boolean; guide_feedback_enabled?: boolean } = { bots: [], updated: "", loaded: false };
-    const auditAdminPanel = document.querySelector("#audit-admin-panel");
-    const auditAdminStatus = document.querySelector("#audit-admin-status");
-    const auditAdminList = document.querySelector("#audit-admin-list");
-    const mustChangeBanner = document.querySelector("#must-change-banner");
-    let sessionState = { username: "", permissions: [], mustChangePassword: false };
-    let accountsState = null;
-    let auditState = null;
+    const auditAdminPanel = requireAdminElement("#audit-admin-panel", HTMLElement);
+    const auditAdminStatus = requireAdminElement("#audit-admin-status", HTMLElement);
+    const auditAdminList = requireAdminElement("#audit-admin-list", HTMLElement);
+    const mustChangeBanner = requireAdminElement("#must-change-banner", HTMLElement);
+    let sessionState: { username: string; permissions: string[]; mustChangePassword: boolean } = { username: "", permissions: [], mustChangePassword: false };
+    let accountsState: AdminTypes.AccountsDocument | null = null;
+    let auditState: AdminTypes.AuditDocument | null = null;
     let auditLogHealthy = true;
     let auditPage = 1;
-    const permissionLabels = {
+    const permissionLabels: Record<string, string> = {
       "content.read": "内容查看",
       "content.edit": "内容编辑",
       "content.moderate": "反馈处理",
@@ -1152,7 +1222,7 @@ import "vditor/dist/index.css";
       "services.manage": "服务密钥",
       "law.manage": "依法调取（兼容项，所有有效管理员默认可用）",
     };
-    const rolePresetFallback = {
+    const rolePresetFallback: Record<string, string[]> = {
       super_admin: ["accounts.manage", "audit.read", "backup.manage", "content.edit", "content.moderate", "content.read", "storage.delete", "storage.manage"],
       content_admin: ["content.read", "content.edit", "content.moderate"],
       reviewer: ["content.read", "content.moderate"],
@@ -1160,7 +1230,7 @@ import "vditor/dist/index.css";
       service_admin: ["services.manage"],
       ai_admin: ["ai.manage"],
     };
-    const tabPermissions = {
+    const tabPermissions: Record<string, string | null> = {
       resources: "content.read",
       reviews: "content.read",
       feedback: "content.read",
@@ -1221,7 +1291,7 @@ import "vditor/dist/index.css";
     const defaultUserToolbar = ["bold", "italic", "strike", "headings", "link", "list", "ordered-list", "check", "quote", "code", "line", "table", "preview", "fullscreen"];
     const defaultAdminToolbar = ["bold", "italic", "strike", "headings", "link", "list", "ordered-list", "check", "quote", "code", "line", "table", "preview", "fullscreen", "outline"];
 
-    const escapeHtml = (value) => String(value ?? "")
+    const escapeHtml = (value: unknown) => String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -1237,7 +1307,7 @@ import "vditor/dist/index.css";
       }).format(value);
     }
 
-    function beijingDateTime(value) {
+    function beijingDateTime(value: string | number | Date | null | undefined) {
       if (!value) return "";
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return String(value);
@@ -1253,7 +1323,10 @@ import "vditor/dist/index.css";
       }).format(date);
     }
 
-    async function api(path, options = {}) {
+    function api(path: "/service-keys", options: RequestInit & { method: "POST" }): Promise<AdminTypes.DataResponse<AdminTypes.ServiceKey & { key: string }>>;
+    function api(path: "/accounts", options: RequestInit & { method: "POST" }): Promise<AdminTypes.DataResponse<AdminTypes.AdminAccount>>;
+    function api<Path extends string>(path: Path, options?: RequestInit): Promise<AdminApiResult<Path>>;
+    async function api(path: string, options: RequestInit = {}): Promise<AdminTypes.AdminActionResponse> {
       const response = await fetch(`/admin-api${path}`, {
         ...options,
         headers: {
@@ -1262,8 +1335,9 @@ import "vditor/dist/index.css";
           ...(options.headers || {}),
         },
       });
-      let data;
+      let data: AdminTypes.AdminActionResponse & { currentRevision?: string };
       try {
+        // Response DTOs mirror the corresponding admin-server endpoint contract.
         data = await response.json();
       } catch {
         throw Object.assign(new Error(`服务器返回异常（HTTP ${response.status}），请稍后重试；未保存草稿已保留。`), { status: response.status });
@@ -1284,44 +1358,45 @@ import "vditor/dist/index.css";
       return data;
     }
 
-    const makeId = (title) => title
+    const makeId = (title: string) => title
       .trim()
       .toLowerCase()
       .replace(/[^\w\u4e00-\u9fa5]+/g, "-")
       .replace(/^-+|-+$/g, "") || `course-${Date.now()}`;
 
-    const courseBasePath = (course) => {
+    const courseBasePath = (course: AdminTypes.AdminCourse) => {
       const parts = [course.term, course.group, course.title]
         .map((part) => String(part ?? "").trim())
         .filter(Boolean);
       return `${parts.join("/")}/`;
     };
 
-    function syncCourseBasePath(course) {
+    function syncCourseBasePath(course: AdminTypes.AdminCourse) {
       course.basePath = courseBasePath(course);
     }
 
-    function isOpenListPlaceholder(file) {
+    function isOpenListPlaceholder(file: AdminTypes.AdminFile) {
       const text = `${file?.title ?? ""}/${file?.path ?? ""}`.toLowerCase();
       return text.includes(".openlist");
     }
 
-    function filePathParts(section, file) {
+    function filePathParts(section: AdminTypes.AdminSection, file: AdminTypes.AdminFile) {
       const parts = String(file?.path || file?.title || "").split("/").filter(Boolean);
       if (parts[0] === section.title) parts.shift();
       return parts;
     }
 
-    function groupedSectionFiles(section) {
+    function groupedSectionFiles(section: AdminTypes.AdminSection) {
       const visible = (section.files ?? []).filter((file) => !isOpenListPlaceholder(file));
       const direct = [];
-      const groups = new Map();
+      const groups = new Map<string, AdminTypes.AdminFile[]>();
       for (const file of visible) {
         const parts = filePathParts(section, file);
         if (parts.length > 1) {
           const groupName = parts[0];
-          if (!groups.has(groupName)) groups.set(groupName, []);
-          groups.get(groupName).push(file);
+          const files = groups.get(groupName) ?? [];
+          if (!groups.has(groupName)) groups.set(groupName, files);
+          files.push(file);
         } else {
           direct.push(file);
         }
@@ -1345,25 +1420,25 @@ import "vditor/dist/index.css";
       return new Date().toISOString().slice(0, 10);
     }
 
-    function courseHash(course) {
+    function courseHash(course: AdminTypes.AdminCourse) {
       const copy = structuredClone(course);
       delete copy.updated;
       return JSON.stringify(copy);
     }
 
     function captureCourseHashes() {
-      originalCourseHashes = new Map(state.courses.map((course) => [course.id, courseHash(course)]));
+      originalCourseHashes = new Map(loadedManifest().courses.map((course) => [course.id, courseHash(course)]));
       originalCourseBasePaths = new WeakMap();
-      state.courses.forEach((course) => originalCourseBasePaths.set(course, course.basePath));
-      originalCourseUids = new Set(state.courses.map((course) => course.uid).filter(Boolean));
+      loadedManifest().courses.forEach((course) => originalCourseBasePaths.set(course, course.basePath));
+      originalCourseUids = new Set(loadedManifest().courses.map((course) => course.uid).filter((uid): uid is string => Boolean(uid)));
     }
 
     // === 批量标签管理 ===
-    const batchTagsFilter = document.querySelector("#batch-tags-filter");
-    const batchTagsInput = document.querySelector("#batch-tags-input");
-    const batchTagsStatus = document.querySelector("#batch-tags-status");
-    const batchTagsList = document.querySelector("#batch-tags-list");
-    const batchTagsSelection = new Set();
+    const batchTagsFilter = requireAdminElement("#batch-tags-filter", HTMLInputElement);
+    const batchTagsInput = requireAdminElement("#batch-tags-input", HTMLInputElement);
+    const batchTagsStatus = requireAdminElement("#batch-tags-status", HTMLElement);
+    const batchTagsList = requireAdminElement("#batch-tags-list", HTMLElement);
+    const batchTagsSelection = new Set<string>();
 
     function renderBatchTagList() {
       const keyword = batchTagsFilter.value.trim().toLowerCase();
@@ -1389,8 +1464,8 @@ import "vditor/dist/index.css";
           <span class="muted" style="font-size:0.82em;">${escapeHtml(course.term)} · ${escapeHtml(course.group)}</span>
           <span class="muted" style="font-size:0.78em;margin-left:auto;">${escapeHtml(tagText)}</span>
         `;
-        row.querySelector("input").addEventListener("change", (event) => {
-          if (event.target.checked) batchTagsSelection.add(course.id);
+        requireAdminElement("input", HTMLInputElement, row).addEventListener("change", (event) => {
+          if (event.target instanceof HTMLInputElement && event.target.checked) batchTagsSelection.add(course.id);
           else batchTagsSelection.delete(course.id);
         });
         batchTagsList.append(row);
@@ -1401,9 +1476,9 @@ import "vditor/dist/index.css";
       return batchTagsInput.value.split(/[,，]/).map((t) => t.trim()).filter(Boolean).slice(0, 20);
     }
 
-    async function runBatchTags(mode) {
+    async function runBatchTags(mode: "add" | "remove" | "rename") {
       const tags = parseBatchTags();
-      const renameFromInput = document.querySelector("#batch-tags-rename-from");
+      const renameFromInput = findAdminElement("#batch-tags-rename-from", HTMLInputElement);
       const sourceTags = mode === "rename"
         ? (renameFromInput?.value || "").split(/[,，]/).map((t) => t.trim()).filter(Boolean).slice(0, 20)
         : [];
@@ -1412,9 +1487,9 @@ import "vditor/dist/index.css";
       if (!batchTagsSelection.size) { batchTagsStatus.textContent = "请先勾选课程"; return; }
       const affected = [];
       let touchedCount = 0;
-      for (const course of state.courses || []) {
+      for (const course of loadedManifest().courses || []) {
         if (!batchTagsSelection.has(course.id)) continue;
-        const current = new Set(course.tags ?? []);
+        const current = new Set<string>(course.tags ?? []);
         if (mode === "add") {
           for (const t of tags) current.add(t);
           touchedCount += 1;
@@ -1452,33 +1527,33 @@ import "vditor/dist/index.css";
           : `已完成：${touchedCount} 门课程已${mode === "add" ? "添加" : "移除"}标签「${tags.join("、")}」并发布。`;
         batchTagsStatus.textContent = doneLabel;
       } catch (error) {
-        batchTagsStatus.textContent = `发布失败：${error.message}`;
+        batchTagsStatus.textContent = `发布失败：${adminErrorMessage(error)}`;
       }
     }
 
     batchTagsFilter?.addEventListener("input", renderBatchTagList);
-    document.querySelector("#batch-tags-select-all")?.addEventListener("click", () => {
-      for (const row of batchTagsList.querySelectorAll("input[type=checkbox]")) {
+    findAdminElement("#batch-tags-select-all", HTMLButtonElement)?.addEventListener("click", () => {
+      for (const row of adminElements("input[type=checkbox]", HTMLInputElement, batchTagsList)) {
         row.checked = true;
-        batchTagsSelection.add(row.dataset.courseId);
+        batchTagsSelection.add(row.dataset.courseId || "");
       }
     });
-    document.querySelector("#batch-tags-deselect-all")?.addEventListener("click", () => {
-      for (const row of batchTagsList.querySelectorAll("input[type=checkbox]")) {
+    findAdminElement("#batch-tags-deselect-all", HTMLButtonElement)?.addEventListener("click", () => {
+      for (const row of adminElements("input[type=checkbox]", HTMLInputElement, batchTagsList)) {
         row.checked = false;
-        batchTagsSelection.delete(row.dataset.courseId);
+        batchTagsSelection.delete(row.dataset.courseId || "");
       }
     });
-    document.querySelector("#batch-tags-add")?.addEventListener("click", () => runBatchTags("add"));
-    document.querySelector("#batch-tags-remove")?.addEventListener("click", () => runBatchTags("remove"));
-    document.querySelector("#batch-tags-rename")?.addEventListener("click", () => runBatchTags("rename"));
+    findAdminElement("#batch-tags-add", HTMLButtonElement)?.addEventListener("click", () => runBatchTags("add"));
+    findAdminElement("#batch-tags-remove", HTMLButtonElement)?.addEventListener("click", () => runBatchTags("remove"));
+    findAdminElement("#batch-tags-rename", HTMLButtonElement)?.addEventListener("click", () => runBatchTags("rename"));
 
-    function manifestWriteBody(extra = {}) {
-      return manifestWriteBodyFor(state, extra);
+    function manifestWriteBody(extra: AdminTypes.ManifestWriteExtra = {}) {
+      return manifestWriteBodyFor(loadedManifest(), extra);
     }
 
-    function manifestWriteBodyFor(manifest, extra = {}) {
-      const currentUids = new Set(manifest.courses.map((course) => course.uid).filter(Boolean));
+    function manifestWriteBodyFor(manifest: AdminTypes.AdminManifest, extra: AdminTypes.ManifestWriteExtra = {}) {
+      const currentUids = new Set(manifest.courses.map((course) => course.uid).filter((uid): uid is string => Boolean(uid)));
       return {
         manifest,
         expectedRevision: manifestRevision,
@@ -1487,21 +1562,21 @@ import "vditor/dist/index.css";
       };
     }
 
-    function acceptManifest(data) {
+    function acceptManifest(data: AdminTypes.ManifestResponse) {
       state = data.manifest;
       manifestRevision = data.revision;
       captureCourseHashes();
     }
 
     function touchChangedCourses() {
-      for (const course of state.courses) {
+      for (const course of loadedManifest().courses) {
         if (originalCourseHashes.get(course.id) !== courseHash(course)) {
           course.updated = today();
         }
       }
     }
 
-    function sortSections(course) {
+    function sortSections(course: AdminTypes.AdminCourse) {
       course.sections = [...(course.sections ?? [])].sort((a, b) => {
         const rank = sectionRank(a.title) - sectionRank(b.title);
         return rank || (course.sections ?? []).indexOf(a) - (course.sections ?? []).indexOf(b);
@@ -1509,11 +1584,13 @@ import "vditor/dist/index.css";
     }
 
     function renderManifestSettings() {
-      if (!state || !manifestSettings) return;
+      const current = state;
+      if (!current) return;
+      if (!current || !manifestSettings) return;
       manifestSettings.innerHTML = "";
       manifestSettings.append(
-        field("全站隐藏课程标签，逗号分隔", (state.hiddenMetaTags ?? []).join(", "), (value) => {
-          state.hiddenMetaTags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+        field("全站隐藏课程标签，逗号分隔", (current.hiddenMetaTags ?? []).join(", "), (value) => {
+          current.hiddenMetaTags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
         })
       );
     }
@@ -1529,7 +1606,7 @@ import "vditor/dist/index.css";
       state = data.manifest;
       manifestRevision = data.revision;
       captureCourseHashes();
-      selectedId = state.courses[0]?.id ?? null;
+      selectedId = loadedManifest().courses[0]?.id ?? null;
       loginPanel.hidden = true;
       adminApp.hidden = false;
       renderManifestSettings();
@@ -1592,7 +1669,7 @@ import "vditor/dist/index.css";
       if (!feedbackState) {
         reportsList.innerHTML = '<p class="empty">正在加载举报…</p>';
         loadFeedbackAdmin().then(() => renderReportsAdmin()).catch((error) => {
-          reportsList.textContent = `举报加载失败：${error.message}。切换页面后可重试。`;
+          reportsList.textContent = `举报加载失败：${adminErrorMessage(error)}。切换页面后可重试。`;
         });
         return;
       }
@@ -1622,11 +1699,12 @@ import "vditor/dist/index.css";
     }
 
     function renderPrivacyAdmin() {
-      if (!privacyState) return;
+      const current = privacyState;
+      if (!current) return;
       privacyAdminEditor.innerHTML = "";
       privacyAdminEditor.append(
-        field("标题", privacyState.title ?? "", (value) => { privacyState.title = value; }),
-        markdownField("正文（支持 Markdown）", privacyState.content ?? "", (value) => { privacyState.content = value; }, { height: 420 })
+        field("标题", current.title ?? "", (value) => { current.title = value; }),
+        markdownField("正文（支持 Markdown）", current.content ?? "", (value) => { current.content = value; }, { height: 420 })
       );
       mountMarkdownEditors(privacyAdminEditor);
     }
@@ -1648,8 +1726,27 @@ import "vditor/dist/index.css";
     const lawQueryController = createLawQueryController({ onState: renderLawQueryState, onUnauthorized: showSessionExpired });
     const lawLogController = createLawLogController({ onState: renderLawLogsState, onUnauthorized: showSessionExpired });
     type LawPagination = { total: number; page: number; page_size: number; returned: number; total_pages: number; has_more: boolean; truncated: boolean };
-    type LawQueryView = { phase: string; data: any; error: string; exportPhase: string; exportMessage: string };
-    type LawLogView = { phase: string; data: any; error: string };
+    type LawRecord = Record<string, unknown> & {
+      id?: string | number; nickname?: string; phone?: string; phone_verified_at?: string | number;
+      blocked?: boolean; created_at?: string | number; last_login_at?: string | number;
+      courseTitle?: string; teacher?: string; content?: string; type?: string; title?: string;
+      report_url?: string; report_target?: string; at?: string | number; action?: string;
+      target_type?: string; target_id?: string | number; result?: string; user_id?: number;
+      ip?: string; username?: string; status?: number; target?: string;
+    };
+    type LawQueryData = {
+      query: { target: string; reference?: string; filters: { action: string; audit_action: string } };
+      generatedAt: string; range: { from_ms: number; to_ms: number }; complete: boolean;
+      account: LawRecord | null;
+      reviews: LawRecord[]; feedback: LawRecord[]; security_logs: LawRecord[]; admin_audit: LawRecord[];
+      reviews_pagination: LawPagination; feedback_pagination: LawPagination;
+      log_pagination: LawPagination; audit_pagination: LawPagination;
+    };
+    type LawQueryView = { phase: string; data: LawQueryData | null; error: string; exportPhase: string; exportMessage: string };
+    type LawLogView = { phase: string; data: (LawPagination & { items: (Record<string, unknown> & {
+      at: string | number; queried_by: string; exported: boolean; query_type: string;
+      query_value: string; result_summary?: string;
+    })[] }) | null; error: string };
 
     function lawPager(page: LawPagination, onPage: (page: number) => void) {
       const pager = lawNode("div", "", "filter-row law-pager");
@@ -1685,7 +1782,7 @@ import "vditor/dist/index.css";
       status.textContent = view.phase === "loading" ? "正在查询…" : view.error || (view.phase === "ready" ? "查询已返回。" : "");
       exportStatus.textContent = view.exportMessage;
       box.replaceChildren();
-      if (view.phase !== "ready") {
+      if (view.phase !== "ready" || !view.data) {
         box.append(lawNode("p", view.phase === "loading" ? "正在加载本次查询结果…" : view.error || "输入账号或内容 ID 后查询。", "muted"));
         return;
       }
@@ -1707,7 +1804,7 @@ import "vditor/dist/index.css";
         ["feedback", "feedback_pagination", "关联反馈/举报"],
         ["security_logs", "log_pagination", "安全日志"],
         ["admin_audit", "audit_pagination", "管理员审计"],
-      ]) {
+      ] as const) {
         const section = lawNode("section", "", "law-result-section");
         section.setAttribute("aria-label", title);
         section.append(lawNode("h3", `${title}（共 ${data[paginationKey].total} 条）`));
@@ -1741,7 +1838,7 @@ import "vditor/dist/index.css";
       status.textContent = view.phase === "loading" ? "正在加载调取记录…" : view.error;
       box.setAttribute("aria-busy", String(view.phase === "loading"));
       box.replaceChildren();
-      if (view.phase !== "ready") {
+      if (view.phase !== "ready" || !view.data) {
         box.append(lawNode("p", view.phase === "loading" ? "正在加载本次调取记录…" : view.error || "刷新后查看调取记录。", "muted"));
         return;
       }
@@ -1779,38 +1876,42 @@ import "vditor/dist/index.css";
         donatePayState = data.data;
         renderDonatePay();
       } catch (error) {
-        donatePayEditor.innerHTML = `<p class="muted">支付配置需「服务密钥」权限：${escapeHtml(error.message)}</p>`;
+        donatePayEditor.innerHTML = `<p class="muted">支付配置需「服务密钥」权限：${escapeHtml(adminErrorMessage(error))}</p>`;
       }
     }
 
     function renderDonateAdmin() {
-      if (!donateState) return;
+      const current = donateState;
+      if (!current) return;
       donateAdminEditor.innerHTML = "";
       donateAdminEditor.append(
-        field("标题", donateState.title ?? "", (value) => { donateState.title = value; }),
-        field("预设金额（元，逗号分隔，最多6个）", (donateState.amounts ?? []).join(", "), (value) => {
-          donateState.amounts = value.split(/[,，]/).map((item) => Number(item.trim())).filter((item) => Number.isFinite(item) && item > 0);
+        field("标题", current.title ?? "", (value) => { current.title = value; }),
+        field("预设金额（元，逗号分隔，最多6个）", (current.amounts ?? []).join(", "), (value) => {
+          current.amounts = value.split(/[,，]/).map((item) => Number(item.trim())).filter((item) => Number.isFinite(item) && item > 0);
         }),
-        markdownField("正文（支持 Markdown，可插图）", donateState.content ?? "", (value) => { donateState.content = value; }, { height: 360, owner: "donate" })
+        markdownField("正文（支持 Markdown，可插图）", current.content ?? "", (value) => { current.content = value; }, { height: 360, owner: "donate" })
       );
       mountMarkdownEditors(donateAdminEditor);
       renderDonateRecords();
     }
 
     function renderDonateRecords() {
+      const current = donateState;
+      if (!current) return;
       if (!donateRecordsEditor) return;
-      if (!Array.isArray(donateState.records)) donateState.records = [];
+      if (!Array.isArray(current.records)) current.records = [];
+      const records = current.records;
       donateRecordsEditor.innerHTML = "";
-      const ensure = (row) => {
+      const ensure = (row: AdminTypes.DonationRecord) => {
         if (!row || typeof row !== "object") return { date: "", nickname: "", usage: "" };
         return row;
       };
-      donateState.records.forEach((rawRow, index) => {
+      current.records.forEach((rawRow, index) => {
         const row = ensure(rawRow);
         const line = document.createElement("div");
         line.className = "filter-row";
         line.style.marginBottom = "8px";
-        const make = (value, placeholder, onInput) => {
+        const make = (value: string | undefined, placeholder: string, onInput: (value: string) => void) => {
           const input = document.createElement("input");
           input.className = "searchbar";
           input.style.minHeight = "36px";
@@ -1833,7 +1934,7 @@ import "vditor/dist/index.css";
           del.title = "付款记录需保留准确归属，以便处理账号注销。";
         }
         del.addEventListener("click", () => {
-          donateState.records.splice(index, 1);
+          records.splice(index, 1);
           renderDonateRecords();
         });
         line.append(dateInput, nickInput, usageInput, del);
@@ -1844,18 +1945,18 @@ import "vditor/dist/index.css";
       add.className = "button secondary";
       add.textContent = "添加记录";
       add.addEventListener("click", () => {
-        donateState.records.push({ date: "", nickname: "", usage: "" });
+        records.push({ date: "", nickname: "", usage: "" });
         renderDonateRecords();
       });
       donateRecordsEditor.append(add);
     }
 
-    let donateStatsRows = [];
+    let donateStatsRows: AdminTypes.DonationOrder[] = [];
     let donateStatsPage = 1;
     const DONATE_STATS_PAGE_SIZE = 50;
 
     async function loadDonateStats() {
-      const status = document.querySelector("#donate-stats-status");
+      const status = findAdminElement("#donate-stats-message", HTMLElement);
       if (status) status.textContent = "加载中...";
       try {
         const data = await api("/donate-stats");
@@ -1865,14 +1966,14 @@ import "vditor/dist/index.css";
         renderDonateStats(donateOrderSummaryCache);
         if (status) status.textContent = "";
       } catch (error) {
-        if (status) status.textContent = error.message;
+        if (status) status.textContent = adminErrorMessage(error);
       }
     }
 
     function donateStatsFiltered() {
-      const keyword = String(document.querySelector("#donate-stats-search")?.value || "").trim().toLowerCase();
-      const statusFilter = document.querySelector("#donate-stats-status")?.value || "all";
-      const sourceFilter = document.querySelector("#donate-stats-source")?.value || "all";
+      const keyword = String(findAdminElement("#donate-stats-search", HTMLInputElement)?.value || "").trim().toLowerCase();
+      const statusFilter = findAdminElement("#donate-stats-status", HTMLSelectElement)?.value || "all";
+      const sourceFilter = findAdminElement("#donate-stats-source", HTMLSelectElement)?.value || "all";
       return donateStatsRows.filter((row) => {
         if (statusFilter !== "all" && row.status !== statusFilter) return false;
         if (sourceFilter !== "all" && (row.source || "") !== sourceFilter) return false;
@@ -1884,9 +1985,9 @@ import "vditor/dist/index.css";
       });
     }
 
-    function renderDonateStats(summary) {
-      const yuan = (fen) => (fen / 100).toFixed(2);
-      const sourceLabel = { jsapi: "小程序", native: "网页扫码" };
+    function renderDonateStats(summary?: AdminTypes.DonationSummary | null) {
+      const yuan = (fen: number) => (fen / 100).toFixed(2);
+      const sourceLabel: Record<string, string> = { jsapi: "小程序", native: "网页扫码" };
       const s = summary || donateOrderSummaryCache;
       const filtered = donateStatsFiltered();
       const pages = Math.max(1, Math.ceil(filtered.length / DONATE_STATS_PAGE_SIZE));
@@ -1894,7 +1995,7 @@ import "vditor/dist/index.css";
       const slice = filtered.slice((donateStatsPage - 1) * DONATE_STATS_PAGE_SIZE, donateStatsPage * DONATE_STATS_PAGE_SIZE);
       const rows = slice.map((row) => {
         const date = new Date(Number(row.created_at) + 8 * 3600 * 1000).toISOString().slice(0, 10);
-        const esc = (value) => String(value || "").replace(/[<>&"]/g, "");
+        const esc = (value: unknown) => String(value || "").replace(/[<>&"]/g, "");
         return `<tr><td>${date}</td><td>¥${yuan(row.amount_total)}</td><td>${sourceLabel[row.source] || row.source || "-"}</td><td>${esc(row.nickname) || "-"}</td><td>${esc(row.remark) || "-"}</td><td>${row.status === "paid" ? "已支付" : "待支付"}</td><td class="muted" style="font-size:12px;">${esc(row.out_trade_no)}</td></tr>`;
       }).join("");
       if (s) {
@@ -1904,7 +2005,7 @@ import "vditor/dist/index.css";
           <table class="admin-table" style="margin-top:8px;"><thead><tr><th>日期</th><th>金额</th><th>来源</th><th>昵称</th><th>备注</th><th>状态</th><th>订单号</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="muted">没有匹配的订单</td></tr>'}</tbody></table>
         `;
       }
-      const pager = document.querySelector("#donate-stats-pager");
+      const pager = findAdminElement("#donate-stats-pager", HTMLElement);
       if (pager) {
         pager.innerHTML = "";
         const prev = document.createElement("button");
@@ -1926,19 +2027,20 @@ import "vditor/dist/index.css";
       }
     }
 
-    let donateOrderSummaryCache = null;
+    let donateOrderSummaryCache: AdminTypes.DonationSummary | null = null;
 
     function renderDonatePay() {
-      if (!donatePayState) return;
+      const current = donatePayState;
+      if (!current) return;
       donatePayEditor.innerHTML = "";
       donatePayEditor.append(
-        checkboxField("启用支付（配置齐全并勾选后小程序捐助才可支付）", donatePayState.enabled === true, (value) => { donatePayState.enabled = value; }),
-        field(`商户号 mchid${donatePayState.mchid ? "（已设 " + donatePayState.mchid + "）" : ""}`, "", (value) => { if (value.trim()) donatePayState.mchid = value.trim(); }),
-        field(`小程序 AppID${donatePayState.appid ? "（已设 " + donatePayState.appid + "）" : ""}`, "", (value) => { if (value.trim()) donatePayState.appid = value.trim(); }),
-        field(`证书序列号${donatePayState.serialNo ? "（已设 " + donatePayState.serialNo + "）" : ""}`, "", (value) => { if (value.trim()) donatePayState.serialNo = value.trim(); }),
-        field("商户 APIv3 私钥（留空=保持不变）", "", (value) => { if (value.trim()) donatePayState.privateKey = value.trim(); }),
-        field("APIv3 密钥（32位，留空=保持不变）", "", (value) => { if (value.trim()) donatePayState.apiV3Key = value.trim(); }),
-        field("支付公钥 PEM（公钥模式，留空=保持不变）", "", (value) => { if (value.trim()) donatePayState.publicKey = value.trim(); })
+        checkboxField("启用支付（配置齐全并勾选后小程序捐助才可支付）", current.enabled === true, (value) => { current.enabled = value; }),
+        field(`商户号 mchid${current.mchid ? "（已设 " + current.mchid + "）" : ""}`, "", (value) => { if (value.trim()) current.mchid = value.trim(); }),
+        field(`小程序 AppID${current.appid ? "（已设 " + current.appid + "）" : ""}`, "", (value) => { if (value.trim()) current.appid = value.trim(); }),
+        field(`证书序列号${current.serialNo ? "（已设 " + current.serialNo + "）" : ""}`, "", (value) => { if (value.trim()) current.serialNo = value.trim(); }),
+        field("商户 APIv3 私钥（留空=保持不变）", "", (value) => { if (value.trim()) current.privateKey = value.trim(); }),
+        field("APIv3 密钥（32位，留空=保持不变）", "", (value) => { if (value.trim()) current.apiV3Key = value.trim(); }),
+        field("支付公钥 PEM（公钥模式，留空=保持不变）", "", (value) => { if (value.trim()) current.publicKey = value.trim(); })
       );
     }
 
@@ -1984,7 +2086,7 @@ import "vditor/dist/index.css";
         : Object.keys(permissionLabels);
     }
 
-    function renderPermissionEditor(container, checked) {
+    function renderPermissionEditor(container: HTMLElement, checked: string[]) {
       container.innerHTML = "";
       for (const permission of serverPermissionPoints()) {
         const label = permissionLabels[permission] || permission;
@@ -1995,15 +2097,15 @@ import "vditor/dist/index.css";
       }
     }
 
-    function checkedPermissions(container) {
-      return [...container.querySelectorAll("input[type=checkbox]:checked")].map((item) => item.value);
+    function checkedPermissions(container: HTMLElement) {
+      return [...adminElements("input[type=checkbox]:checked", HTMLInputElement, container)].map((item) => item.value);
     }
 
     async function loadAccountsAdmin() {
       const data = await api("/accounts");
       accountsState = data.data;
       const presets = serverRolePresets();
-      const roleSelect = document.querySelector("#new-account-role");
+      const roleSelect = requireAdminElement("#new-account-role", HTMLSelectElement);
       const current = roleSelect.value;
       roleSelect.innerHTML = `<option value="">自定义（手动勾选）</option>${Object.keys(presets).map((role) => `<option value="${role}">${role}</option>`).join("")}`;
       if (current) roleSelect.value = current;
@@ -2011,6 +2113,8 @@ import "vditor/dist/index.css";
     }
 
     function renderAccountsAdmin() {
+      const current = accountsState;
+      if (!current) return;
       accountsAdminList.innerHTML = "";
       const table = document.createElement("table");
       table.className = "admin-table";
@@ -2018,8 +2122,8 @@ import "vditor/dist/index.css";
         <thead><tr><th style="width: 14%;">账号</th><th style="width: 36%;">权限</th><th style="width: 7%;">启用</th><th style="width: 17%;">最近登录</th><th style="width: 26%;">操作</th></tr></thead>
         <tbody></tbody>
       `;
-      const body = table.querySelector("tbody");
-      for (const account of accountsState.accounts) {
+      const body = requireAdminElement("tbody", HTMLElement, table);
+      for (const account of current.accounts) {
         const row = document.createElement("tr");
         const permTags = account.permissions.map((item) => `<span class="perm-tag">${escapeHtml(permissionLabels[item] || item)}</span>`).join("");
         row.innerHTML = `
@@ -2031,7 +2135,7 @@ import "vditor/dist/index.css";
         `;
         const ops = document.createElement("div");
         ops.className = "ops-row";
-        row.querySelector("td:last-child").append(ops);
+        requireAdminElement("td:last-child", HTMLElement, row).append(ops);
 
         const editButton = document.createElement("button");
         editButton.type = "button";
@@ -2055,7 +2159,7 @@ import "vditor/dist/index.css";
             accountsAdminStatus.textContent = `已重置 ${account.username} 的密码`;
             await loadAccountsAdmin();
           } catch (error) {
-            accountsAdminStatus.textContent = error.message;
+            accountsAdminStatus.textContent = adminErrorMessage(error);
           }
         });
         ops.append(resetButton);
@@ -2072,7 +2176,7 @@ import "vditor/dist/index.css";
               accountsAdminStatus.textContent = `已删除 ${account.username}`;
               await loadAccountsAdmin();
             } catch (error) {
-              accountsAdminStatus.textContent = error.message;
+              accountsAdminStatus.textContent = adminErrorMessage(error);
             }
           });
           ops.append(deleteButton);
@@ -2082,8 +2186,8 @@ import "vditor/dist/index.css";
       accountsAdminList.append(table);
     }
 
-    function renderAccountEditor(row, account) {
-      const existing = accountsAdminList.querySelector(".account-editor-row");
+    function renderAccountEditor(row: HTMLTableRowElement, account: AdminTypes.AdminAccount) {
+      const existing = findAdminElement(".account-editor-row", HTMLElement, accountsAdminList);
       if (existing) existing.remove();
       const editorRow = document.createElement("tr");
       editorRow.className = "account-editor-row";
@@ -2113,14 +2217,14 @@ import "vditor/dist/index.css";
             method: "PATCH",
             body: JSON.stringify({
               permissions: checkedPermissions(permBox),
-              enabled: enabledBox.querySelector("input").checked,
-              mustChangePassword: mustChangeBox.querySelector("input").checked,
+              enabled: requireAdminElement("input", HTMLInputElement, enabledBox).checked,
+              mustChangePassword: requireAdminElement("input", HTMLInputElement, mustChangeBox).checked,
             }),
           });
           accountsAdminStatus.textContent = `已更新 ${account.username}`;
           await loadAccountsAdmin();
         } catch (error) {
-          accountsAdminStatus.textContent = error.message;
+          accountsAdminStatus.textContent = adminErrorMessage(error);
         }
       });
       const cancelButton = document.createElement("button");
@@ -2136,39 +2240,39 @@ import "vditor/dist/index.css";
       row.after(editorRow);
     }
 
-    let serviceKeysState = { settings: null, services: [] };
+    let serviceKeysState: { settings: AdminTypes.ServiceSettings | null; services: AdminTypes.ServiceKey[] } = { settings: null, services: [] };
 
 let aiAdminState = { loaded: false, clearKey: false };
 
 async function loadAiAdmin() {
   const data = await api("/ai-settings");
   const settings = data.data;
-  document.querySelector("#ai-enabled").value = String(settings.enabled);
-  document.querySelector("#ai-api-key").value = "";
-  document.querySelector("#ai-api-key").placeholder = settings.has_api_key ? `sk-…（当前：${settings.api_key_masked}${settings.seeded_from_env ? "，来自环境变量" : ""}）` : "sk-…（当前：未配置）";
-  document.querySelector("#ai-base-url").value = settings.base_url;
-  document.querySelector("#ai-model").value = settings.model;
-  document.querySelector("#ai-max-tokens").value = settings.max_tokens;
-  document.querySelector("#ai-daily-user").value = settings.daily_limit_per_user;
-  document.querySelector("#ai-minute-user").value = settings.minute_limit_per_user;
-  document.querySelector("#ai-daily-global").value = settings.daily_limit_global;
+  requireAdminElement("#ai-enabled", HTMLSelectElement).value = String(settings.enabled);
+  requireAdminElement("#ai-api-key", HTMLInputElement).value = "";
+  requireAdminElement("#ai-api-key", HTMLInputElement).placeholder = settings.has_api_key ? `sk-…（当前：${settings.api_key_masked}${settings.seeded_from_env ? "，来自环境变量" : ""}）` : "sk-…（当前：未配置）";
+  requireAdminElement("#ai-base-url", HTMLInputElement).value = settings.base_url;
+  requireAdminElement("#ai-model", HTMLInputElement).value = settings.model;
+  requireAdminElement("#ai-max-tokens", HTMLInputElement).value = String(settings.max_tokens);
+  requireAdminElement("#ai-daily-user", HTMLInputElement).value = String(settings.daily_limit_per_user);
+  requireAdminElement("#ai-minute-user", HTMLInputElement).value = String(settings.minute_limit_per_user);
+  requireAdminElement("#ai-daily-global", HTMLInputElement).value = String(settings.daily_limit_global);
   aiAdminState.clearKey = false;
   aiAdminState.loaded = true;
 }
 
 async function saveAiAdmin() {
-  const status = document.querySelector("#ai-status");
+  const status = requireAdminElement("#ai-status", HTMLElement);
   status.textContent = "保存中...";
-  const apiKeyInput = document.querySelector("#ai-api-key").value.trim();
-  const body = {
+  const apiKeyInput = requireAdminElement("#ai-api-key", HTMLInputElement).value.trim();
+  const body: AdminTypes.AiSettingsWrite = {
     settings: {
-      enabled: document.querySelector("#ai-enabled").value === "true",
-      base_url: document.querySelector("#ai-base-url").value.trim(),
-      model: document.querySelector("#ai-model").value.trim(),
-      max_tokens: Number(document.querySelector("#ai-max-tokens").value),
-      daily_limit_per_user: Number(document.querySelector("#ai-daily-user").value),
-      minute_limit_per_user: Number(document.querySelector("#ai-minute-user").value),
-      daily_limit_global: Number(document.querySelector("#ai-daily-global").value),
+      enabled: requireAdminElement("#ai-enabled", HTMLSelectElement).value === "true",
+      base_url: requireAdminElement("#ai-base-url", HTMLInputElement).value.trim(),
+      model: requireAdminElement("#ai-model", HTMLInputElement).value.trim(),
+      max_tokens: Number(requireAdminElement("#ai-max-tokens", HTMLInputElement).value),
+      daily_limit_per_user: Number(requireAdminElement("#ai-daily-user", HTMLInputElement).value),
+      minute_limit_per_user: Number(requireAdminElement("#ai-minute-user", HTMLInputElement).value),
+      daily_limit_global: Number(requireAdminElement("#ai-daily-global", HTMLInputElement).value),
     },
   };
   if (apiKeyInput) body.api_key = apiKeyInput;
@@ -2179,15 +2283,15 @@ async function saveAiAdmin() {
     status.textContent = "已保存，正在自动测试连接...";
     await testAiAdmin();
   } catch (error) {
-    status.textContent = error.message;
+    status.textContent = adminErrorMessage(error);
   }
 }
 
 async function testAiAdmin() {
-  const status = document.querySelector("#ai-status");
+  const status = requireAdminElement("#ai-status", HTMLElement);
   status.textContent = "测试中（最多 15 秒）...";
-  const apiKeyInput = document.querySelector("#ai-api-key").value.trim();
-  const body = {};
+  const apiKeyInput = requireAdminElement("#ai-api-key", HTMLInputElement).value.trim();
+  const body: { api_key?: string } = {};
   if (apiKeyInput) body.api_key = apiKeyInput;
   if (aiAdminState.clearKey) {
     status.textContent = "已选择清除密钥，请先保存再测试。";
@@ -2199,31 +2303,32 @@ async function testAiAdmin() {
     if (result.ok) status.textContent = `连接成功：模型 ${result.model}，延迟 ${result.latency_ms}ms，回复「${result.preview}」。`;
     else status.textContent = `连接失败：${result.reason}${result.error ? `（${result.error}）` : ""}`;
   } catch (error) {
-    status.textContent = error.message;
+    status.textContent = adminErrorMessage(error);
   }
 }
 
 function bindAiAdminEvents() {
-  document.querySelector("#ai-save").addEventListener("click", saveAiAdmin);
-  document.querySelector("#ai-test").addEventListener("click", testAiAdmin);
-  document.querySelector("#ai-clear-key").addEventListener("click", () => {
+  requireAdminElement("#ai-save", HTMLButtonElement).addEventListener("click", saveAiAdmin);
+  requireAdminElement("#ai-test", HTMLButtonElement).addEventListener("click", testAiAdmin);
+  requireAdminElement("#ai-clear-key", HTMLButtonElement).addEventListener("click", () => {
     aiAdminState.clearKey = !aiAdminState.clearKey;
-    document.querySelector("#ai-clear-key").textContent = aiAdminState.clearKey ? "撤销清除" : "清除密钥";
-    document.querySelector("#ai-status").textContent = aiAdminState.clearKey ? "保存后将清除已配置的密钥。" : "";
+    requireAdminElement("#ai-clear-key", HTMLButtonElement).textContent = aiAdminState.clearKey ? "撤销清除" : "清除密钥";
+    requireAdminElement("#ai-status", HTMLElement).textContent = aiAdminState.clearKey ? "保存后将清除已配置的密钥。" : "";
   });
 }
 
 async function loadServiceKeysAdmin() {
   const data = await api("/service-keys");
-  serviceKeysState = { settings: data.data.settings, services: data.data.services };
-  document.querySelector("#service-cap-limit").value = serviceKeysState.settings.max_limit;
-  document.querySelector("#service-cap-window").value = serviceKeysState.settings.max_window_ms;
-  document.querySelector("#service-default-quota").value = serviceKeysState.settings.default_daily_quota;
+  const settings = data.data.settings;
+  serviceKeysState = { settings, services: data.data.services };
+  requireAdminElement("#service-cap-limit", HTMLInputElement).value = String(settings.max_limit);
+  requireAdminElement("#service-cap-window", HTMLInputElement).value = String(settings.max_window_ms);
+  requireAdminElement("#service-default-quota", HTMLInputElement).value = String(settings.default_daily_quota);
   renderServiceKeysList();
 }
 
 function renderServiceKeysList() {
-  const listEl = document.querySelector("#service-keys-list");
+  const listEl = requireAdminElement("#service-keys-list", HTMLElement);
   listEl.innerHTML = "";
   if (!serviceKeysState.services.length) {
     listEl.innerHTML = '<p class="empty">还没有服务密钥。</p>';
@@ -2249,8 +2354,8 @@ function renderServiceKeysList() {
     quotaInput.type = "number";
     quotaInput.className = "searchbar";
     quotaInput.style.maxWidth = "180px";
-    quotaInput.min = 1;
-    quotaInput.value = service.limits.daily_quota;
+    quotaInput.min = "1";
+    quotaInput.value = String(service.limits.daily_quota);
     quotaInput.title = "每日调用额度";
     const saveQuota = document.createElement("button");
     saveQuota.type = "button";
@@ -2261,8 +2366,8 @@ function renderServiceKeysList() {
         const data = await api(`/service-keys/${encodeURIComponent(service.id)}/daily-quota`, { method: "POST", body: JSON.stringify({ daily_quota: Number(quotaInput.value) }) });
         serviceKeysState.services = data.data.services;
         renderServiceKeysList();
-        document.querySelector("#service-key-status").textContent = `已更新 ${service.name} 的每日额度。`;
-      } catch (error) { document.querySelector("#service-key-status").textContent = error.message; }
+        requireAdminElement("#service-key-status", HTMLElement).textContent = `已更新 ${service.name} 的每日额度。`;
+      } catch (error) { requireAdminElement("#service-key-status", HTMLElement).textContent = adminErrorMessage(error); }
     });
     const toggle = document.createElement("button");
     toggle.type = "button";
@@ -2273,7 +2378,7 @@ function renderServiceKeysList() {
         const data = await api(`/service-keys/${encodeURIComponent(service.id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled: !service.enabled }) });
         serviceKeysState.services = data.data.services;
         renderServiceKeysList();
-      } catch (error) { document.querySelector("#service-key-status").textContent = error.message; }
+      } catch (error) { requireAdminElement("#service-key-status", HTMLElement).textContent = adminErrorMessage(error); }
     });
     const remove = document.createElement("button");
     remove.type = "button";
@@ -2285,7 +2390,7 @@ function renderServiceKeysList() {
         const data = await api(`/service-keys/${encodeURIComponent(service.id)}`, { method: "DELETE" });
         serviceKeysState.services = data.data.services;
         renderServiceKeysList();
-      } catch (error) { document.querySelector("#service-key-status").textContent = error.message; }
+      } catch (error) { requireAdminElement("#service-key-status", HTMLElement).textContent = adminErrorMessage(error); }
     });
     actions.append(quotaInput, saveQuota, toggle, remove);
     wrap.append(actions);
@@ -2293,9 +2398,9 @@ function renderServiceKeysList() {
   }
 }
 
-document.querySelector("#create-service-key").addEventListener("click", async () => {
-  const statusEl = document.querySelector("#service-key-status");
-  const name = document.querySelector("#service-key-name").value.trim();
+requireAdminElement("#create-service-key", HTMLButtonElement).addEventListener("click", async () => {
+  const statusEl = requireAdminElement("#service-key-status", HTMLElement);
+  const name = requireAdminElement("#service-key-name", HTMLInputElement).value.trim();
   if (!name) { statusEl.textContent = "请填写服务名称。"; return; }
   statusEl.textContent = "创建中...";
   try {
@@ -2303,45 +2408,45 @@ document.querySelector("#create-service-key").addEventListener("click", async ()
       method: "POST",
       body: JSON.stringify({
         name,
-        note: document.querySelector("#service-key-note").value.trim(),
-        daily_quota: Number(document.querySelector("#service-key-quota").value) || null,
+        note: requireAdminElement("#service-key-note", HTMLInputElement).value.trim(),
+        daily_quota: Number(requireAdminElement("#service-key-quota", HTMLInputElement).value) || null,
       }),
     });
-    document.querySelector("#service-key-value").value = data.data.key;
-    document.querySelector("#service-key-once").hidden = false;
-    document.querySelector("#service-key-name").value = "";
-    document.querySelector("#service-key-note").value = "";
-    document.querySelector("#service-key-quota").value = "";
+    requireAdminElement("#service-key-value", HTMLInputElement).value = data.data.key;
+    requireAdminElement("#service-key-once", HTMLElement).hidden = false;
+    requireAdminElement("#service-key-name", HTMLInputElement).value = "";
+    requireAdminElement("#service-key-note", HTMLInputElement).value = "";
+    requireAdminElement("#service-key-quota", HTMLInputElement).value = "";
     serviceKeysState.services = (await api("/service-keys")).data.services;
     renderServiceKeysList();
     statusEl.textContent = "已创建，请立即复制密钥（只显示这一次）。";
-  } catch (error) { statusEl.textContent = error.message; }
+  } catch (error) { statusEl.textContent = adminErrorMessage(error); }
 });
 
-document.querySelector("#copy-service-key").addEventListener("click", () => {
-  const value = document.querySelector("#service-key-value").value;
+requireAdminElement("#copy-service-key", HTMLButtonElement).addEventListener("click", () => {
+  const value = requireAdminElement("#service-key-value", HTMLInputElement).value;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(value).then(
-      () => { document.querySelector("#service-key-status").textContent = "已复制到剪贴板。"; },
-      () => { document.querySelector("#service-key-value").select(); }
+      () => { requireAdminElement("#service-key-status", HTMLElement).textContent = "已复制到剪贴板。"; },
+      () => { requireAdminElement("#service-key-value", HTMLInputElement).select(); }
     );
-  } else document.querySelector("#service-key-value").select();
+  } else requireAdminElement("#service-key-value", HTMLInputElement).select();
 });
 
-document.querySelector("#save-service-settings").addEventListener("click", async () => {
-  const statusEl = document.querySelector("#service-settings-status");
+requireAdminElement("#save-service-settings", HTMLButtonElement).addEventListener("click", async () => {
+  const statusEl = requireAdminElement("#service-settings-status", HTMLElement);
   statusEl.textContent = "保存中...";
   try {
     await api("/service-keys-settings", {
       method: "POST",
       body: JSON.stringify({
-        max_limit: Number(document.querySelector("#service-cap-limit").value),
-        max_window_ms: Number(document.querySelector("#service-cap-window").value),
-        default_daily_quota: Number(document.querySelector("#service-default-quota").value),
+        max_limit: Number(requireAdminElement("#service-cap-limit", HTMLInputElement).value),
+        max_window_ms: Number(requireAdminElement("#service-cap-window", HTMLInputElement).value),
+        default_daily_quota: Number(requireAdminElement("#service-default-quota", HTMLInputElement).value),
       }),
     });
     statusEl.textContent = "已保存。";
-  } catch (error) { statusEl.textContent = error.message; }
+  } catch (error) { statusEl.textContent = adminErrorMessage(error); }
 });
 
 async function loadMpUsersAdmin() {
@@ -2392,7 +2497,7 @@ async function loadMpUsersAdmin() {
         <thead><tr><th style="width: 21%;">昵称</th><th style="width: 14%;">OpenID</th><th style="width: 9%;">登录次数</th><th style="width: 18%;">最近登录</th><th style="width: 18%;">注册时间</th><th style="width: 20%;">操作</th></tr></thead>
         <tbody></tbody>
       `;
-      const body = table.querySelector("tbody");
+      const body = requireAdminElement("tbody", HTMLElement, table);
       for (const user of users) {
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -2405,7 +2510,7 @@ async function loadMpUsersAdmin() {
         `;
         const ops = document.createElement("div");
         ops.className = "ops-row";
-        row.querySelector("td:last-child").append(ops);
+        requireAdminElement("td:last-child", HTMLElement, row).append(ops);
         if (!hasPerm("content.moderate")) { body.append(row); continue; }
         const blockButton = document.createElement("button");
         blockButton.type = "button";
@@ -2418,7 +2523,7 @@ async function loadMpUsersAdmin() {
             await api(`/mp-users/${user.id}/blocked`, { method: "POST", body: JSON.stringify({ blocked: !user.blocked }) });
             await loadMpUsersAdmin();
           } catch (error) {
-            mpUsersAdminStatus.textContent = error.message;
+            mpUsersAdminStatus.textContent = adminErrorMessage(error);
           }
         });
         ops.append(blockButton);
@@ -2431,8 +2536,8 @@ async function loadMpUsersAdmin() {
       const params = new URLSearchParams({
         page: String(auditPage),
         page_size: "30",
-        username: document.querySelector("#audit-filter-username").value.trim(),
-        action: document.querySelector("#audit-filter-action").value.trim(),
+        username: requireAdminElement("#audit-filter-username", HTMLInputElement).value.trim(),
+        action: requireAdminElement("#audit-filter-action", HTMLInputElement).value.trim(),
       });
       const data = await api(`/audit?${params.toString()}`);
       auditState = data.data;
@@ -2482,7 +2587,7 @@ async function loadMpUsersAdmin() {
       ["POST /admin-api/service-keys", "创建服务密钥"],
       ["POST /admin-api/service-keys-settings", "保存全局限流设置"],
     ];
-    const auditActionLabel = (action) => {
+    const auditActionLabel = (action: string) => {
       if (/^PATCH \/admin-api\/accounts\//.test(action)) return "修改账号权限";
       if (/^POST \/admin-api\/accounts\/.+\/password$/.test(action)) return "重置账号密码";
       if (/^DELETE \/admin-api\/accounts\//.test(action)) return "删除账号";
@@ -2495,6 +2600,8 @@ async function loadMpUsersAdmin() {
     };
 
     function renderAuditAdmin() {
+      const current = auditState;
+      if (!current) return;
       auditAdminList.innerHTML = "";
       if (!auditLogHealthy) {
         const warning = document.createElement("p");
@@ -2507,8 +2614,8 @@ async function loadMpUsersAdmin() {
         <thead><tr><th>时间</th><th>账号</th><th>动作</th><th>状态</th><th>来源 IP</th></tr></thead>
         <tbody></tbody>
       `;
-      const body = table.querySelector("tbody");
-      for (const item of auditState.items) {
+      const body = requireAdminElement("tbody", HTMLElement, table);
+      for (const item of current.items) {
         const row = document.createElement("tr");
         row.innerHTML = `
           <td style="width: 20%;">${escapeHtml(beijingDateTime(new Date(item.at)))}</td>
@@ -2519,23 +2626,23 @@ async function loadMpUsersAdmin() {
         `;
         body.append(row);
       }
-      if (!auditState.items.length) {
+      if (!current.items.length) {
         const empty = document.createElement("p");
         empty.className = "empty";
         empty.textContent = "没有符合条件的审计记录。";
         auditAdminList.append(empty);
       }
       auditAdminList.append(table);
-      const totalPages = Math.max(1, Math.ceil(auditState.total / auditState.page_size));
-      document.querySelector("#audit-page-info").textContent = `第 ${auditState.page} / ${totalPages} 页，共 ${auditState.total} 条`;
+      const totalPages = Math.max(1, Math.ceil(current.total / current.page_size));
+      requireAdminElement("#audit-page-info", HTMLElement).textContent = `第 ${current.page} / ${totalPages} 页，共 ${current.total} 条`;
     }
 
-    function hasPerm(permission) {
+    function hasPerm(permission: string) {
       if (permission === "audit.read") return Boolean(sessionState.username);
       return sessionState.permissions.includes(permission);
     }
 
-    function applySession(data = {}) {
+    function applySession(data: AdminTypes.SessionDocument = {}) {
       sessionState = {
         username: data.username || "",
         permissions: Array.isArray(data.permissions) ? data.permissions : [],
@@ -2557,10 +2664,10 @@ async function loadMpUsersAdmin() {
     }
 
     function renderPendingBadges() {
-      for (const [tab, count] of [["reviews", pendingCounts.reviews], ["feedback", pendingCounts.feedback]]) {
-        const button = document.querySelector(`[data-admin-tab="${tab}"]`);
+      for (const [tab, count] of [["reviews", pendingCounts.reviews], ["feedback", pendingCounts.feedback]] as [string, number][]) {
+        const button = findAdminElement(`[data-admin-tab="${tab}"]`, HTMLElement);
         if (!button) continue;
-        button.querySelector(".pending-badge")?.remove();
+        findAdminElement(".pending-badge", HTMLElement, button)?.remove();
         if (count > 0) {
           const badge = document.createElement("span");
           badge.className = "pending-badge";
@@ -2571,7 +2678,7 @@ async function loadMpUsersAdmin() {
     }
 
     function showFirstAllowedTab() {
-      const first = document.querySelector(".admin-nav-item:not(.admin-nav-item--locked)") || document.querySelector(".admin-nav-item");
+      const first = findAdminElement(".admin-nav-item:not(.admin-nav-item--locked)", HTMLElement) || findAdminElement(".admin-nav-item", HTMLElement);
       if (first) first.click();
       else {
         loginPanel.hidden = true;
@@ -2617,15 +2724,16 @@ async function loadMpUsersAdmin() {
     function renderTree() {
       const keyword = searchEl.value.trim().toLowerCase();
       treeEl.innerHTML = "";
-      const terms = new Map();
+      const terms = new Map<string, Map<string, AdminTypes.AdminCourse[]>>();
 
-      for (const course of state.courses) {
+      for (const course of loadedManifest().courses) {
         const text = `${course.title} ${course.term} ${course.group} ${(course.tags ?? []).join(" ")}`.toLowerCase();
         if (keyword && !text.includes(keyword)) continue;
-        if (!terms.has(course.term)) terms.set(course.term, new Map());
-        const groups = terms.get(course.term);
-        if (!groups.has(course.group)) groups.set(course.group, []);
-        groups.get(course.group).push(course);
+        const groups = terms.get(course.term) ?? new Map<string, AdminTypes.AdminCourse[]>();
+        if (!terms.has(course.term)) terms.set(course.term, groups);
+        const courses = groups.get(course.group) ?? [];
+        if (!groups.has(course.group)) groups.set(course.group, courses);
+        courses.push(course);
       }
 
       for (const [term, groups] of terms) {
@@ -2662,7 +2770,7 @@ async function loadMpUsersAdmin() {
       }
     }
 
-    function setTreeWidth(width) {
+    function setTreeWidth(width: number) {
       const next = Math.min(620, Math.max(220, width));
       workbench.style.setProperty("--tree-width", `${next}px`);
       localStorage.setItem("nkustudy-admin-tree-width", String(next));
@@ -2678,13 +2786,13 @@ async function loadMpUsersAdmin() {
       }
     }
 
-    function field(label, value, onInput, textarea = false) {
+    function field(label: string, value: string | number | null | undefined, onInput: (value: string, input: HTMLInputElement | HTMLTextAreaElement) => void, textarea = false) {
       const wrap = document.createElement("label");
       wrap.className = "admin-field";
       const labelEl = document.createElement("span");
       labelEl.textContent = label;
       const input = document.createElement(textarea ? "textarea" : "input");
-      input.value = value ?? "";
+      input.value = String(value ?? "");
       input.addEventListener("input", () => onInput(input.value, input));
       wrap.append(labelEl, input);
       return wrap;
@@ -2710,7 +2818,7 @@ async function loadMpUsersAdmin() {
       markdownEditors = remaining;
     }
 
-    function markdownField(label, value, onInput, options = {}) {
+    function markdownField(label: string, value: string | undefined, onInput: (value: string, input?: HTMLTextAreaElement) => void, options: AdminTypes.MarkdownFieldOptions = {}) {
       const markdownValue = String(value ?? "");
       const wrap = document.createElement("div");
       wrap.className = "admin-field admin-markdown-field";
@@ -2740,7 +2848,7 @@ async function loadMpUsersAdmin() {
       return wrap;
     }
 
-    function toolbarFor(mode) {
+    function toolbarFor(mode: "admin" | "user") {
       const source = editorSettingsState?.[mode]?.toolbar;
       const toolbar = Array.isArray(source) && source.length
         ? source
@@ -2752,8 +2860,8 @@ async function loadMpUsersAdmin() {
       ];
     }
 
-    function enhanceVditorToolbar(root) {
-      const toolbarNodes = () => Array.from(root.querySelectorAll(".vditor-toolbar button, .vditor-toolbar [data-type], .vditor-toolbar__item"));
+    function enhanceVditorToolbar(root: AdminTypes.MarkdownToolbarRoot) {
+      const toolbarNodes = () => Array.from(adminElements(".vditor-toolbar button, .vditor-toolbar [data-type], .vditor-toolbar__item", HTMLElement, root));
       const blurToolbar = () => toolbarNodes().forEach((button) => button.blur?.());
       const applyTitles = () => {
         toolbarNodes().forEach((button) => {
@@ -2782,11 +2890,11 @@ async function loadMpUsersAdmin() {
         root.__nkustudyToolbarObserver.observe(root, { childList: true, subtree: true });
       }
       root.addEventListener("pointerdown", (event) => {
-        if (!event.target?.closest?.(".vditor-toolbar")) window.setTimeout(blurToolbar, 0);
+        if (!(event.target instanceof Element) || !event.target.closest(".vditor-toolbar")) window.setTimeout(blurToolbar, 0);
       });
     }
 
-    async function uploadContentImage(owner, file) {
+    async function uploadContentImage(owner: string, file: File) {
       const form = new FormData();
       form.append("file", file);
       const response = await fetch(`/admin-api/content-images?owner=${encodeURIComponent(owner)}`, {
@@ -2799,7 +2907,7 @@ async function loadMpUsersAdmin() {
       return data.data.url;
     }
 
-    function contentImageUploadConfig(node) {
+    function contentImageUploadConfig(node: MarkdownEditorNode) {
       const owner = node.dataset.contentOwner;
       if (!owner) return {};
       return {
@@ -2811,7 +2919,7 @@ async function loadMpUsersAdmin() {
           max: 8 * 1024 * 1024,
           headers: { "x-nkustudy-admin-request": "1" },
           // 服务端返回 {ok,data:{url}}；提供 success 时 vditor 跳过自身的 succMap 解析，由这里直接插入
-          success(_editorElement, responseText) {
+          success(_editorElement: HTMLElement, responseText: string) {
             try {
               const parsed = JSON.parse(responseText);
               if (parsed?.ok && parsed.data?.url) {
@@ -2840,12 +2948,12 @@ async function loadMpUsersAdmin() {
               const file = input.files?.[0];
               if (!file) return;
               try {
-                const url = await uploadContentImage(node.dataset.contentOwner, file);
+                const url = await uploadContentImage(owner, file);
                 node.__markdownEditorRef?.insertValue(`
 ![](${url})
 `);
               } catch (error) {
-                alert(error.message || "图片上传失败");
+                alert(adminErrorMessage(error) || "图片上传失败");
               }
             };
             input.click();
@@ -2854,7 +2962,7 @@ async function loadMpUsersAdmin() {
       };
     }
 
-    function mountMarkdownEditors(root: Element | null, mode = "admin", { destroy = true } = {}) {
+    function mountMarkdownEditors(root: Element | null, mode: "admin" | "user" = "admin", { destroy = true } = {}) {
       if (destroy) destroyMarkdownEditors(root);
       const editors = Array.from(root?.querySelectorAll<MarkdownEditorNode>("[data-markdown-editor]") ?? []);
       for (const node of editors) {
@@ -2889,7 +2997,7 @@ async function loadMpUsersAdmin() {
               editor?.setValue?.(initialValue);
               if (fallback) fallback.value = initialValue;
               ready = true;
-              for (const editable of node.querySelectorAll("[contenteditable]")) editable.setAttribute("aria-labelledby", node.getAttribute("aria-labelledby") || "");
+              for (const editable of adminElements("[contenteditable]", HTMLElement, node)) editable.setAttribute("aria-labelledby", node.getAttribute("aria-labelledby") || "");
               if (node.closest('[data-moderation-readonly="true"]') || node.closest("fieldset:disabled")) editor?.disabled?.();
               enhanceVditorToolbar(node);
               shell?.classList.add("is-mounted");
@@ -2914,11 +3022,11 @@ async function loadMpUsersAdmin() {
       }
     }
 
-    function toolbarItemLabel(value) {
+    function toolbarItemLabel(value: string) {
       return toolbarOptions.find(([key]) => key === value)?.[1] || value;
     }
 
-    function renderToolbarCheckGroup(root, toolbar, onChange) {
+    function renderToolbarCheckGroup(root: HTMLElement, toolbar: string[], onChange: (toolbar: string[]) => void) {
       root.innerHTML = "";
       let current = [...toolbar];
       const items = document.createElement("div");
@@ -2946,7 +3054,8 @@ async function loadMpUsersAdmin() {
     }
 
     function renderEditorSettingsAdmin() {
-      if (!editorSettingsState) return;
+      const current = editorSettingsState;
+      if (!current) return;
       editorSettingsAdminStatus.textContent = "";
       editorUserSettings.innerHTML = "";
       editorAdminSettings.innerHTML = "";
@@ -2954,9 +3063,9 @@ async function loadMpUsersAdmin() {
       userWrap.className = "editor-settings-block";
       userWrap.innerHTML = `<p class="muted">用户提交评价/反馈时可使用的 Markdown 工具栏选项。</p>`;
       const userToolbar = document.createElement("div");
-      renderToolbarCheckGroup(userToolbar, editorSettingsState.user?.toolbar || defaultUserToolbar, (next) => {
-        editorSettingsState.user = editorSettingsState.user || {};
-        editorSettingsState.user.toolbar = next;
+      renderToolbarCheckGroup(userToolbar, current.user?.toolbar || defaultUserToolbar, (next) => {
+        current.user = current.user || {};
+        current.user.toolbar = next;
       });
       userWrap.append(userToolbar);
 
@@ -2964,9 +3073,9 @@ async function loadMpUsersAdmin() {
       adminWrap.className = "editor-settings-block";
       adminWrap.innerHTML = `<p class="muted">后台页面中可用的 Markdown 工具栏选项。</p>`;
       const adminToolbar = document.createElement("div");
-      renderToolbarCheckGroup(adminToolbar, editorSettingsState.admin?.toolbar || defaultAdminToolbar, (next) => {
-        editorSettingsState.admin = editorSettingsState.admin || {};
-        editorSettingsState.admin.toolbar = next;
+      renderToolbarCheckGroup(adminToolbar, current.admin?.toolbar || defaultAdminToolbar, (next) => {
+        current.admin = current.admin || {};
+        current.admin.toolbar = next;
       });
       adminWrap.append(adminToolbar);
 
@@ -2985,7 +3094,7 @@ async function loadMpUsersAdmin() {
       renderEditorSettingsAdmin();
     }
 
-    function checkboxField(label, value, onInput) {
+    function checkboxField(label: string, value: boolean | undefined, onInput: (value: boolean) => void) {
       const wrap = document.createElement("label");
       wrap.className = "admin-check-field";
       const input = document.createElement("input");
@@ -2998,14 +3107,14 @@ async function loadMpUsersAdmin() {
       return wrap;
     }
 
-    function numberField(label, value, onInput) {
+    function numberField(label: string, value: number, onInput: (value: number) => void) {
       const wrap = field(label, value, (next) => onInput(Number(next || 0)));
-      wrap.querySelector("input").type = "number";
-      wrap.querySelector("input").min = "0";
+      requireAdminElement("input", HTMLInputElement, wrap).type = "number";
+      requireAdminElement("input", HTMLInputElement, wrap).min = "0";
       return wrap;
     }
 
-    function selectField(label, value, options, onInput) {
+    function selectField(label: string, value: string | undefined, options: [string, string][], onInput: (value: string, select: HTMLSelectElement) => void) {
       const wrap = document.createElement("label");
       wrap.className = "admin-field";
       const labelEl = document.createElement("span");
@@ -3023,7 +3132,7 @@ async function loadMpUsersAdmin() {
       return wrap;
     }
 
-    function appendPagination(container, total, currentPage, onPage) {
+    function appendPagination(container: HTMLElement, total: number, currentPage: number, onPage: (page: number) => void) {
       if (total <= adminPageSize) return;
       const pages = Math.max(1, Math.ceil(total / adminPageSize));
       const pager = document.createElement("div");
@@ -3087,7 +3196,7 @@ async function loadMpUsersAdmin() {
       }
       if (item.flagged) parts.push(`规则命中：${item.flagged}`);
       for (const [actor, time, label] of [["handledBy", "handledAt", "处理"], ["repliedBy", "repliedAt", "回复"], ["updatedBy", "updatedAt", "更新"]]) {
-        if (item[actor]) parts.push(`${label}人 ${item[actor]} · ${beijingDateTime(item[time])}`);
+        if (item[actor]) parts.push(`${label}人 ${item[actor]} · ${beijingDateTime(typeof item[time] === "string" || typeof item[time] === "number" ? item[time] : undefined)}`);
       }
       return parts.join("\n");
     }
@@ -3118,7 +3227,7 @@ async function loadMpUsersAdmin() {
       row.querySelector<HTMLButtonElement>(".moderation-cancel")!.textContent = draft.conflict ? "丢弃草稿并加载服务器当前" : "取消本条草稿";
       row.querySelector<HTMLElement>(".moderation-row-status")!.textContent = draft.saving ? "正在保存本条…" : draft.error || draft.message || (draft.dirty ? "本条有未保存改动" : "本条没有未保存改动");
       row.querySelector<HTMLElement>(".moderation-draft-decision")!.textContent = draft.changes.publicationDecision ? `待保存的公开决定：${publicationDecisionLabels[String(draft.changes.publicationDecision)]}` : "公开决定未修改";
-      const count = row.querySelector(".moderation-reply-count");
+      const count = findAdminElement(".moderation-reply-count", HTMLElement, row);
       if (count) count.textContent = `${String(draft.value.reply || "").length} / 2000 字${String(draft.value.reply || "").length > 2000 ? "；回复过长，请缩减后保存" : ""}`;
       for (const button of row.querySelectorAll<HTMLButtonElement>("[data-publication-decision]")) {
         const selected = draft.changes.publicationDecision === button.dataset.publicationDecision;
@@ -3202,7 +3311,7 @@ async function loadMpUsersAdmin() {
           store.resolve(id, choices);
           if (!settings) replaceSavedModerationItem(kind, store.read(id).saved);
           rerenderModeration(kind, { settings });
-        } catch (error) { message.textContent = error instanceof Error ? error.message : String(error); }
+        } catch (error) { message.textContent = error instanceof Error ? adminErrorMessage(error) : String(error); }
       });
       const drop = document.createElement("button");
       drop.type = "button";
@@ -3568,29 +3677,30 @@ async function loadMpUsersAdmin() {
     }
 
     function renderLinksAdmin() {
-      if (!linksState) return;
-      linksState.siteInfo ??= {};
-      linksState.links ??= [];
+      const current = linksState;
+      if (!current) return;
+      const siteInfo = current.siteInfo ??= {};
+      current.links ??= [];
       linksSettingsEditor.innerHTML = "";
       linksSettingsEditor.append(
-        field("页面标题", linksState.title ?? "友情链接", (value) => { linksState.title = value; }),
-        markdownField("页面说明", linksState.intro ?? "", (value) => { linksState.intro = value; }),
-        field("友情链接分组标题", linksState.mutualTitle ?? "友情链接", (value) => { linksState.mutualTitle = value; }),
-        field("推荐链接分组标题", linksState.recommendedTitle ?? "推荐链接", (value) => { linksState.recommendedTitle = value; }),
-        field("本站信息标题", linksState.siteInfoTitle ?? "本站信息", (value) => { linksState.siteInfoTitle = value; }),
-        field("本站名称", linksState.siteInfo.name ?? "NKUStudy", (value) => { linksState.siteInfo.name = value; }),
-        field("本站地址", linksState.siteInfo.url ?? "https://nkustudy.top/", (value) => { linksState.siteInfo.url = value; }),
-        markdownField("本站简介", linksState.siteInfo.description ?? "", (value) => { linksState.siteInfo.description = value; })
+        field("页面标题", current.title ?? "友情链接", (value) => { current.title = value; }),
+        markdownField("页面说明", current.intro ?? "", (value) => { current.intro = value; }),
+        field("友情链接分组标题", current.mutualTitle ?? "友情链接", (value) => { current.mutualTitle = value; }),
+        field("推荐链接分组标题", current.recommendedTitle ?? "推荐链接", (value) => { current.recommendedTitle = value; }),
+        field("本站信息标题", current.siteInfoTitle ?? "本站信息", (value) => { current.siteInfoTitle = value; }),
+        field("本站名称", siteInfo.name ?? "NKUStudy", (value) => { siteInfo.name = value; }),
+        field("本站地址", siteInfo.url ?? "https://nkustudy.top/", (value) => { siteInfo.url = value; }),
+        markdownField("本站简介", siteInfo.description ?? "", (value) => { siteInfo.description = value; })
       );
 
       linksAdminList.innerHTML = "";
-      if (!linksState.links.length) {
+      if (!current.links.length) {
         linksAdminList.innerHTML = `<p class="empty">暂未添加链接。</p>`;
-        mountMarkdownEditors(document.querySelector("#links-admin-panel"));
+        mountMarkdownEditors(requireAdminElement("#links-admin-panel", HTMLElement));
         return;
       }
 
-      for (const item of linksState.links) {
+      for (const item of current.links) {
         const wrap = document.createElement("div");
         wrap.className = "review-admin-item";
         wrap.innerHTML = `
@@ -3618,14 +3728,14 @@ async function loadMpUsersAdmin() {
         remove.textContent = "删除链接";
         remove.addEventListener("click", () => {
           if (!confirm("删除这个链接？")) return;
-          linksState.links = linksState.links.filter((entry) => entry !== item);
+          current.links = (current.links ?? []).filter((entry) => entry !== item);
           renderLinksAdmin();
         });
         actions.append(remove);
         wrap.append(form, actions);
         linksAdminList.append(wrap);
       }
-      mountMarkdownEditors(document.querySelector("#links-admin-panel"));
+      mountMarkdownEditors(requireAdminElement("#links-admin-panel", HTMLElement));
     }
 
     async function saveLinksState(message = "已保存并发布") {
@@ -3641,11 +3751,12 @@ async function loadMpUsersAdmin() {
     }
 
     function renderParticipateAdmin() {
-      if (!participateState) return;
+      const current = participateState;
+      if (!current) return;
       participateAdminEditor.innerHTML = "";
       participateAdminEditor.append(
-        field("标题", participateState.title ?? "参与贡献", (value) => { participateState.title = value; }),
-        markdownField("正文（支持 Markdown，可插图）", participateState.content ?? "", (value) => { participateState.content = value; }, { height: 360, owner: "participate" })
+        field("标题", current.title ?? "参与贡献", (value) => { current.title = value; }),
+        markdownField("正文（支持 Markdown，可插图）", current.content ?? "", (value) => { current.content = value; }, { height: 360, owner: "participate" })
       );
       mountMarkdownEditors(participateAdminEditor);
     }
@@ -3663,12 +3774,13 @@ async function loadMpUsersAdmin() {
     }
 
     function renderAboutAdmin() {
-      if (!aboutState) return;
+      const current = aboutState;
+      if (!current) return;
       aboutAdminEditor.innerHTML = "";
       aboutAdminEditor.append(
-        field("标题", aboutState.title ?? "", (value) => { aboutState.title = value; }),
-        markdownField("正文（支持 Markdown，可插图）", aboutState.content ?? "", (value) => {
-          aboutState.content = value;
+        field("标题", current.title ?? "", (value) => { current.title = value; }),
+        markdownField("正文（支持 Markdown，可插图）", current.content ?? "", (value) => {
+          current.content = value;
         }, { height: 360, owner: "about" })
       );
       mountMarkdownEditors(aboutAdminEditor);
@@ -3687,10 +3799,11 @@ async function loadMpUsersAdmin() {
     }
 
     function renderHomeAdmin() {
-      if (!homeState) return;
+      const current = homeState;
+      if (!current) return;
       homeAdminEditor.innerHTML = "";
       homeAdminEditor.append(
-        markdownField("首页公告栏（支持 Markdown，可插图）", homeState.announcement ?? "", (value) => { homeState.announcement = value; }, { owner: "home" })
+        markdownField("首页公告栏（支持 Markdown，可插图）", current.announcement ?? "", (value) => { current.announcement = value; }, { owner: "home" })
       );
       mountMarkdownEditors(homeAdminEditor);
     }
@@ -3708,20 +3821,21 @@ async function loadMpUsersAdmin() {
     }
 
     function renderFooterAdmin() {
-      if (!footerState) return;
+      const current = footerState;
+      if (!current) return;
       footerAdminEditor.innerHTML = "";
-      const maintainersValue = (footerState.maintainers || [])
+      const maintainersValue = (current.maintainers || [])
         .map((item) => item.url ? `[${item.label || ""}](${item.url})` : (item.label || ""))
         .join("\n");
       footerAdminEditor.append(
-        checkboxField("启用全站页脚", footerState.enabled === true, (value) => { footerState.enabled = value; }),
-        checkboxField("页脚显示访问量", footerState.showVisitCount !== false, (value) => { footerState.showVisitCount = value; }),
-        checkboxField("访问量使用真实统计", footerState.useRealVisitCount !== false, (value) => { footerState.useRealVisitCount = value; }),
-        field("本站总访问量（关闭真实统计时使用）", footerState.visitCount ?? "10411114", (value) => { footerState.visitCount = value; }),
-        field("安全运行起始时间（北京时间，如 2025-07-15T16:00:00+08:00）", footerState.startedAt ?? "2022-01-01T00:00:00+08:00", (value) => { footerState.startedAt = value; }),
-        markdownField("版权文本（支持 Markdown，可插图）", footerState.copyrightText ?? "© 2025 NKUStudy", (value) => { footerState.copyrightText = value; }, { height: 130, owner: "footer" }),
+        checkboxField("启用全站页脚", current.enabled === true, (value) => { current.enabled = value; }),
+        checkboxField("页脚显示访问量", current.showVisitCount !== false, (value) => { current.showVisitCount = value; }),
+        checkboxField("访问量使用真实统计", current.useRealVisitCount !== false, (value) => { current.useRealVisitCount = value; }),
+        field("本站总访问量（关闭真实统计时使用）", current.visitCount ?? "10411114", (value) => { current.visitCount = value; }),
+        field("安全运行起始时间（北京时间，如 2025-07-15T16:00:00+08:00）", current.startedAt ?? "2022-01-01T00:00:00+08:00", (value) => { current.startedAt = value; }),
+        markdownField("版权文本（支持 Markdown，可插图）", current.copyrightText ?? "© 2025 NKUStudy", (value) => { current.copyrightText = value; }, { height: 130, owner: "footer" }),
         markdownField("维护者链接（每行：[显示名](链接)，也可：显示名|链接）", maintainersValue, (value) => {
-          footerState.maintainers = value
+          current.maintainers = value
             .split(/\r?\n/)
             .map((line) => {
               const markdownLink = line.match(/^\s*\[([^\]]+)\]\(([^)]+)\)\s*$/);
@@ -3749,7 +3863,7 @@ async function loadMpUsersAdmin() {
 
     let statsRange = 30;
 
-    function decodePathLabel(path) {
+    function decodePathLabel(path: string) {
       try {
         return decodeURIComponent(String(path));
       } catch {
@@ -3757,18 +3871,18 @@ async function loadMpUsersAdmin() {
       }
     }
 
-    function normalizeStatsKey(path) {
+    function normalizeStatsKey(path: string) {
       const decoded = decodePathLabel(path).replace(/\/+$/, "") || "/";
       return decoded.toLowerCase();
     }
 
-    function courseTitleFromStatsKey(path) {
+    function courseTitleFromStatsKey(path: string) {
       const decoded = decodePathLabel(path).replace(/\/+$/, "");
       const match = decoded.match(/^\/courses\/([^/]+)/);
       return match ? match[1] : "";
     }
 
-    function pageCategory(path) {
+    function pageCategory(path: string) {
       const key = normalizeStatsKey(path);
       if (key.startsWith("/mp/")) return "小程序";
       if (key === "/") return "首页";
@@ -3784,13 +3898,13 @@ async function loadMpUsersAdmin() {
       return "其他";
     }
 
-    function statsKeyLabel(path) {
+    function statsKeyLabel(path: string) {
       const key = normalizeStatsKey(path);
       if (/^\/courses\/./.test(key)) return `课程 · ${courseTitleFromStatsKey(path) || key}`;
       return key;
     }
 
-    function beijingDayKeys(count) {
+    function beijingDayKeys(count: number) {
       const keys = [];
       const now = new Date();
       for (let offset = count - 1; offset >= 0; offset -= 1) {
@@ -3799,7 +3913,7 @@ async function loadMpUsersAdmin() {
       return keys;
     }
 
-    function sumDays(daysMap, keys) {
+    function sumDays(daysMap: Record<string, number>, keys: string[]) {
       let sum = 0;
       for (const key of keys) sum += Number(daysMap?.[key] || 0);
       return sum;
@@ -3875,11 +3989,11 @@ async function loadMpUsersAdmin() {
           </svg>
         </div>
       `;
-      const chartSvg = statsAdminChart.querySelector("#stats-chart-svg");
-      const tooltip = statsAdminChart.querySelector("#stats-chart-tooltip");
-      const guide = statsAdminChart.querySelector("#stats-chart-guide");
-      const dots = [...statsAdminChart.querySelectorAll("circle[data-index]")];
-      const highlight = (index) => {
+      const chartSvg = requireAdminElement("#stats-chart-svg", SVGSVGElement, statsAdminChart);
+      const tooltip = requireAdminElement("#stats-chart-tooltip", HTMLElement, statsAdminChart);
+      const guide = requireAdminElement("#stats-chart-guide", SVGLineElement, statsAdminChart);
+      const dots = [...adminElements("circle[data-index]", SVGCircleElement, statsAdminChart)];
+      const highlight = (index: number) => {
         for (const dot of dots) dot.setAttribute("r", Number(dot.dataset.index) === index ? "5" : "2.5");
         tooltip.textContent = `${chartKeys[index]} · ${series[index]} 次访问`;
         tooltip.style.display = "block";
@@ -3910,8 +4024,8 @@ async function loadMpUsersAdmin() {
         for (const dot of dots) dot.setAttribute("r", "2.5");
       });
 
-      const categories = new Map();
-      const mergedPages = new Map();
+      const categories = new Map<string, { label: string; total: number; today: number; last7: number; last30: number }>();
+      const mergedPages = new Map<string, { normKey: string; display: string; total: number; today: number; days: Record<string, number> }>();
       for (const [path, item] of Object.entries(stats.pages || {})) {
         const normKey = normalizeStatsKey(path);
         const merged = mergedPages.get(normKey) || {
@@ -3991,34 +4105,35 @@ async function loadMpUsersAdmin() {
       }
     }
 
-    function passwordField(label, configured, onInput) {
+    function passwordField(label: string, configured: boolean | undefined, onInput: (value: string) => void) {
       const wrap = field(label + (configured ? "（已配置，留空不变）" : ""), "", onInput);
-      wrap.querySelector("input").type = "password";
-      wrap.querySelector("input").autocomplete = "new-password";
+      requireAdminElement("input", HTMLInputElement, wrap).type = "password";
+      requireAdminElement("input", HTMLInputElement, wrap).autocomplete = "new-password";
       return wrap;
     }
 
     function renderBackupAdmin() {
-      if (!backupState) return;
-      backupState.destinations ??= [];
+      const current = backupState;
+      if (!current) return;
+      const destinations = current.destinations ??= [];
       backupSettingsEditor.innerHTML = "";
       backupSettingsEditor.append(
-        checkboxField("启用每日自动备份", backupState.autoEnabled !== false, (value) => { backupState.autoEnabled = value; }),
-        field("每日执行时间（北京时间 HH:mm）", backupState.dailyTime ?? "03:20", (value) => { backupState.dailyTime = value; }),
-        checkboxField("备份到独立私密 R2 存储（需维护者配置）", backupState.r2DataBackup !== false, (value) => { backupState.r2DataBackup = value; }),
-        checkboxField("启用 WebDAV 备份", backupState.webdavEnabled === true, (value) => { backupState.webdavEnabled = value; }),
-        checkboxField("WebDAV 同步课程文件", backupState.includeCourseFiles !== false, (value) => { backupState.includeCourseFiles = value; }),
-        passwordField("备份加密口令（至少16位）", backupState.encryptionPasswordConfigured, (value) => { backupState.encryptionPassword = value; })
+        checkboxField("启用每日自动备份", current.autoEnabled !== false, (value) => { current.autoEnabled = value; }),
+        field("每日执行时间（北京时间 HH:mm）", current.dailyTime ?? "03:20", (value) => { current.dailyTime = value; }),
+        checkboxField("备份到独立私密 R2 存储（需维护者配置）", current.r2DataBackup !== false, (value) => { current.r2DataBackup = value; }),
+        checkboxField("启用 WebDAV 备份", current.webdavEnabled === true, (value) => { current.webdavEnabled = value; }),
+        checkboxField("WebDAV 同步课程文件", current.includeCourseFiles !== false, (value) => { current.includeCourseFiles = value; }),
+        passwordField("备份加密口令（至少16位）", current.encryptionPasswordConfigured, (value) => { current.encryptionPassword = value; })
       );
 
       webdavSettingsEditor.innerHTML = "";
-      if (!backupState.destinations.length) {
+      if (!current.destinations.length) {
         const empty = document.createElement("p");
         empty.className = "empty";
         empty.textContent = "尚未添加 WebDAV 目标。";
         webdavSettingsEditor.append(empty);
       }
-      backupState.destinations.forEach((dest, index) => {
+      current.destinations.forEach((dest, index) => {
         const card = document.createElement("div");
         card.className = "admin-file-row";
         card.append(
@@ -4043,7 +4158,7 @@ async function loadMpUsersAdmin() {
             });
             backupAdminStatus.textContent = result.message || "WebDAV 连接正常。";
           } catch (error) {
-            backupAdminStatus.textContent = error.message;
+            backupAdminStatus.textContent = adminErrorMessage(error);
           }
         });
         const remove = document.createElement("button");
@@ -4051,7 +4166,7 @@ async function loadMpUsersAdmin() {
         remove.type = "button";
         remove.textContent = "删除目标";
         remove.addEventListener("click", () => {
-          backupState.destinations.splice(index, 1);
+          destinations.splice(index, 1);
           renderBackupAdmin();
         });
         actions.append(test, remove);
@@ -4071,10 +4186,10 @@ async function loadMpUsersAdmin() {
       renderBackupAdmin();
     }
 
-    async function deleteR2Paths(course, paths) {
+    async function deleteR2Paths(course: AdminTypes.AdminCourse, paths: string[]) {
       const cleanPaths = paths.filter(Boolean);
       if (!cleanPaths.length) return {};
-      const candidate = structuredClone(state);
+      const candidate = structuredClone(loadedManifest());
       const target = candidate.courses.find((item) => item.uid === course.uid);
       const deleting = new Set(cleanPaths);
       for (const section of target?.sections || []) {
@@ -4083,7 +4198,7 @@ async function loadMpUsersAdmin() {
       const data = await api("/r2-publish", {
         method: "POST",
         body: JSON.stringify(manifestWriteBodyFor(candidate, {
-          fileDeletes: [{ courseUid: course.uid, paths: cleanPaths }],
+          fileDeletes: [{ courseUid: requireCourseUid(course), paths: cleanPaths }],
           moves: changedCourseDirectories(),
         })),
       });
@@ -4091,10 +4206,10 @@ async function loadMpUsersAdmin() {
       return data;
     }
 
-    async function deleteCourse(course) {
+    async function deleteCourse(course: AdminTypes.AdminCourse) {
       if (!confirm("删除课程「" + (course.title || "") + "」？课程记录、资源板块和 R2 中 " + (course.basePath || "") + " 下的文件都会删除。")) return;
       publishStatus.textContent = "正在删除课程...";
-      const candidate = structuredClone(state);
+      const candidate = structuredClone(loadedManifest());
       candidate.courses = candidate.courses.filter((item) => item.uid !== course.uid);
       const data = await api("/r2-publish", {
         method: "POST",
@@ -4103,18 +4218,18 @@ async function loadMpUsersAdmin() {
         })),
       });
       acceptManifest(data);
-      selectedId = state.courses[0]?.id ?? null;
+      selectedId = loadedManifest().courses[0]?.id ?? null;
       renderTree();
       renderEditor();
       publishStatus.textContent = statusWithWarnings("课程已删除并发布", data);
     }
 
-    function changedCourseDirectories() {
-      const moves = [];
-      const directoryPath = (basePath) => String(basePath || "").replace(/\/+$/, "");
-      for (const course of state.courses) {
+    function changedCourseDirectories(): AdminTypes.DirectoryMove[] {
+      const moves: AdminTypes.DirectoryMove[] = [];
+      const directoryPath = (basePath: string) => String(basePath || "").replace(/\/+$/, "");
+      for (const course of loadedManifest().courses) {
         const oldBasePath = originalCourseBasePaths.get(course);
-        if (!oldBasePath || oldBasePath === course.basePath) continue;
+        if (!oldBasePath || oldBasePath === course.basePath || !course.uid) continue;
         moves.push({
           courseUid: course.uid,
           oldBasePath: directoryPath(oldBasePath),
@@ -4124,7 +4239,7 @@ async function loadMpUsersAdmin() {
       return moves;
     }
 
-    function renderFileRow(course, file, files) {
+    function renderFileRow(course: AdminTypes.AdminCourse, file: AdminTypes.AdminFile, files: AdminTypes.AdminFile[]) {
       const wrap = document.createElement("div");
       wrap.className = "admin-file-item";
       const row = document.createElement("div");
@@ -4160,7 +4275,7 @@ async function loadMpUsersAdmin() {
           const data = await deleteR2Paths(course, [file.path]);
           publishStatus.textContent = statusWithWarnings("文件已删除并发布", data);
         } catch (error) {
-          alert(error.message);
+          alert(adminErrorMessage(error));
           remove.textContent = "删除";
           remove.disabled = false;
           return;
@@ -4187,9 +4302,9 @@ async function loadMpUsersAdmin() {
       return wrap;
     }
 
-    function filesFromEntry(entry, prefix = "") {
-      return new Promise((resolve) => {
-        if (entry.isFile) {
+    function filesFromEntry(entry: FileSystemEntry, prefix = ""): Promise<AdminTypes.UploadFile[]> {
+      return new Promise<AdminTypes.UploadFile[]>((resolve, reject) => {
+        if (isFileEntry(entry)) {
           entry.file((file) => {
             Object.defineProperty(file, "relativePath", { value: String(prefix) + file.name });
             resolve([file]);
@@ -4197,8 +4312,9 @@ async function loadMpUsersAdmin() {
           return;
         }
 
+        if (!isDirectoryEntry(entry)) { reject(new Error("拖入的文件条目无法读取，请重新选择文件。")); return; }
         const reader = entry.createReader();
-        const entries = [];
+        const entries: FileSystemEntry[] = [];
         const read = () => {
           reader.readEntries(async (batch) => {
             if (!batch.length) {
@@ -4214,29 +4330,31 @@ async function loadMpUsersAdmin() {
       });
     }
 
-    async function droppedFiles(event) {
-      const items = Array.from(event.dataTransfer.items ?? []);
-      if (items.length && items[0].webkitGetAsEntry) {
+    async function droppedFiles(event: DragEvent) {
+      const transfer = event.dataTransfer;
+      if (!transfer) return [];
+      const items = Array.from(transfer.items ?? []);
+      if (items.length && typeof items[0].webkitGetAsEntry === "function") {
         const nested = await Promise.all(items.map((item) => {
           const entry = item.webkitGetAsEntry();
           return entry ? filesFromEntry(entry) : [];
         }));
         return nested.flat();
       }
-      return Array.from(event.dataTransfer.files ?? []).map((file) => {
+      return Array.from(transfer.files ?? []).map((file) => {
         Object.defineProperty(file, "relativePath", { value: file.webkitRelativePath || file.name });
         return file;
       });
     }
 
-    async function uploadFiles(course, section, sectionIndex, files, progressBar, progressText) {
+    async function uploadFiles(course: AdminTypes.AdminCourse, section: AdminTypes.AdminSection, sectionIndex: number, files: AdminTypes.UploadFile[], progressBar: HTMLProgressElement, progressText: HTMLElement) {
       touchChangedCourses();
       const draft = await api("/manifest-draft", {
         method: "POST",
         body: JSON.stringify(manifestWriteBody()),
       });
       acceptManifest(draft);
-      course = state.courses.find((item) => item.id === course.id) || course;
+      course = loadedManifest().courses.find((item) => item.id === course.id) || course;
       section = course.sections?.[sectionIndex];
       if (!section) throw new Error("课程板块在保存草稿后发生变化，请重新选择后上传。");
 
@@ -4245,7 +4363,7 @@ async function loadMpUsersAdmin() {
         form.append("files", file, file.relativePath || file.webkitRelativePath || file.name);
       }
 
-      const data = await new Promise((resolve, reject) => {
+      const data = await new Promise<{ files: AdminTypes.AdminFile[] }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/admin-api/upload?courseId=" + encodeURIComponent(course.id) + "&sectionIndex=" + sectionIndex);
         xhr.setRequestHeader("x-nkustudy-admin-request", "1");
@@ -4276,7 +4394,7 @@ async function loadMpUsersAdmin() {
       renderEditor();
     }
 
-    function renderDropZone(course, section, sectionIndex) {
+    function renderDropZone(course: AdminTypes.AdminCourse, section: AdminTypes.AdminSection, sectionIndex: number) {
       const drop = document.createElement("div");
       drop.className = "admin-dropzone";
       const label = document.createElement("span");
@@ -4309,7 +4427,7 @@ async function loadMpUsersAdmin() {
           const files = await droppedFiles(event);
           await uploadFiles(course, section, sectionIndex, files, progress, progressText);
         } catch (error) {
-          label.textContent = error.message;
+          label.textContent = adminErrorMessage(error);
           progress.hidden = true;
           progressText.hidden = true;
         }
@@ -4331,7 +4449,7 @@ async function loadMpUsersAdmin() {
 
       const form = document.createElement("div");
       form.className = "admin-form";
-      let basePathInput;
+      let basePathInput: HTMLInputElement | HTMLTextAreaElement | null = null;
       const updateBasePathField = () => {
         syncCourseBasePath(course);
         if (basePathInput) basePathInput.value = course.basePath;
@@ -4354,7 +4472,7 @@ async function loadMpUsersAdmin() {
         editorTitle.textContent = value || "未命名课程";
         renderTree();
       });
-      const titleInput = titleField.querySelector("input");
+      const titleInput = findAdminElement("input", HTMLInputElement, titleField);
       const titleInputRow = document.createElement("div");
       titleInputRow.className = "admin-field-action-row";
       const openCourseButton = document.createElement("button");
@@ -4374,7 +4492,7 @@ async function loadMpUsersAdmin() {
         course.basePath = value;
         basePathInput = input;
       });
-      basePathInput = basePathField.querySelector("input");
+      basePathInput = findAdminElement("input", HTMLInputElement, basePathField);
       form.append(
         termField,
         groupField,
@@ -4409,8 +4527,8 @@ async function loadMpUsersAdmin() {
         try {
           await deleteCourse(course);
         } catch (error) {
-          alert(error.message);
-          publishStatus.textContent = error.message;
+          alert(adminErrorMessage(error));
+          publishStatus.textContent = adminErrorMessage(error);
           deleteCourseButton.disabled = false;
         }
       });
@@ -4466,7 +4584,7 @@ async function loadMpUsersAdmin() {
             const data = await deleteR2Paths(course, (section.files ?? []).map((file) => file.path));
             publishStatus.textContent = statusWithWarnings("板块已删除并发布", data);
           } catch (error) {
-            alert(error.message);
+            alert(adminErrorMessage(error));
             removeSection.textContent = "删除板块";
             removeSection.disabled = false;
             return;
@@ -4491,7 +4609,7 @@ async function loadMpUsersAdmin() {
             const data = await deleteR2Paths(course, selected.map((file) => file.path));
             publishStatus.textContent = statusWithWarnings("选中文件已删除并发布", data);
           } catch (error) {
-            alert(error.message);
+            alert(adminErrorMessage(error));
             removeSelected.textContent = "删除选中文件";
             removeSelected.disabled = false;
             return;
@@ -4565,19 +4683,19 @@ async function loadMpUsersAdmin() {
         const data = await api("/login", {
           method: "POST",
           body: JSON.stringify({
-            username: document.querySelector("#admin-username").value.trim(),
-            password: document.querySelector("#admin-password").value,
+            username: requireAdminElement("#admin-username", HTMLInputElement).value.trim(),
+            password: requireAdminElement("#admin-password", HTMLInputElement).value,
           }),
         });
         applySession(data.data || {});
         loginStatus.textContent = "";
         await enterAdminApp();
       } catch (error) {
-        loginStatus.textContent = error.message;
+        loginStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#add-course").addEventListener("click", () => {
+    requireAdminElement("#add-course", HTMLButtonElement).addEventListener("click", () => {
       const title = "新课程";
       const course = {
         id: title,
@@ -4599,13 +4717,13 @@ async function loadMpUsersAdmin() {
           { title: "PPT", note: "", files: [] },
         ],
       };
-      state.courses.unshift(course);
+      loadedManifest().courses.unshift(course);
       selectedId = course.id;
       renderTree();
       renderEditor();
     });
 
-    document.querySelector("#publish").addEventListener("click", async () => {
+    requireAdminElement("#publish", HTMLButtonElement).addEventListener("click", async () => {
       publishStatus.textContent = "发布中...";
       try {
         touchChangedCourses();
@@ -4619,11 +4737,11 @@ async function loadMpUsersAdmin() {
         renderEditor();
         publishStatus.textContent = statusWithWarnings("已发布", data);
       } catch (error) {
-        publishStatus.textContent = error.message;
+        publishStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#sync-r2").addEventListener("click", async () => {
+    requireAdminElement("#sync-r2", HTMLButtonElement).addEventListener("click", async () => {
       const course = selectedCourse();
       if (!course) return;
       publishStatus.textContent = "正在从 R2 同步...";
@@ -4639,11 +4757,11 @@ async function loadMpUsersAdmin() {
         renderEditor();
         publishStatus.textContent = r2SyncStatus("已按 R2 更新并发布", data);
       } catch (error) {
-        publishStatus.textContent = error.message;
+        publishStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#manifest-verify").addEventListener("click", async () => {
+    requireAdminElement("#manifest-verify", HTMLButtonElement).addEventListener("click", async () => {
       publishStatus.textContent = "正在比对 R2 与清单...";
       try {
         const data = await api("/manifest-verify");
@@ -4664,11 +4782,11 @@ async function loadMpUsersAdmin() {
         console.info("[校对清单] 新课程目录：", r.newCourses);
         if (r.moved.length || r.deleted.length) alert(`校对发现 ${r.moved.length} 个移动待修、${r.deleted.length} 个 R2 已缺失文件。点击「从 R2 重建课程树」可按 R2 真实结构修正（移动文件按新位置收录，缺失文件条目移除）。`);
       } catch (error) {
-        publishStatus.textContent = error.message;
+        publishStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#sync-r2-all").addEventListener("click", async () => {
+    requireAdminElement("#sync-r2-all", HTMLButtonElement).addEventListener("click", async () => {
       if (!confirm("按 R2 的 resources/学期/分类/课程 结构真实重建课程树？\n\n· R2 中有文件的课程：文件列表整体按 R2 替换（旧位置/已删除条目不再保留），文件描述与板块备注保留\n· R2 中没有任何文件的课程：保留原清单并计入报告（防止路径不匹配误清）\n· R2 中出现的新课程会自动新增")) return;
       publishStatus.textContent = "正在从 R2 重建课程树...";
       try {
@@ -4677,17 +4795,17 @@ async function loadMpUsersAdmin() {
           body: JSON.stringify({ expectedRevision: manifestRevision }),
         });
         acceptManifest(data);
-        selectedId = state.courses[0]?.id ?? null;
+        selectedId = loadedManifest().courses[0]?.id ?? null;
         renderManifestSettings();
         renderTree();
         renderEditor();
         publishStatus.textContent = r2SyncStatus("已按 R2 重建并发布", data);
       } catch (error) {
-        publishStatus.textContent = error.message;
+        publishStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#download-json").addEventListener("click", () => {
+    requireAdminElement("#download-json", HTMLButtonElement).addEventListener("click", () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -4697,11 +4815,11 @@ async function loadMpUsersAdmin() {
       URL.revokeObjectURL(url);
     });
 
-    document.querySelector("#download-backup").addEventListener("click", () => {
+    requireAdminElement("#download-backup", HTMLButtonElement).addEventListener("click", () => {
       window.location.href = "/admin-api/backup";
     });
 
-    document.querySelectorAll("[data-backup-scope]").forEach((button) => {
+    adminElements("[data-backup-scope]", HTMLElement).forEach((button) => {
       button.addEventListener("click", () => {
         const scope = button.dataset.backupScope || "all";
         backupAdminStatus.textContent = "正在生成备份...";
@@ -4712,7 +4830,7 @@ async function loadMpUsersAdmin() {
       });
     });
 
-    document.querySelector("#add-webdav-destination").addEventListener("click", () => {
+    requireAdminElement("#add-webdav-destination", HTMLButtonElement).addEventListener("click", () => {
       backupState ??= { destinations: [] };
       backupState.destinations ??= [];
       backupState.destinations.push({
@@ -4725,25 +4843,25 @@ async function loadMpUsersAdmin() {
       renderBackupAdmin();
     });
 
-    document.querySelector("#save-backup-settings").addEventListener("click", async () => {
+    requireAdminElement("#save-backup-settings", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveBackupState();
       } catch (error) {
-        backupAdminStatus.textContent = error.message;
+        backupAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-backup-settings").addEventListener("click", async () => {
+    requireAdminElement("#reload-backup-settings", HTMLButtonElement).addEventListener("click", async () => {
       backupAdminStatus.textContent = "加载中...";
       try {
         await loadBackupAdmin();
         backupAdminStatus.textContent = "";
       } catch (error) {
-        backupAdminStatus.textContent = error.message;
+        backupAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#run-backup-now").addEventListener("click", async () => {
+    requireAdminElement("#run-backup-now", HTMLButtonElement).addEventListener("click", async () => {
       if (!confirm("立即制作加密完整备份并验证已启用的远端目标？备份开始时会短暂暂停新请求，课程文件较多时可能需要等待。")) return;
       backupAdminStatus.textContent = "备份执行中...";
       try {
@@ -4751,61 +4869,62 @@ async function loadMpUsersAdmin() {
         const verified = (result.webdav || []).filter((item) => item.verified).length + (result.r2 || []).filter((item) => item.verified).length;
         backupAdminStatus.textContent = result.complete ? "本地加密备份已校验，另有 " + verified + " 个远端副本通过读回校验。" : "备份未完整完成，请联系维护者核对失败项。";
       } catch (error) {
-        backupAdminStatus.textContent = error.message;
+        backupAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-editor-settings").addEventListener("click", async () => {
+    requireAdminElement("#save-editor-settings", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveEditorSettings();
       } catch (error) {
-        editorSettingsAdminStatus.textContent = error.message;
+        editorSettingsAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-editor-settings").addEventListener("click", async () => {
+    requireAdminElement("#reload-editor-settings", HTMLButtonElement).addEventListener("click", async () => {
       editorSettingsAdminStatus.textContent = "加载中...";
       try {
         await loadEditorSettingsAdmin();
         editorSettingsAdminStatus.textContent = "";
       } catch (error) {
-        editorSettingsAdminStatus.textContent = error.message;
+        editorSettingsAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#logout").addEventListener("click", async () => {
+    requireAdminElement("#logout", HTMLButtonElement).addEventListener("click", async () => {
       if (!confirmModerationDeparture()) return;
       await api("/logout", { method: "POST", body: "{}" });
       moderationDepartureConfirmed = true;
       window.location.reload();
     });
 
-    document.querySelector("#logout-reviews").addEventListener("click", async () => {
+    requireAdminElement("#logout-reviews", HTMLButtonElement).addEventListener("click", async () => {
       if (!confirmModerationDeparture()) return;
       await api("/logout", { method: "POST", body: "{}" });
       moderationDepartureConfirmed = true;
       window.location.reload();
     });
 
-    document.querySelectorAll(".stats-range").forEach((button) => {
+    adminElements(".stats-range", HTMLElement).forEach((button) => {
       button.addEventListener("click", () => {
         statsRange = Number(button.dataset.range) || 30;
-        document.querySelectorAll(".stats-range").forEach((item) => item.classList.toggle("secondary", item !== button));
+        adminElements(".stats-range", HTMLElement).forEach((item) => item.classList.toggle("secondary", item !== button));
         if (statsState) renderStatsAdmin();
       });
     });
-    document.querySelector(".stats-range[data-range=\"30\"]")?.classList.remove("secondary");
+    findAdminElement(".stats-range[data-range=\"30\"]", HTMLElement)?.classList.remove("secondary");
 
-    document.querySelector("#new-account-role").addEventListener("change", (event) => {
+    requireAdminElement("#new-account-role", HTMLSelectElement).addEventListener("change", (event) => {
+      if (!(event.target instanceof HTMLSelectElement)) return;
       const role = event.target.value;
-      if (role) renderPermissionEditor(document.querySelector("#new-account-permissions"), serverRolePresets()[role]);
+      if (role) renderPermissionEditor(requireAdminElement("#new-account-permissions", HTMLElement), serverRolePresets()[role]);
     });
-    renderPermissionEditor(document.querySelector("#new-account-permissions"), []);
+    renderPermissionEditor(requireAdminElement("#new-account-permissions", HTMLElement), []);
 
-    document.querySelector("#create-account").addEventListener("click", async () => {
+    requireAdminElement("#create-account", HTMLButtonElement).addEventListener("click", async () => {
       accountsAdminStatus.textContent = "";
-      const password = document.querySelector("#new-account-password").value;
-      const confirmPassword = document.querySelector("#new-account-password-confirm").value;
+      const password = requireAdminElement("#new-account-password", HTMLInputElement).value;
+      const confirmPassword = requireAdminElement("#new-account-password-confirm", HTMLInputElement).value;
       if (password !== confirmPassword) {
         accountsAdminStatus.textContent = "两次输入的初始密码不一致。";
         return;
@@ -4814,37 +4933,37 @@ async function loadMpUsersAdmin() {
         await api("/accounts", {
           method: "POST",
           body: JSON.stringify({
-            username: document.querySelector("#new-account-username").value.trim(),
+            username: requireAdminElement("#new-account-username", HTMLInputElement).value.trim(),
             password,
-            permissions: checkedPermissions(document.querySelector("#new-account-permissions")),
-            mustChangePassword: document.querySelector("#new-account-must-change").checked,
+            permissions: checkedPermissions(requireAdminElement("#new-account-permissions", HTMLElement)),
+            mustChangePassword: requireAdminElement("#new-account-must-change", HTMLInputElement).checked,
           }),
         });
-        document.querySelector("#new-account-username").value = "";
-        document.querySelector("#new-account-password").value = "";
-        document.querySelector("#new-account-password-confirm").value = "";
+        requireAdminElement("#new-account-username", HTMLInputElement).value = "";
+        requireAdminElement("#new-account-password", HTMLInputElement).value = "";
+        requireAdminElement("#new-account-password-confirm", HTMLInputElement).value = "";
         accountsAdminStatus.textContent = "账号已创建";
         await loadAccountsAdmin();
       } catch (error) {
-        accountsAdminStatus.textContent = error.message;
+        accountsAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-accounts").addEventListener("click", async () => {
+    requireAdminElement("#reload-accounts", HTMLButtonElement).addEventListener("click", async () => {
       accountsAdminStatus.textContent = "加载中...";
       try {
         await loadAccountsAdmin();
         accountsAdminStatus.textContent = "";
       } catch (error) {
-        accountsAdminStatus.textContent = error.message;
+        accountsAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#change-self-password").addEventListener("click", async () => {
-      const status = document.querySelector("#self-password-status");
+    requireAdminElement("#change-self-password", HTMLButtonElement).addEventListener("click", async () => {
+      const status = requireAdminElement("#self-password-status", HTMLElement);
       status.textContent = "";
-      const newPassword = document.querySelector("#self-new-password").value;
-      const confirmPassword = document.querySelector("#self-confirm-password").value;
+      const newPassword = requireAdminElement("#self-new-password", HTMLInputElement).value;
+      const confirmPassword = requireAdminElement("#self-confirm-password", HTMLInputElement).value;
       if (newPassword !== confirmPassword) {
         status.textContent = "两次输入的新密码不一致。";
         return;
@@ -4853,41 +4972,41 @@ async function loadMpUsersAdmin() {
         await api("/me/password", {
           method: "POST",
           body: JSON.stringify({
-            currentPassword: document.querySelector("#self-current-password").value,
+            currentPassword: requireAdminElement("#self-current-password", HTMLInputElement).value,
             newPassword,
           }),
         });
-        document.querySelector("#self-current-password").value = "";
-        document.querySelector("#self-new-password").value = "";
-        document.querySelector("#self-confirm-password").value = "";
+        requireAdminElement("#self-current-password", HTMLInputElement).value = "";
+        requireAdminElement("#self-new-password", HTMLInputElement).value = "";
+        requireAdminElement("#self-confirm-password", HTMLInputElement).value = "";
         status.textContent = "密码已修改";
         applySession({ ...sessionState, mustChangePassword: false });
       } catch (error) {
-        status.textContent = error.message;
+        status.textContent = adminErrorMessage(error);
       }
     });
 
     async function loadNotifyAdmin() {
       const data = await api("/notify-settings");
       notifyState = { ...data.data, loaded: true };
-      document.querySelector("#notify-guide-feedback-enabled").checked = notifyState.guide_feedback_enabled !== false;
+      requireAdminElement("#notify-guide-feedback-enabled", HTMLInputElement).checked = notifyState.guide_feedback_enabled !== false;
       renderNotifyBots();
     }
 
     function resetNotifyEditor() {
-      document.querySelector("#notify-bot-id").value = "";
-      document.querySelector("#notify-bot-name").value = "";
-      document.querySelector("#notify-webhook").value = "";
-      document.querySelector("#notify-secret").value = "";
-      document.querySelector("#notify-bot-enabled").checked = true;
-      document.querySelector("#notify-purpose-moderation").checked = true;
-      document.querySelector("#notify-purpose-digest").checked = false;
+      requireAdminElement("#notify-bot-id", HTMLInputElement).value = "";
+      requireAdminElement("#notify-bot-name", HTMLInputElement).value = "";
+      requireAdminElement("#notify-webhook", HTMLInputElement).value = "";
+      requireAdminElement("#notify-secret", HTMLInputElement).value = "";
+      requireAdminElement("#notify-bot-enabled", HTMLInputElement).checked = true;
+      requireAdminElement("#notify-purpose-moderation", HTMLInputElement).checked = true;
+      requireAdminElement("#notify-purpose-digest", HTMLInputElement).checked = false;
       notifyOpsPurpose.checked = false;
-      document.querySelector("#notify-bot-cancel").hidden = true;
+      requireAdminElement("#notify-bot-cancel", HTMLButtonElement).hidden = true;
     }
 
     function renderNotifyBots() {
-      const list = document.querySelector("#notify-bot-list");
+      const list = requireAdminElement("#notify-bot-list", HTMLElement);
       list.innerHTML = "";
       if (!notifyState.bots?.length) {
         list.innerHTML = `<p class="empty">还没有配置机器人，展开下方表单新增。</p>`;
@@ -4899,7 +5018,7 @@ async function loadMpUsersAdmin() {
         <thead><tr><th style="width: 34%;">名称</th><th style="width: 10%;">状态</th><th style="width: 20%;">用途</th><th style="width: 12%;">签名</th><th style="width: 24%;">操作</th></tr></thead>
         <tbody></tbody>
       `;
-      const body = table.querySelector("tbody");
+      const body = requireAdminElement("tbody", HTMLElement, table);
       for (const bot of notifyState.bots) {
         const row = document.createElement("tr");
         row.innerHTML = `
@@ -4911,22 +5030,22 @@ async function loadMpUsersAdmin() {
         `;
         const ops = document.createElement("div");
         ops.className = "ops-row";
-        row.querySelector("td:last-child").append(ops);
+        requireAdminElement("td:last-child", HTMLElement, row).append(ops);
         const editButton = document.createElement("button");
         editButton.type = "button";
         editButton.className = "button secondary";
         editButton.textContent = "编辑";
         editButton.addEventListener("click", () => {
-          document.querySelector("#notify-bot-id").value = bot.id;
-          document.querySelector("#notify-bot-name").value = bot.name;
-          document.querySelector("#notify-webhook").value = bot.webhookUrl;
-          document.querySelector("#notify-secret").value = "";
-          document.querySelector("#notify-bot-enabled").checked = bot.enabled;
-          document.querySelector("#notify-purpose-moderation").checked = (bot.purposes || ["moderation"]).includes("moderation");
-          document.querySelector("#notify-purpose-digest").checked = (bot.purposes || []).includes("digest");
+          requireAdminElement("#notify-bot-id", HTMLInputElement).value = bot.id;
+          requireAdminElement("#notify-bot-name", HTMLInputElement).value = bot.name;
+          requireAdminElement("#notify-webhook", HTMLInputElement).value = bot.webhookUrl;
+          requireAdminElement("#notify-secret", HTMLInputElement).value = "";
+          requireAdminElement("#notify-bot-enabled", HTMLInputElement).checked = bot.enabled;
+          requireAdminElement("#notify-purpose-moderation", HTMLInputElement).checked = (bot.purposes || ["moderation"]).includes("moderation");
+          requireAdminElement("#notify-purpose-digest", HTMLInputElement).checked = (bot.purposes || []).includes("digest");
           notifyOpsPurpose.checked = (bot.purposes || []).includes("ops");
-          document.querySelector("#notify-bot-cancel").hidden = false;
-          document.querySelector("#notify-bot-editor-card").open = true;
+          requireAdminElement("#notify-bot-cancel", HTMLButtonElement).hidden = false;
+          requireAdminElement("#notify-bot-editor-card", HTMLDetailsElement).open = true;
         });
         const toggleButton = document.createElement("button");
         toggleButton.type = "button";
@@ -4936,7 +5055,7 @@ async function loadMpUsersAdmin() {
           try {
             await api("/notify-bots", { method: "POST", body: JSON.stringify({ id: bot.id, name: bot.name, webhookUrl: bot.webhookUrl, enabled: !bot.enabled }) });
             await loadNotifyAdmin();
-          } catch (error) { notifyAdminStatus.textContent = error.message; }
+          } catch (error) { notifyAdminStatus.textContent = adminErrorMessage(error); }
         });
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
@@ -4947,7 +5066,7 @@ async function loadMpUsersAdmin() {
           try {
             await api(`/notify-bots/${encodeURIComponent(bot.id)}`, { method: "DELETE" });
             await loadNotifyAdmin();
-          } catch (error) { notifyAdminStatus.textContent = error.message; }
+          } catch (error) { notifyAdminStatus.textContent = adminErrorMessage(error); }
         });
         const testButton = document.createElement("button");
         testButton.type = "button";
@@ -4959,7 +5078,7 @@ async function loadMpUsersAdmin() {
             await api("/notify-test", { method: "POST", body: JSON.stringify({ botId: bot.id }) });
             notifyAdminStatus.textContent = `测试卡片已发送给「${bot.name}」。`;
           } catch (error) {
-            notifyAdminStatus.textContent = `「${bot.name}」发送失败：${error.message}`;
+            notifyAdminStatus.textContent = `「${bot.name}」发送失败：${adminErrorMessage(error)}`;
           }
         });
         ops.append(editButton, toggleButton, testButton, deleteButton);
@@ -4968,92 +5087,93 @@ async function loadMpUsersAdmin() {
       list.append(table);
     }
 
-    document.querySelector("#save-notify").addEventListener("click", async () => {
+    requireAdminElement("#save-notify", HTMLButtonElement).addEventListener("click", async () => {
       notifyAdminStatus.textContent = "保存中...";
-      const secret = document.querySelector("#notify-secret").value;
+      const secret = requireAdminElement("#notify-secret", HTMLInputElement).value;
       try {
         await api("/notify-bots", {
           method: "POST",
           body: JSON.stringify({
-            id: document.querySelector("#notify-bot-id").value || undefined,
-            name: document.querySelector("#notify-bot-name").value.trim(),
-            webhookUrl: document.querySelector("#notify-webhook").value.trim(),
-            enabled: document.querySelector("#notify-bot-enabled").checked,
+            id: requireAdminElement("#notify-bot-id", HTMLInputElement).value || undefined,
+            name: requireAdminElement("#notify-bot-name", HTMLInputElement).value.trim(),
+            webhookUrl: requireAdminElement("#notify-webhook", HTMLInputElement).value.trim(),
+            enabled: requireAdminElement("#notify-bot-enabled", HTMLInputElement).checked,
             ...(secret ? { signSecret: secret } : {}),
             purposes: [
-              ...(document.querySelector("#notify-purpose-moderation").checked ? ["moderation"] : []),
-              ...(document.querySelector("#notify-purpose-digest").checked ? ["digest"] : []),
+              ...(requireAdminElement("#notify-purpose-moderation", HTMLInputElement).checked ? ["moderation"] : []),
+              ...(requireAdminElement("#notify-purpose-digest", HTMLInputElement).checked ? ["digest"] : []),
               ...(notifyOpsPurpose.checked ? ["ops"] : []),
             ],
           }),
         });
-        document.querySelector("#notify-secret").value = "";
+        requireAdminElement("#notify-secret", HTMLInputElement).value = "";
         notifyAdminStatus.textContent = "已保存";
         resetNotifyEditor();
         await loadNotifyAdmin();
       } catch (error) {
-        notifyAdminStatus.textContent = error.message;
+        notifyAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#notify-bot-cancel").addEventListener("click", resetNotifyEditor);
+    requireAdminElement("#notify-bot-cancel", HTMLButtonElement).addEventListener("click", resetNotifyEditor);
 
 
 
-    document.querySelector("#mp-users-search").addEventListener("input", (event) => {
+    requireAdminElement("#mp-users-search", HTMLInputElement).addEventListener("input", (event) => {
+      if (!(event.target instanceof HTMLInputElement)) return;
       mpUsersKeyword = event.target.value;
       if (mpUsersState) renderMpUsersAdmin();
     });
 
-    document.querySelector("#mp-users-sort").addEventListener("change", () => {
-      mpUsersSort = document.querySelector("#mp-users-sort").value;
+    requireAdminElement("#mp-users-sort", HTMLSelectElement).addEventListener("change", () => {
+      mpUsersSort = requireAdminElement("#mp-users-sort", HTMLSelectElement).value;
       if (mpUsersState) renderMpUsersAdmin();
     });
 
-    document.querySelector("#mp-users-days").addEventListener("change", () => {
-      mpUsersDays = Number(document.querySelector("#mp-users-days").value) || 0;
+    requireAdminElement("#mp-users-days", HTMLSelectElement).addEventListener("change", () => {
+      mpUsersDays = Number(requireAdminElement("#mp-users-days", HTMLSelectElement).value) || 0;
       if (mpUsersState) renderMpUsersAdmin();
     });
 
-    document.querySelector("#reload-mp-users").addEventListener("click", async () => {
+    requireAdminElement("#reload-mp-users", HTMLButtonElement).addEventListener("click", async () => {
       mpUsersAdminStatus.textContent = "加载中...";
       try {
         await loadMpUsersAdmin();
         mpUsersAdminStatus.textContent = "";
       } catch (error) {
-        mpUsersAdminStatus.textContent = error.message;
+        mpUsersAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#audit-filter-apply").addEventListener("click", async () => {
+    requireAdminElement("#audit-filter-apply", HTMLButtonElement).addEventListener("click", async () => {
       auditPage = 1;
       auditAdminStatus.textContent = "加载中...";
       try {
         await loadAuditAdmin();
         auditAdminStatus.textContent = "";
       } catch (error) {
-        auditAdminStatus.textContent = error.message;
+        auditAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#audit-prev-page").addEventListener("click", async () => {
+    requireAdminElement("#audit-prev-page", HTMLButtonElement).addEventListener("click", async () => {
       if (auditPage <= 1) return;
       auditPage -= 1;
       try {
         await loadAuditAdmin();
       } catch (error) {
-        auditAdminStatus.textContent = error.message;
+        auditAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#audit-next-page").addEventListener("click", async () => {
+    requireAdminElement("#audit-next-page", HTMLButtonElement).addEventListener("click", async () => {
       const totalPages = Math.max(1, Math.ceil((auditState?.total || 0) / (auditState?.page_size || 30)));
       if (auditPage >= totalPages) return;
       auditPage += 1;
       try {
         await loadAuditAdmin();
       } catch (error) {
-        auditAdminStatus.textContent = error.message;
+        auditAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
@@ -5076,13 +5196,13 @@ async function loadMpUsersAdmin() {
     const navFlatKey = "nkustudy-admin-nav-flat";
 
     function renderAdminNav() {
-      const nav = document.querySelector("#admin-nav");
+      const nav = findAdminElement("#admin-nav", HTMLElement);
       if (!nav) return;
       nav.innerHTML = "";
       const collapsed = new Set(JSON.parse(localStorage.getItem(navCollapsedKey) || "[]"));
       const flat = localStorage.getItem(navFlatKey) === "1";
-      const collapsedNow = document.querySelector("#admin-app")?.dataset.navCollapsed === "1";
-      const makeItem = (tab, label) => {
+      const collapsedNow = findAdminElement("#admin-app", HTMLElement)?.dataset.navCollapsed === "1";
+      const makeItem = (tab: string, label: string) => {
         const item = document.createElement("button");
         item.type = "button";
         item.className = "admin-nav-item";
@@ -5096,7 +5216,7 @@ async function loadMpUsersAdmin() {
       collapseToggle.textContent = collapsedNow ? "»" : "« 收起菜单";
       collapseToggle.title = collapsedNow ? "展开菜单" : "收起菜单";
       collapseToggle.addEventListener("click", () => {
-        const app = document.querySelector("#admin-app");
+        const app = findAdminElement("#admin-app", HTMLElement);
         const next = app?.dataset.navCollapsed === "1" ? "0" : "1";
         if (app) app.dataset.navCollapsed = next;
         localStorage.setItem("nkustudy-admin-nav-collapsed-all", next);
@@ -5150,15 +5270,15 @@ async function loadMpUsersAdmin() {
     }
 
     (function applyNavCollapsedMemory() {
-      const app = document.querySelector("#admin-app");
+      const app = findAdminElement("#admin-app", HTMLElement);
       if (app && localStorage.getItem("nkustudy-admin-nav-collapsed-all") === "1") app.dataset.navCollapsed = "1";
     })();
 
     /** 登录态变化后刷新置灰与当前高亮 */
     function bindAdminNavState() {
       const permissions = new Set(sessionState?.permissions || []);
-      for (const item of document.querySelectorAll(".admin-nav-item")) {
-        const required = tabPermissions[item.dataset.adminTab];
+      for (const item of adminElements(".admin-nav-item", HTMLElement)) {
+        const required = tabPermissions[item.dataset.adminTab || ""];
         const allowed = !required || permissions.has(required);
         item.classList.toggle("admin-nav-item--locked", !allowed);
         item.title = allowed ? "" : `需要「${permissionLabels[required] || required}」权限`;
@@ -5169,21 +5289,22 @@ async function loadMpUsersAdmin() {
     let currentAdminTab = "resources";
 
     function bindAdminTabButtons() {
-    document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+    adminElements("[data-admin-tab]", HTMLElement).forEach((button) => {
       if (button.dataset.adminTabBound === "1") return;
       button.dataset.adminTabBound = "1";
       button.addEventListener("click", async () => {
         const tab = button.dataset.adminTab;
+        if (!tab) return;
         const required = tabPermissions[tab];
         if (required && !(sessionState?.permissions || []).includes(required)) {
           window.alert(`该页面需要「${permissionLabels[required] || required}」权限，请联系主管理员开通。`);
           return;
         }
         currentAdminTab = tab;
-        for (const item of document.querySelectorAll(".admin-nav-item")) {
+        for (const item of adminElements(".admin-nav-item", HTMLElement)) {
           item.classList.toggle("secondary", item.dataset.adminTab !== tab);
         }
-        document.querySelectorAll("[data-admin-tab]").forEach((item) => {
+        adminElements("[data-admin-tab]", HTMLElement).forEach((item) => {
           const active = item === button;
           item.classList.toggle("secondary", !active);
         });
@@ -5213,7 +5334,7 @@ async function loadMpUsersAdmin() {
             await loadNotifyAdmin();
             notifyAdminStatus.textContent = "";
           } catch (error) {
-            notifyAdminStatus.textContent = error.message;
+            notifyAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         aiAdminPanel.hidden = tab !== "ai";
@@ -5231,21 +5352,21 @@ async function loadMpUsersAdmin() {
           requestAnimationFrame(() => mountMarkdownEditors(activeAdminPanel, "admin", { destroy: false }));
         }
         if (tab === "ai" && !aiAdminState.loaded) {
-          document.querySelector("#ai-status").textContent = "加载中...";
+          requireAdminElement("#ai-status", HTMLElement).textContent = "加载中...";
           try {
             await loadAiAdmin();
-            document.querySelector("#ai-status").textContent = "";
+            requireAdminElement("#ai-status", HTMLElement).textContent = "";
           } catch (error) {
-            document.querySelector("#ai-status").textContent = error.message;
+            requireAdminElement("#ai-status", HTMLElement).textContent = adminErrorMessage(error);
           }
         }
         if (tab === "service-keys") {
-          document.querySelector("#service-key-status").textContent = "加载中...";
+          requireAdminElement("#service-key-status", HTMLElement).textContent = "加载中...";
           try {
             await loadServiceKeysAdmin();
-            document.querySelector("#service-key-status").textContent = "";
+            requireAdminElement("#service-key-status", HTMLElement).textContent = "";
           } catch (error) {
-            document.querySelector("#service-key-status").textContent = error.message;
+            requireAdminElement("#service-key-status", HTMLElement).textContent = adminErrorMessage(error);
           }
         }
         if (tab === "mp-users") {
@@ -5254,7 +5375,7 @@ async function loadMpUsersAdmin() {
             await loadMpUsersAdmin();
             mpUsersAdminStatus.textContent = "";
           } catch (error) {
-            mpUsersAdminStatus.textContent = error.message;
+            mpUsersAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "accounts" && !accountsState) {
@@ -5263,7 +5384,7 @@ async function loadMpUsersAdmin() {
             await loadAccountsAdmin();
             accountsAdminStatus.textContent = "";
           } catch (error) {
-            accountsAdminStatus.textContent = error.message;
+            accountsAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "audit") {
@@ -5273,7 +5394,7 @@ async function loadMpUsersAdmin() {
             await loadAuditAdmin();
             auditAdminStatus.textContent = "";
           } catch (error) {
-            auditAdminStatus.textContent = error.message;
+            auditAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "reviews" && !reviewState) {
@@ -5282,7 +5403,7 @@ async function loadMpUsersAdmin() {
             await loadReviewsAdmin();
             reviewAdminStatus.textContent = "";
           } catch (error) {
-            reviewAdminStatus.textContent = error.message;
+            reviewAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "feedback" && !feedbackState) {
@@ -5291,7 +5412,7 @@ async function loadMpUsersAdmin() {
             await loadFeedbackAdmin();
             feedbackAdminStatus.textContent = "";
           } catch (error) {
-            feedbackAdminStatus.textContent = error.message;
+            feedbackAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "participate" && !participateState) {
@@ -5300,7 +5421,7 @@ async function loadMpUsersAdmin() {
             await loadParticipateAdmin();
             participateAdminStatus.textContent = "";
           } catch (error) {
-            participateAdminStatus.textContent = error.message;
+            participateAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "links" && !linksState) {
@@ -5309,7 +5430,7 @@ async function loadMpUsersAdmin() {
             await loadLinksAdmin();
             linksAdminStatus.textContent = "";
           } catch (error) {
-            linksAdminStatus.textContent = error.message;
+            linksAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "about" && !aboutState) {
@@ -5318,12 +5439,12 @@ async function loadMpUsersAdmin() {
             await loadAboutAdmin();
             aboutAdminStatus.textContent = "";
           } catch (error) {
-            aboutAdminStatus.textContent = error.message;
+            aboutAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "privacy" && !privacyState) {
           privacyAdminStatus.textContent = "加载中...";
-          try { await loadPrivacyAdmin(); privacyAdminStatus.textContent = ""; } catch (error) { privacyAdminStatus.textContent = error.message; }
+          try { await loadPrivacyAdmin(); privacyAdminStatus.textContent = ""; } catch (error) { privacyAdminStatus.textContent = adminErrorMessage(error); }
         }
         if (tab === "reviews" && reviewState) renderReviewAdmin({ rebuildRules: false });
         if (tab === "feedback" && feedbackState) renderFeedbackAdmin({ rebuildRules: false });
@@ -5340,7 +5461,7 @@ async function loadMpUsersAdmin() {
             await loadDonateAdmin();
             donateAdminStatus.textContent = "";
           } catch (error) {
-            donateAdminStatus.textContent = error.message;
+            donateAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "home" && !homeState) {
@@ -5349,7 +5470,7 @@ async function loadMpUsersAdmin() {
             await loadHomeAdmin();
             homeAdminStatus.textContent = "";
           } catch (error) {
-            homeAdminStatus.textContent = error.message;
+            homeAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "footer" && !footerState) {
@@ -5358,7 +5479,7 @@ async function loadMpUsersAdmin() {
             await loadFooterAdmin();
             footerAdminStatus.textContent = "";
           } catch (error) {
-            footerAdminStatus.textContent = error.message;
+            footerAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "editor-settings" && !editorSettingsState) {
@@ -5367,7 +5488,7 @@ async function loadMpUsersAdmin() {
             await loadEditorSettingsAdmin();
             editorSettingsAdminStatus.textContent = "";
           } catch (error) {
-            editorSettingsAdminStatus.textContent = error.message;
+            editorSettingsAdminStatus.textContent = adminErrorMessage(error);
           }
         } else if (tab === "editor-settings") {
           renderEditorSettingsAdmin();
@@ -5378,7 +5499,7 @@ async function loadMpUsersAdmin() {
             await loadStatsAdmin();
             statsAdminStatus.textContent = "";
           } catch (error) {
-            statsAdminStatus.textContent = error.message;
+            statsAdminStatus.textContent = adminErrorMessage(error);
           }
         }
         if (tab === "backup" && !backupState) {
@@ -5387,7 +5508,7 @@ async function loadMpUsersAdmin() {
             await loadBackupAdmin();
             backupAdminStatus.textContent = "";
           } catch (error) {
-            backupAdminStatus.textContent = error.message;
+            backupAdminStatus.textContent = adminErrorMessage(error);
           }
         }
       });
@@ -5395,15 +5516,15 @@ async function loadMpUsersAdmin() {
     }
     bindAdminTabButtons();
 
-    document.querySelector("#reload-reviews").addEventListener("click", async () => {
+    requireAdminElement("#reload-reviews", HTMLButtonElement).addEventListener("click", async () => {
       reviewAdminStatus.textContent = "加载中…（保留所有未保存草稿）";
       try {
         await loadReviewsAdmin();
         refreshModerationSettingsControls("reviews");
-      } catch (error) { reviewAdminStatus.textContent = error instanceof Error ? error.message : String(error); }
+      } catch (error) { reviewAdminStatus.textContent = error instanceof Error ? adminErrorMessage(error) : String(error); }
     });
-    document.querySelector("#save-reviews").addEventListener("click", () => saveModerationSettings("reviews"));
-    document.querySelector("#cancel-review-settings").addEventListener("click", () => {
+    requireAdminElement("#save-reviews", HTMLButtonElement).addEventListener("click", () => saveModerationSettings("reviews"));
+    requireAdminElement("#cancel-review-settings", HTMLButtonElement).addEventListener("click", () => {
       moderationSettingsDrafts.reviews.cancel("settings");
       renderReviewAdmin();
     });
@@ -5412,20 +5533,20 @@ async function loadMpUsersAdmin() {
     reviewAdminSidebarSearch.addEventListener("input", () => renderReviewAdmin({ rebuildRules: false }));
     feedbackAdminSearch.addEventListener("input", () => { feedbackAdminPage = 1; renderFeedbackAdmin({ rebuildRules: false }); });
     feedbackStatusFilter.addEventListener("change", () => { feedbackAdminPage = 1; renderFeedbackAdmin({ rebuildRules: false }); });
-    document.querySelector("#reload-feedback").addEventListener("click", async () => {
+    requireAdminElement("#reload-feedback", HTMLButtonElement).addEventListener("click", async () => {
       feedbackAdminStatus.textContent = "加载中…（保留所有未保存草稿）";
       try {
         await loadFeedbackAdmin();
         renderReportsAdmin();
         refreshModerationSettingsControls("feedback");
-      } catch (error) { feedbackAdminStatus.textContent = error instanceof Error ? error.message : String(error); }
+      } catch (error) { feedbackAdminStatus.textContent = error instanceof Error ? adminErrorMessage(error) : String(error); }
     });
-    document.querySelector("#cancel-feedback-settings").addEventListener("click", () => {
+    requireAdminElement("#cancel-feedback-settings", HTMLButtonElement).addEventListener("click", () => {
       moderationSettingsDrafts.feedback.cancel("settings");
       renderFeedbackAdmin();
     });
 
-    document.querySelectorAll(".clean-images").forEach((button) => {
+    adminElements(".clean-images", HTMLButtonElement).forEach((button) => {
       button.addEventListener("click", async () => {
         const owner = button.dataset.owner;
         if (!confirm(`扫描${owner} 内容当前未引用的图片并从 R2 删除？`)) return;
@@ -5436,37 +5557,38 @@ async function loadMpUsersAdmin() {
           const data = await api("/content-images/cleanup", { method: "POST", body: JSON.stringify({ owner }) });
           button.textContent = label;
           button.disabled = false;
-          const status = button.closest(".filter-row")?.querySelector(".muted");
-          if (status) status.textContent = `清理完成：扫描 ${data.scanned} 张，删除 ${data.removed} 张，保留引用中 ${data.kept} 张`;
+          const row = button.closest(".filter-row");
+          const status = row ? findAdminElement(".muted", HTMLElement, row) : null;
+          if (status) status.textContent = `清理完成：扫描 ${data.data.scanned} 张，删除 ${data.data.removed} 张，保留引用中 ${data.data.kept} 张`;
         } catch (error) {
           button.textContent = label;
           button.disabled = false;
-          alert(error.message || "清理失败");
+          alert(adminErrorMessage(error) || "清理失败");
         }
       });
     });
 
-    document.querySelector("#save-feedback").addEventListener("click", () => saveModerationSettings("feedback"));
+    requireAdminElement("#save-feedback", HTMLButtonElement).addEventListener("click", () => saveModerationSettings("feedback"));
 
-    document.querySelector("#reload-links").addEventListener("click", async () => {
+    requireAdminElement("#reload-links", HTMLButtonElement).addEventListener("click", async () => {
       linksAdminStatus.textContent = "加载中...";
       try {
         await loadLinksAdmin();
         linksAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        linksAdminStatus.textContent = error.message;
+        linksAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-links").addEventListener("click", async () => {
+    requireAdminElement("#save-links", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveLinksState();
       } catch (error) {
-        linksAdminStatus.textContent = error.message;
+        linksAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#add-link-item").addEventListener("click", () => {
+    requireAdminElement("#add-link-item", HTMLButtonElement).addEventListener("click", () => {
       linksState ??= { links: [] };
       linksState.links ??= [];
       linksState.links.push({
@@ -5480,25 +5602,25 @@ async function loadMpUsersAdmin() {
       renderLinksAdmin();
     });
 
-    document.querySelector("#reload-participate").addEventListener("click", async () => {
+    requireAdminElement("#reload-participate", HTMLButtonElement).addEventListener("click", async () => {
       participateAdminStatus.textContent = "加载中...";
       try {
         await loadParticipateAdmin();
         participateAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        participateAdminStatus.textContent = error.message;
+        participateAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-participate").addEventListener("click", async () => {
+    requireAdminElement("#save-participate", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveParticipateState();
       } catch (error) {
-        participateAdminStatus.textContent = error.message;
+        participateAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-privacy").addEventListener("click", async () => {
+    requireAdminElement("#save-privacy", HTMLButtonElement).addEventListener("click", async () => {
       privacyAdminStatus.textContent = "保存中...";
       try {
         const data = await api("/privacy", { method: "POST", body: JSON.stringify({ data: privacyState, expectedRevision: contentRevisions.get("privacy") }) });
@@ -5506,34 +5628,34 @@ async function loadMpUsersAdmin() {
         contentRevisions.set("privacy", data.revision);
         renderPrivacyAdmin();
         privacyAdminStatus.textContent = "已保存并发布";
-      } catch (error) { privacyAdminStatus.textContent = error.message; }
+      } catch (error) { privacyAdminStatus.textContent = adminErrorMessage(error); }
     });
-    document.querySelector("#reload-privacy").addEventListener("click", async () => {
+    requireAdminElement("#reload-privacy", HTMLButtonElement).addEventListener("click", async () => {
       privacyAdminStatus.textContent = "加载中...";
-      try { await loadPrivacyAdmin(); privacyAdminStatus.textContent = ""; } catch (error) { privacyAdminStatus.textContent = error.message; }
+      try { await loadPrivacyAdmin(); privacyAdminStatus.textContent = ""; } catch (error) { privacyAdminStatus.textContent = adminErrorMessage(error); }
     });
     for (const selector of ["#reports-search", "#reports-status-filter"]) {
-      document.querySelector(selector)?.addEventListener("input", () => { reportsAdminPage = 1; renderReportsAdmin(); });
-      document.querySelector(selector)?.addEventListener("change", () => { reportsAdminPage = 1; renderReportsAdmin(); });
+      findAdminElement(selector, HTMLElement)?.addEventListener("input", () => { reportsAdminPage = 1; renderReportsAdmin(); });
+      findAdminElement(selector, HTMLElement)?.addEventListener("change", () => { reportsAdminPage = 1; renderReportsAdmin(); });
     }
-    document.querySelector("#law-query-form")!.addEventListener("submit", (event) => { event.preventDefault(); void runLawQuery(); });
-    document.querySelector("#law-export-run")!.addEventListener("click", () => { void runLawQuery({ exportJson: true }); });
-    document.querySelector("#law-log-form")!.addEventListener("submit", (event) => { event.preventDefault(); void loadLawLogs(); });
-    document.querySelectorAll("#law-query-form input, #law-query-form select").forEach((input) => {
+    requireAdminElement("#law-query-form", HTMLFormElement)!.addEventListener("submit", (event) => { event.preventDefault(); void runLawQuery(); });
+    requireAdminElement("#law-export-run", HTMLButtonElement)!.addEventListener("click", () => { void runLawQuery({ exportJson: true }); });
+    requireAdminElement("#law-log-form", HTMLFormElement)!.addEventListener("submit", (event) => { event.preventDefault(); void loadLawLogs(); });
+    adminElements("#law-query-form input, #law-query-form select", HTMLElement).forEach((input) => {
       input.addEventListener("input", () => lawQueryController.invalidate());
       input.addEventListener("change", () => lawQueryController.invalidate());
     });
-    document.querySelectorAll("#law-log-form input, #law-log-form select").forEach((input) => {
+    adminElements("#law-log-form input, #law-log-form select", HTMLElement).forEach((input) => {
       input.addEventListener("input", () => lawLogController.invalidate());
       input.addEventListener("change", () => lawLogController.invalidate());
     });
-    document.querySelector("#reload-donate-stats").addEventListener("click", () => loadDonateStats());
+    requireAdminElement("#reload-donate-stats", HTMLButtonElement).addEventListener("click", () => loadDonateStats());
     for (const selector of ["#donate-stats-search", "#donate-stats-status", "#donate-stats-source"]) {
-      document.querySelector(selector)?.addEventListener("input", () => { donateStatsPage = 1; renderDonateStats(); });
-      document.querySelector(selector)?.addEventListener("change", () => { donateStatsPage = 1; renderDonateStats(); });
+      findAdminElement(selector, HTMLElement)?.addEventListener("input", () => { donateStatsPage = 1; renderDonateStats(); });
+      findAdminElement(selector, HTMLElement)?.addEventListener("change", () => { donateStatsPage = 1; renderDonateStats(); });
     }
 
-    document.querySelector("#save-donate").addEventListener("click", async () => {
+    requireAdminElement("#save-donate", HTMLButtonElement).addEventListener("click", async () => {
       donateAdminStatus.textContent = "保存中...";
       try {
         const data = await api("/donate", {
@@ -5545,12 +5667,12 @@ async function loadMpUsersAdmin() {
         renderDonateAdmin();
         donateAdminStatus.textContent = "已保存并发布";
       } catch (error) {
-        donateAdminStatus.textContent = error.message;
+        donateAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-donate-pay").addEventListener("click", async () => {
-      const status = document.querySelector("#donate-pay-status");
+    requireAdminElement("#save-donate-pay", HTMLButtonElement).addEventListener("click", async () => {
+      const status = requireAdminElement("#donate-pay-status", HTMLElement);
       status.textContent = "保存中...";
       try {
         const data = await api("/donate-pay", { method: "POST", body: JSON.stringify(donatePayState || {}) });
@@ -5558,73 +5680,73 @@ async function loadMpUsersAdmin() {
         renderDonatePay();
         status.textContent = "支付配置已保存";
       } catch (error) {
-        status.textContent = error.message;
+        status.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-donate").addEventListener("click", async () => { donateAdminStatus.textContent = "加载中..."; try { await loadDonateAdmin(); donateAdminStatus.textContent = ""; } catch (error) { donateAdminStatus.textContent = error.message; } });
+    requireAdminElement("#reload-donate", HTMLButtonElement).addEventListener("click", async () => { donateAdminStatus.textContent = "加载中..."; try { await loadDonateAdmin(); donateAdminStatus.textContent = ""; } catch (error) { donateAdminStatus.textContent = adminErrorMessage(error); } });
 
-    document.querySelector("#reload-about").addEventListener("click", async () => {
+    requireAdminElement("#reload-about", HTMLButtonElement).addEventListener("click", async () => {
       aboutAdminStatus.textContent = "加载中...";
       try {
         await loadAboutAdmin();
         aboutAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        aboutAdminStatus.textContent = error.message;
+        aboutAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-about").addEventListener("click", async () => {
+    requireAdminElement("#save-about", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveAboutState();
       } catch (error) {
-        aboutAdminStatus.textContent = error.message;
+        aboutAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-home").addEventListener("click", async () => {
+    requireAdminElement("#reload-home", HTMLButtonElement).addEventListener("click", async () => {
       homeAdminStatus.textContent = "加载中...";
       try {
         await loadHomeAdmin();
         homeAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        homeAdminStatus.textContent = error.message;
+        homeAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-home").addEventListener("click", async () => {
+    requireAdminElement("#save-home", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveHomeState();
       } catch (error) {
-        homeAdminStatus.textContent = error.message;
+        homeAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-footer").addEventListener("click", async () => {
+    requireAdminElement("#reload-footer", HTMLButtonElement).addEventListener("click", async () => {
       footerAdminStatus.textContent = "加载中...";
       try {
         await loadFooterAdmin();
         footerAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        footerAdminStatus.textContent = error.message;
+        footerAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#save-footer").addEventListener("click", async () => {
+    requireAdminElement("#save-footer", HTMLButtonElement).addEventListener("click", async () => {
       try {
         await saveFooterState();
       } catch (error) {
-        footerAdminStatus.textContent = error.message;
+        footerAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
-    document.querySelector("#reload-stats").addEventListener("click", async () => {
+    requireAdminElement("#reload-stats", HTMLButtonElement).addEventListener("click", async () => {
       statsAdminStatus.textContent = "加载中...";
       try {
         await loadStatsAdmin();
         statsAdminStatus.textContent = "已重新加载";
       } catch (error) {
-        statsAdminStatus.textContent = error.message;
+        statsAdminStatus.textContent = adminErrorMessage(error);
       }
     });
 
@@ -5640,7 +5762,7 @@ async function loadMpUsersAdmin() {
     resizer.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       resizer.setPointerCapture(event.pointerId);
-      const move = (moveEvent) => {
+      const move = (moveEvent: PointerEvent) => {
         const left = workbench.getBoundingClientRect().left;
         setTreeWidth(moveEvent.clientX - left);
       };

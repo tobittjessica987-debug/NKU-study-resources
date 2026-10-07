@@ -19,7 +19,7 @@ const nav = [
   { href: "/friends/", label: "友链", icon: "link" },
   { href: "/about/", label: "关于", icon: "info" },
 ];
-const icons = {
+const icons: Record<string, string> = {
   home: '<svg viewBox="0 0 24 24"><path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-6h4v6"/></svg>',
   book: '<svg viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H20v15H6.5A2.5 2.5 0 0 0 4 21.5v-15Z"/><path d="M8 8h8M8 12h6"/></svg>',
   star: '<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>',
@@ -182,10 +182,11 @@ const footer = {
         <p id="auth-status" style="text-align:center;font-size:0.85em;color:#dc2626;margin:8px 0 0;"></p>
       </dialog>
       <script>
+        import { requireElement } from "../lib/browser-dom";
         import { createWebLoginController } from "../lib/web-login-controller.js";
 
         (async () => {
-          const loginBtn = document.querySelector("#login-btn");
+          const loginBtn = requireElement("#login-btn", HTMLButtonElement);
           try {
             const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
             if (r.ok) {
@@ -218,14 +219,14 @@ const footer = {
           },
           onLogin() { location.href = "/me/"; },
         });
-        function authSwitchTab(wechat) {
-          const status = document.querySelector("#auth-status");
+        function authSwitchTab(wechat: boolean) {
+          const status = requireElement("#auth-status", HTMLElement);
           if (status) status.textContent = "";
           document.querySelector("#auth-tab-password")?.classList.toggle("secondary", wechat);
           document.querySelector("#auth-tab-wechat")?.classList.toggle("secondary", !wechat);
-          document.querySelector("#auth-login-form").style.display = wechat ? "none" : "";
-          document.querySelector("#auth-register-form").style.display = "none";
-          document.querySelector("#auth-wechat-form").style.display = wechat ? "" : "none";
+          requireElement("#auth-login-form", HTMLElement).style.display = wechat ? "none" : "";
+          requireElement("#auth-register-form", HTMLElement).style.display = "none";
+          requireElement("#auth-wechat-form", HTMLElement).style.display = wechat ? "" : "none";
           if (wechat) qrLogin.start(); else qrLogin.stop();
         }
         document.querySelector("#auth-tab-password")?.addEventListener("click", () => authSwitchTab(false));
@@ -234,26 +235,26 @@ const footer = {
         qrCheck?.addEventListener("click", () => qrLogin.check());
         // Reopening must not display an old ticket whose polling has stopped.
         authModal?.addEventListener("close", () => authSwitchTab(false));
-        document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-login-form").style.display = "none"; document.querySelector("#auth-register-form").style.display = ""; });
-        document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-register-form").style.display = "none"; document.querySelector("#auth-login-form").style.display = ""; });
+        document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); requireElement("#auth-login-form", HTMLElement).style.display = "none"; requireElement("#auth-register-form", HTMLElement).style.display = ""; });
+        document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); requireElement("#auth-register-form", HTMLElement).style.display = "none"; requireElement("#auth-login-form", HTMLElement).style.display = ""; });
         document.querySelector("#auth-login-submit")?.addEventListener("click", async () => {
-          const status = document.querySelector("#auth-status");
+          const status = requireElement("#auth-status", HTMLElement);
           status.textContent = "";
           try {
-            const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#auth-nickname").value, password: document.querySelector("#auth-password").value }) });
+            const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: requireElement("#auth-nickname", HTMLInputElement).value, password: requireElement("#auth-password", HTMLInputElement).value }) });
             const d = await r.json();
             if (!r.ok || d.code !== 0) { status.textContent = d.message || "登录失败"; return; }
             location.href = "/me/";
           } catch { status.textContent = "网络错误"; }
         });
         document.querySelector("#auth-register-submit")?.addEventListener("click", async () => {
-          const status = document.querySelector("#auth-status");
+          const status = requireElement("#auth-status", HTMLElement);
           status.textContent = "";
-          const pw = document.querySelector("#reg-password").value;
-          const pw2 = document.querySelector("#reg-password2").value;
+          const pw = requireElement("#reg-password", HTMLInputElement).value;
+          const pw2 = requireElement("#reg-password2", HTMLInputElement).value;
           if (pw !== pw2) { status.textContent = "两次密码不一致"; return; }
           try {
-            const r = await fetch("/api/v1/auth/web-register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#reg-nickname").value, password: pw }) });
+            const r = await fetch("/api/v1/auth/web-register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: requireElement("#reg-nickname", HTMLInputElement).value, password: pw }) });
             const d = await r.json();
             if (!r.ok || d.code !== 0) { status.textContent = d.message || "注册失败"; return; }
             location.href = "/me/";
@@ -309,8 +310,8 @@ const footer = {
       });
 
       const runtimeEl = document.querySelector("#site-runtime");
-      const footer = document.querySelector(".site-footer");
-      const parseStartedAt = (value) => {
+      const footer = document.querySelector<HTMLElement>(".site-footer");
+      const parseStartedAt = (value: unknown) => {
         const normalized = String(value || "")
           .trim()
           .replace(" ", "T")

@@ -7,11 +7,11 @@ const markdown = new MarkdownIt({
 });
 
 // 内容图片按需定宽：`![说明](url#w240)` 渲染为 width=240；片段不参与请求，不影响加载。
-const defaultImageRender = markdown.renderer.rules.image;
+const defaultImageRender = markdown.renderer.rules.image ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
 markdown.renderer.rules.image = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
   const srcIndex = token.attrIndex("src");
-  if (srcIndex >= 0) {
+  if (srcIndex >= 0 && token.attrs) {
     const src = String(token.attrs[srcIndex][1] || "");
     const match = src.match(/#w([1-9]\d{0,3})$/);
     if (match) {

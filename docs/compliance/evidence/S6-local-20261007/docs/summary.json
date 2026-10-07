@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-07",
+  "scope": "S6 local DOC-18 and GOV-16 documentation consistency only",
+  "baseline_commit": "6c17f679fb5dbb8591466240377ca9cd1b13f762",
+  "sampled_head": "6c17f679fb5dbb8591466240377ca9cd1b13f762",
+  "changed_files": [
+    "README.md",
+    "docs/API.md",
+    "docs/public-api.md",
+    "docs/data-schema.md",
+    "docs/SECURITY_COMPLIANCE_SOP.md"
+  ],
+  "checks": {
+    "api_route_registry": {
+      "exit_code": 0,
+      "method_path_pairs": 131,
+      "output": "api-route-check.log"
+    },
+    "diff_check": {
+      "exit_code": 0,
+      "output": "diff-check.log"
+    },
+    "local_links": {
+      "missing": 0,
+      "output": "local-links.json"
+    }
+  },
+  "document_sha256": {
+    "README.md": "f5b13d201d8334207b629113ea17c155f1d8725b36eab9c4cf50448d59507dd3",
+    "docs/API.md": "ee8e26f4cb6c686f6f56806bb6699a86ca59232cf62062be38982fb8d9c86cf6",
+    "docs/public-api.md": "074ac51af202be61e5284ba870bed9dae499eddf7370aeadfed7b62446bad948",
+    "docs/data-schema.md": "882b4cb07721c1175c4661b9d6cd8fe329f0ed94d4726a5e599cd7fe9f3c8953",
+    "docs/SECURITY_COMPLIANCE_SOP.md": "849aee62d3fc45e256212db153e871b4eacdb4f93b81668f63643acee1eba541"
+  },
+  "source_sha256": {
+    "server/admin-server.mjs": "73a74b295ee39b3f7b801cfc5553b2d2384fe786b6f31649841fc26896dab5bb",
+    "server/admin-session-store.mjs": "81a9c24ef25c1c063774cf505c526d8f0e282ef40c1846fb1a3399ba5863dd0b",
+    "server/admin-accounts-store.mjs": "ae337c61209a163e93dc2b94e374f2460a26c4e0dc1565f63447f8b8d1b65476",
+    "server/user-identity.mjs": "72d1beb14d3f6fddf90d67d47dbe8e2a6c894549c6c79af3a084d83fdcf062c2",
+    "server/mp-auth-service.mjs": "a2cefe31557a165a676d3d4db2245e37cdd9be2f071a77268f58a7ac2637cd4c",
+    "server/mp-favorites-service.mjs": "6b3445ac4b409ea5a12feffe7000e05609c0cae94b40b9652a474de078a099de",
+    "server/public-api-router.mjs": "101f8f61cd8adc100740962093992809533a0731ff55159871d3dc5cea56f6a3",
+    "server/moderation-model.mjs": "2d6db3353a7a65d951230925e4f3985c0069bec8eeb5aa2cfaee73365d8cebca",
+    "server/review-submission-service.mjs": "718c0a6108a86943eccc60f46ead2a656d265c3b87a1f36a7dc3a07b29513246",
+    "server/law-query-service.mjs": "6a406add956edca6e64f7edb95229fc00587c015df1a699682121571eb03588a",
+    "server/account-content-cleanup.mjs": "d384adbbbf5a88d9104ff4e138ee7cf0069837429be0e096d8e655bc8ffbb130",
+    "server/account-deletion-service.mjs": "814a173a5b9a84a41d6584a09c7e7ca03b9a32437b630a460eb72201fc7846a0",
+    "server/deletion-ledger.mjs": "dcd14a702a0e8c0805295b1b4fa4db54dc26bce82e529d3219e84487c740e4cb",
+    "server/runtime-backup.mjs": "817a00f78116415ba4f0e48173ed31d9f23ccdcef94d092d2275703809e3f9b0",
+    "server/restore-reconciliation.mjs": "5cbec4fc6db92d826c1d23e1738128824718b7fc2ab6cc39debd346d597e9c90",
+    "server/learning-compass-service.mjs": "513813f585e2390dfa3095d1adaea06b57ddbd5446e901b4a2fe5be039a48706",
+    "server/default-privacy.mjs": "2f6d906926f09a3f5208a571b77bb657a23a6cd741729a985959cfdfae6d831a",
+    "src/pages/privacy.astro": "f3139cd212ca02cce408e7b1e2c776131795880f2dc651e95f7d3710106f558e"
+  },
+  "not_run": [
+    "full application test suite",
+    "full repository type check",
+    "new browser/production policy readback",
+    "production deployment/migration",
+    "remote R2/WebDAV/cache tests",
+    "external legal research"
+  ],
+  "ownership": {
+    "not_modified": [
+      "docs/DEPLOYMENT.md",
+      "server/default-privacy.mjs",
+      "src/pages/privacy.astro",
+      "shared acceptance ledger/plans"
+    ],
+    "runtime_policy": "Retained the existing S5 policy source and custom-policy preservation behavior"
+  },
+  "pending_operational_facts": [
+    "Verified company full name, address and public contact channel",
+    "Real complaint roster, handover and escalation channels",
+    "Class-specific retention/expiry policy including minimal ledger/jobs, restricted legal logs, payment facts and historical local/remote backups",
+    "Actual private delivery/receipt and private file permissions",
+    "Final candidate production migration, role/session/log scope, download readback, latest ledger restore, avatar/cache and saved custom privacy evidence"
+  ],
+  "boundary": "Source and local document checks do not establish full anonymity, legal approval, or production acceptance.",
+  "supplemental_type_work": {
+    "ownership": "Explicitly assigned after documentation completion; src/lib/reviews.ts remained owned by main window",
+    "files": [
+      "src/pages/reviews.astro",
+      "src/pages/reviews/detail.astro",
+      "src/lib/review-page-types.ts",
+      "test/review-page-types.test.mjs"
+    ],
+    "baseline_errors": {
+      "src/pages/reviews.astro": 99,
+      "src/pages/reviews/detail.astro": 49
+    },
+    "targeted_check": {
+      "scope": [
+        "src/pages/reviews.astro",
+        "src/pages/reviews/detail.astro",
+        "src/lib/review-page-types.ts"
+      ],
+      "status": "completed",
+      "fileChecked": 3,
+      "errors": 0,
+      "warnings": 0,
+      "hints": 0
+    },
+    "test_command": "node --test test/review-page-types.test.mjs",
+    "tests_passed": 6,
+    "tests_failed": 0,
+    "test_output": "review-page-types-test.tap",
+    "source_sha256": {
+      "src/pages/reviews.astro": "6701203b8b7c406049020483c7e3ae42a0b7f77fd02d6e5baa5ce2a003dbc9b3",
+      "src/pages/reviews/detail.astro": "0b0b02f088bdd2ac9073ed8438791610ac79600baa5772a4eca8835866b27558",
+      "src/lib/review-page-types.ts": "d421eb6b9fbe379e35376bb31aaa27a0d4f3a8f57286f86a39f71517ee703a58",
+      "test/review-page-types.test.mjs": "d2594bc7c872d73450c378cc5c1b02cd1656a91da1ba9a128d397b64c39c02b0"
+    },
+    "compatibility": "No field/range gate added to legacy public rows; original array and row identity retained; values consumed with existing String/Number semantics. Initial strict DTO guard was revised after review.",
+    "full_repository_check": "Owned and run separately by main window",
+    "diff_check_exit": 0
+  }
+}

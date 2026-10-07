@@ -1,0 +1,12 @@
+{
+  "scope": [
+    "src/pages/reviews.astro",
+    "src/pages/reviews/detail.astro",
+    "src/lib/review-page-types.ts"
+  ],
+  "status": "completed",
+  "fileChecked": 3,
+  "errors": 1,
+  "warnings": 0,
+  "hints": 0
+}

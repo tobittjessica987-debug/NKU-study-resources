@@ -1,0 +1,11 @@
+{
+  "checked_files": [
+    "README.md",
+    "docs/API.md",
+    "docs/public-api.md",
+    "docs/data-schema.md",
+    "docs/SECURITY_COMPLIANCE_SOP.md"
+  ],
+  "missing_local_targets": [],
+  "scope": "Relative local link paths only; not external availability or all Markdown anchors"
+}

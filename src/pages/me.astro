@@ -108,13 +108,14 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { createOwnerListController, requestUserJson } from "../lib/user-submissions-controller.js";
+  import { requireElement, errorMessage, escapeHtml as esc } from "../lib/browser-dom";
   import { createAccountDeletionController } from "../lib/account-deletion-controller.js";
 
   type FavoriteItem = { name: string; term?: string; resource_count?: number };
   type ReviewItem = { course_title: string; teacher_name: string; body: string; status: string; publicationState?: string; hidden?: boolean; created_at: string };
   type FeedbackItem = { title: string; content: string; type: string; status: string; private?: boolean; publicationState?: string; handlingStatus?: string; hidden?: boolean; createdAt: string; reply?: string; repliedAt?: string };
 
-  async function api(path, options = {}) {
+  async function api(path: string, options: RequestInit = {}) {
     const data = await requestUserJson(`/api/v1${path}`, {
       ...options,
       headers: { "content-type": "application/json", ...(options.headers || {}) },
@@ -123,7 +124,6 @@ import Layout from "../layouts/Layout.astro";
     return data.data;
   }
 
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const handlingChip = (s: string): [string, string] => (({ open: ["待处理", "warn"], processing: ["处理中", "warn"], completed: ["已完成", "ok"], rejected: ["不予完成", "err"], parked: ["搁置", ""] } as Record<string, [string, string]>)[s] || ["处理状态待确认", ""]);
   const publicationChip = (s: string): [string, string] => (({ pending: ["待批准公开", "warn"], approved: ["已批准公开", "ok"], rejected: ["公开被拒绝", "err"] } as Record<string, [string, string]>)[s] || ["公开状态待确认", ""]);
   const dateText = (value: string | number) => {
@@ -169,7 +169,7 @@ import Layout from "../layouts/Layout.astro";
             </div>
           </div>
         </div>`;
-      document.querySelector("#me-open-login")?.addEventListener("click", () => document.getElementById("auth-modal")?.showModal());
+      document.querySelector("#me-open-login")?.addEventListener("click", () => document.querySelector<HTMLDialogElement>("#auth-modal")?.showModal());
       return;
     }
 
@@ -282,8 +282,8 @@ import Layout from "../layouts/Layout.astro";
 
     // —— 修改昵称（二次确认）——
     document.querySelector("#nick-save")?.addEventListener("click", async () => {
-      const status = document.querySelector("#nick-status");
-      const nickname = document.querySelector("#nick-input").value.trim();
+      const status = requireElement("#nick-status", HTMLElement);
+      const nickname = requireElement("#nick-input", HTMLInputElement).value.trim();
       status.className = "me-status";
       if (nickname.length < 2) { status.textContent = "昵称至少 2 个字符"; status.classList.add("err"); return; }
       if (nickname === user.nickname) { status.textContent = "昵称未变化"; return; }
@@ -292,17 +292,17 @@ import Layout from "../layouts/Layout.astro";
       try {
         const d = await api("/me/profile", { method: "POST", body: JSON.stringify({ nickname }) });
         user.nickname = d.user.nickname;
-        document.querySelector("#me-nickname").textContent = d.user.nickname;
+        requireElement("#me-nickname", HTMLElement).textContent = d.user.nickname;
         status.classList.add("ok"); status.textContent = "已更新";
-      } catch (e) { status.classList.add("err"); status.textContent = e.message; }
+      } catch (e) { status.classList.add("err"); status.textContent = errorMessage(e); }
     });
 
     // —— 修改密码（两次输入 + 当前密码校验）——
     document.querySelector("#pw-save")?.addEventListener("click", async () => {
-      const status = document.querySelector("#pw-status");
-      const current = document.querySelector("#pw-current").value;
-      const next = document.querySelector("#pw-new").value;
-      const confirm2 = document.querySelector("#pw-confirm").value;
+      const status = requireElement("#pw-status", HTMLElement);
+      const current = requireElement("#pw-current", HTMLInputElement).value;
+      const next = requireElement("#pw-new", HTMLInputElement).value;
+      const confirm2 = requireElement("#pw-confirm", HTMLInputElement).value;
       status.className = "me-status";
       if (!current) { status.textContent = "请输入当前密码"; status.classList.add("err"); return; }
       if (next.length < 8) { status.textContent = "新密码至少 8 位"; status.classList.add("err"); return; }
@@ -311,11 +311,11 @@ import Layout from "../layouts/Layout.astro";
       status.textContent = "提交中…";
       try {
         await api("/me/web-password/change", { method: "POST", body: JSON.stringify({ current_password: current, new_password: next }) });
-        document.querySelector("#pw-current").value = "";
-        document.querySelector("#pw-new").value = "";
-        document.querySelector("#pw-confirm").value = "";
+        requireElement("#pw-current", HTMLInputElement).value = "";
+        requireElement("#pw-new", HTMLInputElement).value = "";
+        requireElement("#pw-confirm", HTMLInputElement).value = "";
         status.classList.add("ok"); status.textContent = "密码已修改";
-      } catch (e) { status.classList.add("err"); status.textContent = e.message; }
+      } catch (e) { status.classList.add("err"); status.textContent = errorMessage(e); }
     });
 
     // —— 注销（输入「注销」双重确认）——
@@ -416,9 +416,9 @@ import Layout from "../layouts/Layout.astro";
   }
 
   init().catch(() => {
-    document.querySelector("#me-app").innerHTML = '<p style="text-align:center;padding:40px;">加载失败，请刷新重试。</p>';
+    requireElement("#me-app", HTMLElement).innerHTML = '<p style="text-align:center;padding:40px;">加载失败，请刷新重试。</p>';
   });
   window.addEventListener("pageshow", (event) => {
-    if (event.persisted) init().catch(() => { document.querySelector("#me-app").innerHTML = '<p role="alert">账号加载失败，请刷新重试。</p>'; });
+    if (event.persisted) init().catch(() => { requireElement("#me-app", HTMLElement).innerHTML = '<p role="alert">账号加载失败，请刷新重试。</p>'; });
   });
 </script>

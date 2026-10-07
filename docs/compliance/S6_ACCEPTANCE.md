@@ -1,0 +1,50 @@
+# S6 本地收尾与验收记录
+
+基线 `6c17f679fb5dbb8591466240377ca9cd1b13f762`，本地分支 `codex/s6-delivery-20261007`。用户同意继续后，三路 GPT-6.1-sol／Extra High 子智能体分别处理后台类型、文档一致性、部署检查；主窗口处理公开页面、整合、交叉复核和全套回归。
+
+**本轮自动验收通过：573/573 测试，全库类型检查 0 errors／0 warnings／37 hints，131 条路由与文档一致，14 页合成构建及公开 API 冒烟通过。** 这是本地候选结果，S3–S6 尚未生产部署；S6 整体、正式申报与运营闭环仍未完成。用户明确决定浏览器验收后补。
+
+## 本轮修改和证据
+
+| 范围 | 修改 | 实际检查 |
+| --- | --- | --- |
+| 类型欠账 | 为后台和公开页面补业务 DTO、DOM 类型及实际节点检查、未知错误处理；保留可选控件和历史评价容错 | 同一基线类型检查 1656 errors；第一轮 149；最终 202 文件 0 errors。没有关闭 strict、排除页面或添加 ts-nocheck |
+| 后台两处问题 | 捐助统计筛选与状态提示不再重复使用一个 ID；图片清理从真实嵌套响应读取统计 | 7 项实际后台脚本＋合成 DOM 回归，含成功、失败和取消分支；相关旧测试继续通过 |
+| 公开页面 | 修正课程分组的无效正则、课程选择告知乱码；对固定控件和可选控件分别处理；空 Error 仍显示兜底提示 | Markdown/分组/DOM 工具测试、历史评价字段兼容 6 项、构建；真实浏览器操作后补 |
+| C-08 权限登记 | 审计查询登记改为所有有效管理员可用，与既有服务行为和用户决定一致 | 真实 HTTP 集成增加四类管理员查询 340 条合成日志、100 条当前页及 no-store 断言；其他权限测试保留 |
+| 只读部署检查 | 新增 `npm run check:deployment`，检查环境、私密路径、日志 schema/队列、归档、容量、发布目录和注销账本绑定；合成 GET 必须显式指定 | 11 项部署检查测试；缺配置、坏权限、恢复隔离、WAL 及 CLI 脱敏；生产接受字段始终 false |
+| 文档 | README/API/schema/SOP 与 S3 自动公开、私密举报、S4 权限及 S5 分类清理保持一致 | 131 路由一致、文档链接及源码核对；公司完整资料、值守和分类期限不编造 |
+
+交叉复核中发现并修正了三项本轮问题：CLI 顶层导入可在缺配置时输出内部路径堆栈；评价字段守卫过严会误挡旧数据；空错误消息丢失原兜底提示。另修正显式端口 80 被 URL 标准化后误拒绝。最终全套在这些修正后重新执行，573 项通过。
+
+## 可复跑的自动验收
+
+在已安装依赖的候选源码目录执行；不要给测试注入生产环境文件或真实凭据。
+
+```sh
+TMPDIR=/private/tmp npm test
+NODE_OPTIONS=--max-old-space-size=8192 npm run check
+npm run check:api-docs
+npm run check:fixtures
+DATA_DIR="$PWD/src/data/fixtures" npm run check:content
+DATA_DIR="$PWD/src/data/fixtures" npm run audit:encoding
+TMPDIR=/private/tmp npm run smoke:public-api
+DATA_DIR="$PWD/src/data/fixtures" NODE_ENV=test NKUSTUDY_FIXTURE_BUILD=1 \
+  node node_modules/astro/bin/astro.mjs build --outDir /private/tmp/nkustudy-s6-build-20261007
+```
+
+最后一条是本轮实际使用的独立合成构建目录，避免覆盖正在供用户手工验收的 S5 `dist-fixture`。结果为 14 页；没有用夹具发布生产。`TMPDIR=/private/tmp` 用于避免 macOS 临时路径别名，不关闭任何测试。37 条 hints 并非 errors，本轮如实保留。
+
+部署检查的实际服务身份、配置和范围见 [DEPLOYMENT.md](../DEPLOYMENT.md)。`--help` 不需生产配置；默认不发网络请求，不创建或修复文件。SQLite 读锁可能触碰已存在的 SHM 元数据；缺 WAL sidecar 时保持 pending、不忽略 WAL。退出 0 只代表请求的本机检查通过，不能证明生产部署、实际持久写入、远端权限、恢复或通知送达。
+
+证据：[汇总](evidence/S6-local-20261007/summary.json)、[最终全套 TAP](evidence/S6-local-20261007/full-suite-final.tap)、[最终类型检查](evidence/S6-local-20261007/type-final.log)、[原始类型基线](evidence/S6-local-20261007/type-baseline.log)、[子任务文档核对](evidence/S6-local-20261007/docs/summary.json)。汇总记录源码哈希、命令和检查范围；以最终本地提交固定内容，不把基线提交当成本轮修复版本。
+
+## 用户反馈和后续验收
+
+- S5：用户明确反馈“页面与登录正常，尚未最终注销”，与手工账号仍 active、注销作业为空的只读核对一致。不得把这次反馈写成正常／pending／错误三条注销页面流程通过；S5 已有自动 HTTP/存储证据继续有效。
+- S6：独立合成浏览器服务启动时自动审批连接中断，命令未执行，并非判定动作不安全。用户随后明确选择“先完成其他检查，浏览器验收后补”；本轮不再重试。
+- 后续浏览器优先验证后台捐助筛选与清理提示、课程/评价/反馈加载与错误重试、登录及本人页，再补 S5 最终注销三种结果。均使用合成账号；S5 当前动作的最终确认另行处理。
+- 固定候选后再安排 Linux、S3 迁移数量/公开状态、真实配置/缓存/日志、S4 下载落盘、S5 独立最新账本及隔离恢复、真实头像/微信等验收。私密 R2 仍未启用；真实通知按用户决定暂缓。
+- 公司全称/适用地址/公开联系、真实值守与分类留存、最终申报文件及现实执行记录仍需负责人提供或确认。本轮不代填事实、不宣称正式安全评估通过。
+
+本轮仅本地修改与保存，未推送、更新 PR、合并或部署。

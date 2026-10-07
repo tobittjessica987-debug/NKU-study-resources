@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import type { Course } from "../lib/resources";
 import { courses, countFiles, coursePath, formatBytes, manifest, totalSize } from "../lib/resources";
 import { readBuildData } from "../lib/runtime-data";
 import { markdownToHtml } from "../lib/markdown";
@@ -9,15 +10,15 @@ const home = readBuildData("home.json");
 const size = courses.reduce((sum, course) => sum + totalSize(course), 0);
 const latest = [...courses].sort((a, b) => b.updated.localeCompare(a.updated));
 const blockedTag = "无固定年级";
-const visibleTag = (tag) => tag && tag !== blockedTag;
+const visibleTag = (tag: string) => tag && tag !== blockedTag;
 const globalHiddenTags = new Set(manifest.hiddenMetaTags ?? []);
-const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
-const visibleCourseTags = (course) => {
+const uniqueTags = (tags: (string | undefined)[]) => Array.from(new Set(tags.filter((tag): tag is string => Boolean(tag))));
+const visibleCourseTags = (course: Course) => {
   const hidden = new Set([...(course.hiddenMetaTags ?? []), ...globalHiddenTags]);
   return uniqueTags([course.term, course.group, course.assessment, ...(course.tags ?? [])])
     .filter((tag) => visibleTag(tag) && !hidden.has(tag));
 };
-const summaryText = (value) => String(value ?? "")
+const summaryText = (value: unknown) => String(value ?? "")
   .replace(/```[\s\S]*?```/g, " ")
   .replace(/`([^`]+)`/g, "$1")
   .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -91,11 +92,12 @@ const summaryText = (value) => String(value ?? "")
   </section>
 
   <script>
+    import { requireElement } from "../lib/browser-dom";
     const pageSize = 10;
-    const input = document.querySelector("#home-search");
-    const list = Array.from(document.querySelectorAll("#home-course-list .course-card"));
-    const empty = document.querySelector("#home-empty");
-    const pagination = document.querySelector("#home-pagination");
+    const input = requireElement("#home-search", HTMLInputElement);
+    const list = Array.from(document.querySelectorAll<HTMLElement>("#home-course-list .course-card"));
+    const empty = document.querySelector<HTMLElement>("#home-empty");
+    const pagination = requireElement("#home-pagination", HTMLElement);
     let currentPage = 1;
 
     function filteredItems() {
@@ -150,7 +152,7 @@ const summaryText = (value) => String(value ?? "")
       const keyword = input.value.trim().toLowerCase();
       let visible = 0;
       for (const item of list) {
-        const matched = item.dataset.search.toLowerCase().includes(keyword);
+        const matched = (item.dataset.search || "").toLowerCase().includes(keyword);
         item.dataset.filtered = String(matched);
         if (matched) visible += 1;
       }

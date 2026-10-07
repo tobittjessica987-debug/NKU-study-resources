@@ -1,0 +1,256 @@
+TAP version 13
+# Subtest: local-only preflight is explicit about unverified remote storage, recovery and S2 acceptance
+ok 1 - local-only preflight is explicit about unverified remote storage, recovery and S2 acceptance
+  ---
+  duration_ms: 45.657584
+  type: 'test'
+  ...
+# Subtest: dedicated R2 configuration is checked without claiming remote access and every missing field fails
+ok 2 - dedicated R2 configuration is checked without claiming remote access and every missing field fails
+  ---
+  duration_ms: 92.740458
+  type: 'test'
+  ...
+# Subtest: missing, relative or unsafe paths and invalid JSON never leak original error text
+ok 3 - missing, relative or unsafe paths and invalid JSON never leak original error text
+  ---
+  duration_ms: 95.94825
+  type: 'test'
+  ...
+# Subtest: password length, unsafe POSIX permissions and Windows ACL uncertainty fail closed
+ok 4 - password length, unsafe POSIX permissions and Windows ACL uncertainty fail closed
+  ---
+  duration_ms: 117.820125
+  type: 'test'
+  ...
+# Subtest: legacy secret fields and copied values in ordinary settings are rejected without revealing them
+ok 5 - legacy secret fields and copied values in ordinary settings are rejected without revealing them
+  ---
+  duration_ms: 66.630833
+  type: 'test'
+  ...
+# Subtest: explicit external secret paths work only as private regular files with safe parent paths
+ok 6 - explicit external secret paths work only as private regular files with safe parent paths
+  ---
+  duration_ms: 13.680792
+  type: 'test'
+  ...
+# Subtest: snapshot sources, quarantine markers and destination selection are checked before readiness
+ok 7 - snapshot sources, quarantine markers and destination selection are checked before readiness
+  ---
+  duration_ms: 10.2965
+  type: 'test'
+  ...
+# Subtest: preflight performs only read filesystem operations and does not request any network transport
+ok 8 - preflight performs only read filesystem operations and does not request any network transport
+  ---
+  duration_ms: 4.95225
+  type: 'test'
+  ...
+# Subtest: CLI has stable help and failure exits, and never echoes unsupported arguments
+ok 9 - CLI has stable help and failure exits, and never echoes unsupported arguments
+  ---
+  duration_ms: 72.529916
+  type: 'test'
+  ...
+# Subtest: S6 local readiness reuses real schemas and remains read-only without claiming production acceptance
+ok 10 - S6 local readiness reuses real schemas and remains read-only without claiming production acceptance
+  ---
+  duration_ms: 273.235125
+  type: 'test'
+  ...
+# Subtest: S6 missing tables, event columns and idempotent event indexes fail without repairing the database
+ok 11 - S6 missing tables, event columns and idempotent event indexes fail without repairing the database
+  ---
+  duration_ms: 186.375083
+  type: 'test'
+  ...
+# Subtest: S6 read-only archives, journals and missing entry configuration fail, then recover after operator correction
+ok 12 - S6 read-only archives, journals and missing entry configuration fail, then recover after operator correction
+  ---
+  duration_ms: 126.42975
+  type: 'test'
+  ...
+# Subtest: S6 restoration quarantine and queued events are never consumed or cleared by readiness
+ok 13 - S6 restoration quarantine and queued events are never consumed or cleared by readiness
+  ---
+  duration_ms: 61.397459
+  type: 'test'
+  ...
+# Subtest: S6 bound deletion ledgers are mandatory, independent and matched, without bootstrap or permission repair
+ok 14 - S6 bound deletion ledgers are mandatory, independent and matched, without bootstrap or permission repair
+  ---
+  duration_ms: 75.018333
+  type: 'test'
+  ...
+# Subtest: S6 unknown ACLs, missing WAL sidecars and insufficient budget remain incomplete without created files
+ok 15 - S6 unknown ACLs, missing WAL sidecars and insufficient budget remain incomplete without created files
+  ---
+  duration_ms: 60.462542
+  type: 'test'
+  ...
+# Subtest: S6 default checks do not access HTTP, cloud destinations or notifications
+ok 16 - S6 default checks do not access HTTP, cloud destinations or notifications
+  ---
+  duration_ms: 54.689708
+  type: 'test'
+  ...
+# Subtest: S6 private/public separation, explicit network boundaries and unavailable features cannot falsely pass
+ok 17 - S6 private/public separation, explicit network boundaries and unavailable features cannot falsely pass
+  ---
+  duration_ms: 77.409333
+  type: 'test'
+  ...
+# Subtest: S6 synthetic origin requires explicit literal loopback and rejects URLs or unsupported CLI arguments without echoing input
+ok 18 - S6 synthetic origin requires explicit literal loopback and rejects URLs or unsupported CLI arguments without echoing input
+  ---
+  duration_ms: 208.203834
+  type: 'test'
+  ...
+# Subtest: S6 explicit synthetic GET probe checks uncached health and unauthenticated private access without printing bodies
+ok 19 - S6 explicit synthetic GET probe checks uncached health and unauthenticated private access without printing bodies
+  ---
+  duration_ms: 87.338375
+  type: 'test'
+  ...
+# Subtest: DATA_DIR and STATE_DB_PATH resolve runtime paths
+ok 20 - DATA_DIR and STATE_DB_PATH resolve runtime paths
+  ---
+  duration_ms: 0.578875
+  type: 'test'
+  ...
+# Subtest: production runtime paths are explicit, absolute, and outside releases
+ok 21 - production runtime paths are explicit, absolute, and outside releases
+  ---
+  duration_ms: 0.22475
+  type: 'test'
+  ...
+# Subtest: production preflight fails before creating SQLite or mutable files
+ok 22 - production preflight fails before creating SQLite or mutable files
+  ---
+  duration_ms: 160.122208
+  type: 'test'
+  ...
+# Subtest: S2 log recovery: failed SQLite commits queue durably, survive restart and replay exactly once
+ok 23 - S2 log recovery: failed SQLite commits queue durably, survive restart and replay exactly once
+  ---
+  duration_ms: 62.927458
+  type: 'test'
+  ...
+# Subtest: S2 crash after SQLite commit does not duplicate an event, and hard process death keeps an interrupted intent
+ok 24 - S2 crash after SQLite commit does not duplicate an event, and hard process death keeps an interrupted intent
+  ---
+  duration_ms: 127.205125
+  type: 'test'
+  ...
+# Subtest: S2 unwritable journal refuses admission and corrupted queue remains visible rather than disappearing
+ok 25 - S2 unwritable journal refuses admission and corrupted queue remains visible rather than disappearing
+  ---
+  duration_ms: 12.434667
+  type: 'test'
+  ...
+# Subtest: S2 archive requires durable readback before deletion; interruption and disk failure retain source
+ok 26 - S2 archive requires durable readback before deletion; interruption and disk failure retain source
+  ---
+  duration_ms: 190.976583
+  type: 'test'
+  ...
+# Subtest: S2 20,010 user records survive quantity threshold; 400-day boundary and archived pagination are exact
+ok 27 - S2 20,010 user records survive quantity threshold; 400-day boundary and archived pagination are exact
+  ---
+  duration_ms: 1548.035
+  type: 'test'
+  ...
+# Subtest: S2 complete encrypted snapshot includes WAL, runtime JSON, logs and secrets; restore is isolated and sessions revoked
+ok 28 - S2 complete encrypted snapshot includes WAL, runtime JSON, logs and secrets; restore is isolated and sessions revoked
+  ---
+  duration_ms: 728.259166
+  type: 'test'
+  ...
+# Subtest: S2 snapshot gate waits for in-flight mutation and rejects overlap; failed snapshot reopens traffic
+ok 29 - S2 snapshot gate waits for in-flight mutation and rejects overlap; failed snapshot reopens traffic
+  ---
+  duration_ms: 0.807833
+  type: 'test'
+  ...
+# Subtest: S2 entry log archive readback, interruption, disk failure, corrupt input and time-only expiry
+ok 30 - S2 entry log archive readback, interruption, disk failure, corrupt input and time-only expiry
+  ---
+  duration_ms: 60.368875
+  type: 'test'
+  ...
+# Subtest: external ledger layout rejects portable case aliases of runtime data
+ok 31 - external ledger layout rejects portable case aliases of runtime data
+  ---
+  duration_ms: 2.943459
+  type: 'test'
+  ...
+# Subtest: S5 explicit bootstrap creates private storage; open never creates missing or corrupt state
+ok 32 - S5 explicit bootstrap creates private storage; open never creates missing or corrupt state
+  ---
+  duration_ms: 15.718625
+  type: 'test'
+  ...
+# Subtest: S5 opens only the configured lineage and private regular files without repairing permissions
+ok 33 - S5 opens only the configured lineage and private regular files without repairing permissions
+  ---
+  duration_ms: 25.534458
+  type: 'test'
+  ...
+# Subtest: S5 appends continuous hashes, rereads across handles and returns independent copies
+ok 34 - S5 appends continuous hashes, rereads across handles and returns independent copies
+  ---
+  duration_ms: 41.521458
+  type: 'test'
+  ...
+# Subtest: S5 accepts only an explicit policy and mode, positive typed identities and minimal fields
+ok 35 - S5 accepts only an explicit policy and mode, positive typed identities and minimal fields
+  ---
+  duration_ms: 36.396875
+  type: 'test'
+  ...
+# Subtest: S5 identical event retries are idempotent; changed identity, policy or intent conflicts
+ok 36 - S5 identical event retries are idempotent; changed identity, policy or intent conflicts
+  ---
+  duration_ms: 30.632042
+  type: 'test'
+  ...
+# Subtest: S5 corrupted chains reject gaps, changed hashes, duplicate ids and extra personal fields
+ok 37 - S5 corrupted chains reject gaps, changed hashes, duplicate ids and extra personal fields
+  ---
+  duration_ms: 47.9905
+  type: 'test'
+  ...
+# Subtest: S5 before-rename faults leave old state; after-rename faults fail but expose actual committed state on retry
+ok 38 - S5 before-rename faults leave old state; after-rename faults fail but expose actual committed state on retry
+  ---
+  duration_ms: 29.525916
+  type: 'test'
+  ...
+# Subtest: S5 interrupted bootstrap is never overwritten and a corrupted readback never becomes a cached success
+ok 39 - S5 interrupted bootstrap is never overwritten and a corrupted readback never becomes a cached success
+  ---
+  duration_ms: 57.566084
+  type: 'test'
+  ...
+# Subtest: S5 restore prerequisite verification checks a chain prefix and only caller-asserted freshness without mutations
+ok 40 - S5 restore prerequisite verification checks a chain prefix and only caller-asserted freshness without mutations
+  ---
+  duration_ms: 67.708042
+  type: 'test'
+  ...
+# Subtest: S5 restore prerequisites reject missing, stale, malformed or unrelated fresh heads and legacy backup coverage
+ok 41 - S5 restore prerequisites reject missing, stale, malformed or unrelated fresh heads and legacy backup coverage
+  ---
+  duration_ms: 36.694333
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2814.378125

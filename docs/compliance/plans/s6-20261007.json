@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "stage": "S6",
+  "date": "2026-10-07",
+  "branch": "codex/s6-delivery-20261007",
+  "baseCommit": "6c17f679fb5dbb8591466240377ca9cd1b13f762",
+  "status": "local_automatic_acceptance_passed_browser_deferred_production_pending",
+  "authorization": [
+    "C-18",
+    "C-19"
+  ],
+  "scope": [
+    "DOC-18",
+    "GOV-16 documentation only",
+    "OPS-20 local checker",
+    "QA-21 local types and regression",
+    "FIN-23 local evidence preparation"
+  ],
+  "notClosed": [
+    "GOV-16 real operations",
+    "OPS-20 production",
+    "WX-22 real WeChat",
+    "FIN-23 final filing",
+    "S5 final browser deletion"
+  ],
+  "subagents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "xhigh",
+    "tracks": [
+      "admin types and UI contracts",
+      "documentation consistency and review page types",
+      "read-only deployment readiness"
+    ],
+    "review": "admin author reviewed readiness; readiness author reviewed public UI; main window integrated and reviewed all"
+  },
+  "validation": {
+    "tests": 573,
+    "failed": 0,
+    "skipped": 0,
+    "typeErrors": 0,
+    "typeHints": 37,
+    "routes": 131,
+    "fixturePages": 14,
+    "browserVerified": false,
+    "productionVerified": false
+  },
+  "evidence": "../evidence/S6-local-20261007/summary.json",
+  "acceptance": "../S6_ACCEPTANCE.md",
+  "next": [
+    "Preserve local commit and evidence",
+    "User-deferred synthetic browser acceptance",
+    "Freeze a combined candidate only after review; push/PR/deployment separately authorized",
+    "Collect actual Linux/production and operational facts without fabricating acceptance"
+  ]
+}

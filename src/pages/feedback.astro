@@ -96,6 +96,9 @@ const feedbackData = readBuildData("feedback.json");
   </style>
 
   <script>
+    import { requireElement, errorMessage } from "../lib/browser-dom";
+    type PublicFeedback = { title: string; content: string; type: string; status?: string; handlingStatus?: string; reply?: string; repliedAt?: string; createdAt?: string };
+    type EditorSettings = Record<string, { toolbar?: string[] }>;
     import Vditor from "vditor";
     import MarkdownIt from "markdown-it";
     import { normalizeMarkdown } from "../lib/markdown";
@@ -104,14 +107,14 @@ const feedbackData = readBuildData("feedback.json");
     const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
     const pageSize = 10;
     const titleEl = document.querySelector("#feedback-title");
-    const announcementEl = document.querySelector("#feedback-announcement");
-    const list = document.querySelector("#feedback-list");
-    const pagination = document.querySelector("#feedback-pagination");
+    const announcementEl = document.querySelector<HTMLElement>("#feedback-announcement");
+    const list = requireElement("#feedback-list", HTMLElement);
+    const pagination = requireElement("#feedback-pagination", HTMLElement);
     const openButton = document.querySelector("#open-feedback-form");
     const closeButton = document.querySelector("#close-feedback-form");
-    const panel = document.querySelector("#feedback-submit-panel");
-    const form = document.querySelector("#feedback-form");
-    const statusEl = document.querySelector("#feedback-submit-status");
+    const panel = requireElement("#feedback-submit-panel", HTMLElement);
+    const form = document.querySelector<HTMLFormElement>("#feedback-form");
+    const statusEl = requireElement("#feedback-submit-status", HTMLElement);
     const contentEditorNode = document.querySelector<HTMLElement>("#feedback-content-editor");
     const contentValue = document.querySelector<HTMLInputElement>("#feedback-content-value");
     const basicEditor = document.querySelector<HTMLTextAreaElement>("#feedback-basic-content");
@@ -120,8 +123,8 @@ const feedbackData = readBuildData("feedback.json");
     let advancedEditorVisible = false;
     let saving = false;
     let loadFailed = false;
-    let feedback = [];
-    let visibleFeedbackItems = [];
+    let feedback: PublicFeedback[] = [];
+    let visibleFeedbackItems: PublicFeedback[] = [];
     let currentPage = 1;
     let searchKeyword = "";
     let filterStatus = "all";
@@ -133,7 +136,7 @@ const feedbackData = readBuildData("feedback.json");
       { value: "rejected", label: "不予完成" },
       { value: "parked", label: "搁置" },
     ];
-    const beijingDate = (value) => {
+    const beijingDate = (value: string | undefined) => {
       const date = new Date(value || "");
       if (!value || Number.isNaN(date.getTime())) return "";
       const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000);
@@ -145,12 +148,12 @@ const feedbackData = readBuildData("feedback.json");
       disabled(): void;
       enable(): void;
     } | null = null;
-    let editorSettings = null;
+    let editorSettings: EditorSettings | null = null;
 
     const statusLabel: Record<string, string> = { open: "待处理", processing: "处理中", pending: "待处理", completed: "已完成", rejected: "不予完成", parked: "搁置" };
     const handlingStatus = (item: { handlingStatus?: string; status?: string }) => item.handlingStatus || (item.status === "pending" ? "open" : item.status) || "open";
-    const typeLabel = { bug: "Bug", feature: "功能改进", content: "内容问题" };
-    const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    const typeLabel: Record<string, string> = { bug: "Bug", feature: "功能改进", content: "内容问题" };
+    const escapeHtml = (value: unknown) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
     const markdownToHtml = (value = "") => markdown.render(normalizeMarkdown(value));
 
     function toolbarFor(mode = "user") {
@@ -179,8 +182,8 @@ const feedbackData = readBuildData("feedback.json");
       }
     }
 
-    function enhanceVditorToolbar(root) {
-      const labels = {
+    function enhanceVditorToolbar(root: HTMLElement) {
+      const labels: Record<string, string> = {
         bold: "粗体 Ctrl+B",
         italic: "斜体 Ctrl+I",
         strike: "删除线",
@@ -196,8 +199,8 @@ const feedbackData = readBuildData("feedback.json");
         preview: "预览",
         fullscreen: "全屏",
       };
-      const blurToolbar = () => root.querySelectorAll(".vditor-toolbar button").forEach((button) => button.blur());
-      root.querySelectorAll(".vditor-toolbar button").forEach((button) => {
+      const blurToolbar = () => root.querySelectorAll<HTMLButtonElement>(".vditor-toolbar button").forEach((button) => button.blur());
+      root.querySelectorAll<HTMLButtonElement>(".vditor-toolbar button").forEach((button) => {
         const type = button.dataset?.type || "";
         const label = button.getAttribute("aria-label") || labels[type] || button.title;
         if (label) {
@@ -209,7 +212,7 @@ const feedbackData = readBuildData("feedback.json");
         button.addEventListener("mousedown", () => window.setTimeout(() => button.blur(), 0));
       });
       root.addEventListener("pointerdown", (event) => {
-        if (!event.target?.closest?.(".vditor-toolbar")) window.setTimeout(blurToolbar, 0);
+        if (!(event.target instanceof Element && event.target.closest(".vditor-toolbar"))) window.setTimeout(blurToolbar, 0);
       });
     }
 
@@ -276,7 +279,7 @@ const feedbackData = readBuildData("feedback.json");
       toggleEditorButton.textContent = advancedEditorVisible ? "使用普通文本编辑" : "使用 Markdown 编辑器";
     });
 
-    function renderPagination(total) {
+    function renderPagination(total: number) {
       const pages = Math.max(1, Math.ceil(total / pageSize));
       currentPage = Math.min(currentPage, pages);
       pagination.hidden = total <= pageSize;
@@ -311,7 +314,7 @@ const feedbackData = readBuildData("feedback.json");
     }
 
     function renderStatusFilter() {
-      const wrap = document.querySelector("#feedback-status-filter");
+      const wrap = requireElement("#feedback-status-filter", HTMLElement);
       wrap.innerHTML = "";
       for (const option of statusFilterOptions) {
         const chip = document.createElement("button");
@@ -386,8 +389,8 @@ const feedbackData = readBuildData("feedback.json");
       renderFeedback();
     }
 
-    const searchInput = document.querySelector("#feedback-search");
-    const searchClear = document.querySelector("#feedback-search-clear");
+    const searchInput = requireElement("#feedback-search", HTMLInputElement);
+    const searchClear = requireElement("#feedback-search-clear", HTMLElement);
     searchInput?.addEventListener("input", () => {
       searchKeyword = searchInput.value;
       searchClear.hidden = !searchKeyword;
@@ -443,7 +446,7 @@ const feedbackData = readBuildData("feedback.json");
         statusEl.textContent = "已提交，等待公开审核。可在我的反馈查看处理状态和管理员回复。";
         await loadFeedback();
       } catch (error) {
-        statusEl.textContent = error.message;
+        statusEl.textContent = errorMessage(error);
       } finally {
         saving = false;
         lockedFields.forEach(({ field, disabled }) => { field.disabled = disabled; });

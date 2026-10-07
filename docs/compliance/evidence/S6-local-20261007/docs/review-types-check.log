@@ -1,0 +1,4 @@
+[96msrc/pages/reviews.astro[0m:[93m240[0m:[93m13[0m - [91merror[0m[90m ts(2353): [0mObject literal may only specify known properties, and 'breaks' does not exist in type 'IMarkdownConfig'.
+
+[7m240[0m             breaks: true,
+[7m   [0m [91m            ~~~~~~[0m

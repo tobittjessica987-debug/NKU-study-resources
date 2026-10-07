@@ -1,28 +1,30 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import type { Course } from "../../lib/resources";
 import { courses, countFiles, coursePath, manifest } from "../../lib/resources";
 
 const blockedTag = "无固定年级";
-const visibleTag = (tag) => tag && tag !== blockedTag;
+const visibleTag = (tag: string) => tag && tag !== blockedTag;
 const globalHiddenTags = new Set(manifest.hiddenMetaTags ?? []);
-const courseHiddenTags = (course) => new Set([...(course.hiddenMetaTags ?? []), ...globalHiddenTags]);
-const uniqueTags = (tags) => Array.from(new Set(tags.filter(Boolean)));
-const visibleCourseTags = (course) => uniqueTags([course.term, course.group, course.assessment, ...(course.tags ?? [])])
+const courseHiddenTags = (course: Course) => new Set([...(course.hiddenMetaTags ?? []), ...globalHiddenTags]);
+const uniqueTags = (tags: (string | undefined)[]) => Array.from(new Set(tags.filter((tag): tag is string => Boolean(tag))));
+const visibleCourseTags = (course: Course) => uniqueTags([course.term, course.group, course.assessment, ...(course.tags ?? [])])
   .filter((tag) => visibleTag(tag) && !courseHiddenTags(course).has(tag));
 const filterTags = Array.from(new Set(courses.flatMap((course) => visibleCourseTags(course))));
 
 const coursesByTerm = courses.reduce((map, course) => {
   const term = course.term || "未设置学期";
-  if (!map.has(term)) map.set(term, new Map());
-  const groupMap = map.get(term);
-  if (!groupMap.has(course.group)) groupMap.set(course.group, []);
-  groupMap.get(course.group).push(course);
+  const groupMap = map.get(term) ?? new Map<string, Course[]>();
+  map.set(term, groupMap);
+  const members = groupMap.get(course.group) ?? [];
+  members.push(course);
+  groupMap.set(course.group, members);
   return map;
-}, new Map());
+}, new Map<string, Map<string, Course[]>>());
 
-const cardSearch = (course) => course.title;
-const cardTags = (course) => visibleCourseTags(course).join("|");
-const summaryText = (value) => String(value ?? "")
+const cardSearch = (course: Course) => course.title;
+const cardTags = (course: Course) => visibleCourseTags(course).join("|");
+const summaryText = (value: unknown) => String(value ?? "")
   .replace(/```[\s\S]*?```/g, " ")
   .replace(/`([^`]+)`/g, "$1")
   .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -104,18 +106,19 @@ const summaryText = (value) => String(value ?? "")
   </section>
 
   <script>
+    import { requireElement } from "../../lib/browser-dom";
     const pageSize = 10;
-    const input = document.querySelector("#course-search");
-    const listView = document.querySelector("#course-list");
-    const treeView = document.querySelector("#course-tree-list");
+    const input = requireElement("#course-search", HTMLInputElement);
+    const listView = requireElement("#course-list", HTMLElement);
+    const treeView = requireElement("#course-tree-list", HTMLElement);
     const treeToggle = document.querySelector("#tree-toggle");
-    const tagButtons = Array.from(document.querySelectorAll("#tag-filter [data-tag]"));
-    const modeButtons = Array.from(document.querySelectorAll("[data-filter-mode]"));
-    const listCards = Array.from(listView.querySelectorAll(".course-card"));
-    const treeCards = Array.from(treeView.querySelectorAll(".course-card"));
-    const empty = document.querySelector("#empty-state");
-    const pagination = document.querySelector("#course-pagination");
-    const selectedTags = new Set();
+    const tagButtons = Array.from(document.querySelectorAll<HTMLElement>("#tag-filter [data-tag]"));
+    const modeButtons = Array.from(document.querySelectorAll<HTMLElement>("[data-filter-mode]"));
+    const listCards = Array.from(listView.querySelectorAll<HTMLElement>(".course-card"));
+    const treeCards = Array.from(treeView.querySelectorAll<HTMLElement>(".course-card"));
+    const empty = document.querySelector<HTMLElement>("#empty-state");
+    const pagination = requireElement("#course-pagination", HTMLElement);
+    const selectedTags = new Set<string>();
     let filterMode = "multi";
     let currentPage = 1;
     let treeMode = false;
@@ -132,7 +135,7 @@ const summaryText = (value) => String(value ?? "")
       return currentCards().filter((item) => item.dataset.filtered === "true");
     }
 
-    function matchesTags(item) {
+    function matchesTags(item: HTMLElement) {
       if (!selectedTags.size) return true;
       const tags = new Set((item.dataset.tags || "").split("|").filter(Boolean));
       if (filterMode === "single") return Array.from(selectedTags).some((tag) => tags.has(tag));
@@ -140,12 +143,12 @@ const summaryText = (value) => String(value ?? "")
     }
 
     function updateTreeContainers() {
-      document.querySelectorAll(".course-tree-group").forEach((group) => {
-        const hasVisible = Array.from(group.querySelectorAll(".course-card")).some((item) => !item.hidden);
+      document.querySelectorAll<HTMLElement>(".course-tree-group").forEach((group) => {
+        const hasVisible = Array.from(group.querySelectorAll<HTMLElement>(".course-card")).some((item) => !item.hidden);
         group.hidden = !hasVisible;
       });
-      document.querySelectorAll(".course-tree-term").forEach((term) => {
-        const hasVisible = Array.from(term.querySelectorAll(".course-tree-group")).some((group) => !group.hidden);
+      document.querySelectorAll<HTMLElement>(".course-tree-term").forEach((term) => {
+        const hasVisible = Array.from(term.querySelectorAll<HTMLElement>(".course-tree-group")).some((group) => !group.hidden);
         term.hidden = !hasVisible;
       });
     }
@@ -195,7 +198,7 @@ const summaryText = (value) => String(value ?? "")
 
     // 课程搜索仅匹配课程名，分级：0=前缀连续 1=中间连续 2=按序全字(子序列,缩写如"高数")
     // 3=部分按序(命中≥2字且≥2/3)，仅当无更优结果时兜底且封顶20条。
-    function matchRank(name, keyword) {
+    function matchRank(name: string, keyword: string) {
       if (!keyword) return 0;
       const at = name.indexOf(keyword);
       if (at === 0) return 0;
@@ -220,13 +223,13 @@ const summaryText = (value) => String(value ?? "")
       const keyword = input.value.trim().toLowerCase();
       let visible = 0;
       let partialShown = 0;
-      const ranks = new Map();
+      const ranks = new Map<HTMLElement, number | null>();
       for (const item of currentCards()) {
-        const rank = keyword ? matchRank(item.dataset.search.toLowerCase(), keyword) : 0;
+        const rank = keyword ? matchRank((item.dataset.search || "").toLowerCase(), keyword) : 0;
         ranks.set(item, rank);
       }
       for (const item of currentCards()) {
-        const rank = ranks.get(item);
+        const rank = ranks.get(item) ?? null;
         const matched = keyword
           ? rank !== null && (rank < 3 || partialShown++ < 20) && matchesTags(item)
           : matchesTags(item);
@@ -243,6 +246,7 @@ const summaryText = (value) => String(value ?? "")
     tagButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const tag = button.dataset.tag;
+        if (!tag) return;
         if (filterMode === "single") {
           selectedTags.clear();
           tagButtons.forEach((item) => item.dataset.active = "false");
@@ -260,7 +264,7 @@ const summaryText = (value) => String(value ?? "")
 
     modeButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        filterMode = button.dataset.filterMode;
+        filterMode = button.dataset.filterMode || "multi";
         modeButtons.forEach((item) => item.classList.toggle("active", item === button));
         if (filterMode === "single" && selectedTags.size > 1) {
           const first = Array.from(selectedTags)[0];

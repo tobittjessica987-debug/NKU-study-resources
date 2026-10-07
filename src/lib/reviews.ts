@@ -30,7 +30,7 @@ export const reviews = readBuildData<ReviewStore>("reviews.json").reviews ?? [];
 function groupKeyPart(value: string) {
   return String(value ?? "")
     .replace(/\s+/g, "")
-    .replace(/[、，,．。：:；;·—\-_/\]/g, "")
+    .replace(/[、，,．。：:；;·—\-_/\\]/g, "")
     .replace(/（/g, "(")
     .replace(/）/g, ")");
 }

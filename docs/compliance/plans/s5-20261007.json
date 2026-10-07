@@ -64,8 +64,8 @@
     "retention/organizational and QA-21 issues remain tracked"
   ],
   "next": [
-    "run browser acceptance with synthetic accounts",
-    "fix and freeze a complete candidate for later combined deployment"
+    "User deferred browser acceptance; retain final deletion UI as pending",
+    "S6 local automatic checks and candidate evidence prepared separately; production still pending"
   ],
   "evidence": "../evidence/S5-retain-content/summary.json",
   "foundationValidation": {
@@ -78,5 +78,11 @@
     "productionDataRead": false,
     "productionActions": false
   },
-  "localAcceptanceAuthorization": "User explicitly permits retrying computer-local acceptance; no phone or production action"
+  "localAcceptanceAuthorization": "User explicitly permits retrying computer-local acceptance; no phone or production action",
+  "manualUserFeedback20261007": {
+    "report": "页面与登录正常，尚未最终注销",
+    "pageAndLoginPassed": true,
+    "finalDeletionExecuted": false,
+    "readback": "../evidence/S5-browser-20261007/manual-readback.json"
+  }
 }

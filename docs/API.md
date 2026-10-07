@@ -2,9 +2,7 @@
 
 本文档以当前仓库中的 `server/public-api-router.mjs`、`server/admin-server.mjs`、服务层、DTO 和网页调用代码为准，面向小程序、网站前端和后台维护人员。
 
-2026-10-07本批仅收尾S3候选并更新草稿PR #3，不合并、不部署；维护者已明确报告S3未部署。下述S3契约描述当前源码，不能作为生产已生效的回执。部署边界与只读预览见[部署说明](DEPLOYMENT.md)。
-
-当前候选固定版本以随包`RELEASE.json`及校验清单为准。10-07本地`npm ci`重试成功，`TMPDIR=/private/tmp npm test`为396/396（0失败、0跳过），API文档130条一致、夹具检查及14页夹具构建通过；完整及`--omit=dev`依赖审计均0告警，新增依赖边界验证3/3通过且独立复核无阻塞。边界覆盖source-map非法offset拒绝/正常映射与Astro远程图片TTL/304/no-store，不代表`cache` 4.3上游`max-stale`争议已修复；magicast内联旧source-map仅在`astro add`路径，本轮未改。新浏览器验收因自动审批拒绝（网络流断开）尚未执行，既有浏览器证据保留为历史记录；新生产预览及上线也未完成。
+2026-10-07 文档按 S3/S4/S5 当前源码核对；这些候选尚未部署生产，下述契约不能作为生产已生效的回执。当前本地、浏览器和未验范围分别见[整改台账](compliance/SECURITY_ASSESSMENT_READINESS.md)、[S4 验收](compliance/S4_ACCEPTANCE.md)和[S5 验收](compliance/S5_ACCEPTANCE.md)。固定候选以提交及随包 `RELEASE.json`、校验清单为准；部署边界与只读预览见[部署说明](DEPLOYMENT.md)。测试数量及类型检查状态保留在各次证据中，不在此维护另一份发布状态表。
 
 - 生产站点基址：`https://nkustudy.top`
 - 小程序公共 API 基址：`https://nkustudy.top/api/v1`
@@ -13,7 +11,7 @@
 
 ## 接口总表
 
-“公开”表示无需登录；“Cookie”表示必须先调用登录接口，并携带服务端签发的 `nkustudy_admin` Cookie。退出接口不要求当前 Cookie 有效。
+“公开”表示无需登录；管理接口的“Cookie”指登录所得 `__Host-nkustudy_admin`。用户接口的“登录”可使用 Bearer 或 `nkustudy_web_session` Cookie；显式 Authorization 优先，无效 Bearer 不回退 Cookie。退出接口不要求当前 Cookie 有效。
 
 <!-- api-route-registry:start -->
 | 方法 | 路径 | 权限 | 用途 |
@@ -54,13 +52,13 @@
 | `POST` | `/api/v1/service/blacklist` | 服务密钥 | 批量查询用户黑名单状态（≤100 个） |
 | `POST` | `/api/v1/service/rate-limit` | 服务密钥 | 通用固定窗口限流（按服务命名空间隔离） |
 | `POST` | `/api/v1/auth/wechat` | 公开、限流 | 小程序微信登录（code 换 token） |
-| `POST` | `/api/v1/auth/phone-verify` | Bearer Token、限流 | 微信手机号验证（getPhoneNumber code 换手机号，达标实名） |
+| `POST` | `/api/v1/auth/phone-verify` | 登录、限流 | 微信手机号授权认证（官方 code 换手机号，用于账号追溯） |
 | `POST` | `/api/v1/auth/web-register` | 公开、限流 | 网页注册（昵称+密码） |
 | `POST` | `/api/v1/auth/web-login` | 公开、限流 | 网页登录（昵称+密码，签发 httpOnly 会话 cookie；空请求用于恢复会话） |
 | `POST` | `/api/v1/auth/web-login/start` | 公开、限流 | 发起微信扫码登录：返回票据与小程序码（base64） |
 | `POST` | `/api/v1/auth/web-login/confirm` | Bearer Token | 小程序端确认扫码登录（需手机号已验证） |
 | `GET` | `/api/v1/auth/web-login/status` | 公开 | 网页轮询票据状态；confirmed 时一次性兑换 httpOnly 会话 |
-| `POST` | `/api/v1/auth/logout` | Bearer Token | 注销小程序登录令牌 |
+| `POST` | `/api/v1/auth/logout` | 用户凭证（可失效） | 撤销当前登录令牌并清网页 Cookie，不注销账号 |
 | `GET` | `/api/v1/me` | Bearer Token | 当前小程序用户信息 |
 | `POST` | `/api/v1/me/avatar` | Bearer Token、multipart、限流 | 上传用户头像（≤2MiB JPEG/PNG，重编码 256px JPEG 剥离元信息，微信同步图片审核通过后返回可绑定地址，不自动绑定资料；每人每日 5 次） |
 | `GET` | `/api/v1/me/favorites` | Bearer Token | 我的收藏课程列表（分页） |
@@ -147,17 +145,18 @@
 | `GET` | `/admin-api/notify-settings` | Cookie（需相应权限） | 飞书通知机器人列表（不返回密钥明文） |
 | `POST` | `/admin-api/notify-bots` | Cookie（需相应权限） | 新增或更新飞书机器人（webhook/密钥/开关） |
 | `DELETE` | `/admin-api/notify-bots/:param` | Cookie（需相应权限） | 删除飞书机器人 |
-| `POST` | `/admin-api/notify-test` | Cookie（需相应权限） | 向所有启用机器人发送测试卡片 |
+| `POST` | `/admin-api/notify-test` | Cookie（backup.manage） | 向选定的单个机器人发送测试卡片 |
 | `POST` | `/admin-api/mp-users/:param/blocked` | Cookie（需相应权限） | 小程序用户加入/移出黑名单（封禁即无法登录） |
 <!-- api-route-registry:end -->
 
 ### 管理员账号与权限
 
-管理端使用命名账号（用户名+密码，scrypt 哈希存储）登录。权限点共 8 个：
+管理端使用命名账号（用户名+密码，scrypt 哈希存储）登录。现有权限点共 11 个：
 `content.read`（内容查看）、`content.edit`（内容编辑）、`content.moderate`（反馈处理）、
 `storage.manage`（R2 同步）、`storage.delete`（R2 删除，已禁用的旧路由除外）、
-`backup.manage`（备份管理）、`accounts.manage`（账号管理）、`audit.read`（审计查看）。
-角色预设：`super_admin`（全部）、`content_admin`（查看+编辑+反馈处理）、`reviewer`（查看+反馈处理）、`viewer`（只读）。
+`backup.manage`（备份管理）、`accounts.manage`（账号管理）、`audit.read`（保留的审计权限点）、
+`services.manage`（服务密钥/支付配置）、`ai.manage`（AI 配置）、`law.manage`（保留的调取权限点）。
+角色预设：`super_admin`（全部）、`service_admin`（服务配置）、`ai_admin`（AI 配置）、`content_admin`（查看+编辑+反馈处理）、`reviewer`（查看+反馈处理）、`viewer`（只读）。按 C-08，日志查询及三个 `law-*` 入口对所有有效管理员开放，不要求额外 `audit.read/law.manage`，其他管理功能仍按实际权限判断。对外交付另按[内部规程](SECURITY_COMPLIANCE_SOP.md)处理。
 
 - 首次部署会自动创建 `Shview` 超级管理员；初始密码来自一次性环境变量 `ADMIN_INITIAL_PASSWORD`，否则生成随机密码写入数据目录的 `admin-initial-password.txt`（0600），首次登录强制改密。
 - 所有非 GET 管理请求、登录成功/失败都会写入审计日志；禁止停用、降级或删除最后一个持有 `accounts.manage` 的启用账号，也不能删除自己的账号。
@@ -165,19 +164,41 @@
 
 ## 小程序微信登录
 
-个人主体小程序无法使用手机号授权，身份基于微信 openid：
+微信登录和手机号认证是独立步骤；本地代码不证明真实小程序主体、资格及线上配置已核验。运营主体使用已确认的公司信息，完整名称与公开联系信息待负责人核实，不在接口文档编造。
 
-1. 小程序端 `wx.login()` 获取一次性 `code`（5 分钟有效）。
+1. 小程序端 `wx.login()` 获取微信登录 `code`；有效性由微信接口判定，不能把网页扫码票据的 5 分钟期限当作登录 code 的本地承诺。
 2. `POST /api/v1/auth/wechat`，body `{ "code": "..." }`。服务端用 `WECHAT_APPID` + `WECHAT_APPSECRET`
    调用微信 `code2Session` 换取 openid（AppSecret 只存在于服务器环境变量，绝不下发）。
 3. 成功返回 `{ "code": 0, "data": { "token": "...", "expires_in": 2592000, "user": { "id", "nickname", "avatar_url", ... } } }`。
    `token` 有效期 30 天，后续写请求放在 `Authorization: Bearer <token>` 头中。
-4. 响应与数据库记录均不含 openid；管理后台「小程序用户」页只显示掩码后的 openid 标识。
-5. 昵称（≤32 字符）与头像（仅 https）通过 `POST /api/v1/me/profile` 更新；建议前端使用
+4. `mp_users` 保存完整 OpenID，微信支付等服务器内部流程会使用；普通用户 `accountUserDto` 不含完整 OpenID、手机号或密码摘要，管理列表只返回 `openid_masked`，受控调取账号 DTO 可包含完整 OpenID 与手机号。这些字段不能公开。
+5. 用户 DTO 白名单为 `id/nickname/avatar_url/email/has_web_password/phone_verified/created_at/last_login_at`。昵称（≤32 字符）和头像通过 `POST /api/v1/me/profile` 更新；新的非空头像必须是本站登记、本人已通过审核的资源，不能绑定任意 HTTPS 图片。建议前端使用
    `chooseAvatar` 开放能力按钮和 `type="nickname"` 输入框采集。
 6. 错误码：`AUTH_INVALID_CODE`（401，code 无效/过期）、`AUTH_RATE_LIMITED`（429）、
    `MP_AUTH_NOT_CONFIGURED`（503，服务端未配置微信密钥）、`MP_AUTH_UPSTREAM`（502，微信接口异常）。
 7. 登录接口限流：每 IP 每分钟 10 次、全局每分钟 240 次。
+
+`POST /api/v1/auth/phone-verify` 请求 `{code}`，需要有效用户凭证，使用微信官方手机号授权码，不能直接填手机号。成功 `data:{ok:true,phone_masked}`，服务器保存原手机号与认证时间；缺配置 503、码重放 409、上游失败 502。公开评价和普通反馈须账号有效、未封禁且认证完成；匿名私密投诉不要求认证。手机号认证、账号或 IP 关联用于站内追溯，不等于已核验自然人的法律身份，也不保证内容合规。
+
+### 网页用户会话与本人接口
+
+- `POST /api/v1/auth/web-register` 接收 `{nickname,password,email?}`，保存可选邮箱和密码摘要；`web-login` 接收 `{nickname,password}`。二者返回 `data:{user}`，通过 `nkustudy_web_session` 下发 HttpOnly/Secure/SameSite=Lax Cookie，不把令牌放入网页 JSON。空 `{}` 登录请求只恢复既有有效会话，不重新签发令牌。
+- 用户 Bearer 及网页 Cookie 对应同一令牌存储，默认绝对有效期均为 30 天；恢复会话/内省不续期。扫码票据有效期为 5 分钟且确认后一次性兑换。账号封禁、持久注销或凭证撤销使后续鉴权失败。
+- `GET /api/v1/me` 返回上述用户白名单；`POST /api/v1/me/profile` 接收 `{nickname?,avatar_url?}`，返回 `data:{user}`。邮箱目前可在注册时提交，资料更新接口不接受邮箱修改。
+- `GET /api/v1/me/favorites` 返回 `{items,total,page,page_size}`；`POST /api/v1/favorites` 请求 `{course_id}`，`DELETE /api/v1/favorites/:param` 取消。新调用方使用 manifest `uid`；收藏服务兼容旧 manifest `id` 输入并规范为 UID，勿把兼容输入当作稳定标识。
+- `GET /api/v1/me/reviews` 与 `me/feedback` 分页返回本人投稿及允许返回的处理状态/回复；不会使私密投诉公开，匿名回执 ID 无公开读取接口。注销后不能继续通过原账号读取。
+- `POST /api/v1/me/web-password` 接收 `{password}` 为未设置网页密码的账号首次设置；`web-password/change` 接收 `{current_password,new_password}` 并校验原密码。
+- `POST /api/v1/auth/logout` 撤销当前令牌并清网页 Cookie，返回 `{revoked}`；它是退出登录，不能代替账号注销。
+
+### `POST /api/v1/me/delete-account`
+
+需要有效用户凭证，无需再提交身份字段。封禁账号不能自助注销（403）；未配置独立账本返回 `503 ACCOUNT_DELETION_UNAVAILABLE`。持久受理后撤销全部令牌及扫码票据，阻止旧账号登录/写入，并清网页 Cookie：
+
+- `200` 且 `data.deleted=true,pending=false,accountDisabled=true` 才表示当前必要清理已确认完成；
+- `202` 且 `data.deleted=false,pending=true,accountDisabled=true` 表示已受理并停用、资料清理待重试，客户端不得报完整成功或自动重复提交；
+- 错误、超时或无法解析的响应表示结果尚未确认，不能仅凭导航或 Cookie 清除判断完成。
+
+采用 `s5-retain-published-v1`：清账号 OpenID/密码摘要/手机与认证时间/邮箱/原昵称/头像地址/收藏；保留评价、反馈、私密投诉原文与原可见性，清业务归属、联系方式及直接身份副本，移除本人投票。保留必要支付事实并清身份，精确订单键处理公开昵称；无键旧记录人工核对。受限历史日志、最小注销账本/作业与旧加密备份保留各自例外，正文自述信息、历史缓存和未登记头像不承诺自动彻底清除。200 不表示已清除全部历史/第三方副本或生产已验。完整策略与隔离恢复见 [S5 策略](compliance/S5_POLICY.md)和[S5 运维说明](compliance/S5_OPERATIONS.md)。
 
 ### 课程目录与评价选课
 
@@ -583,7 +604,7 @@ curl -sS https://nkustudy.top/api/v1/reviews \
 ### `GET /review-api/reviews`
 
 - 成功：`{ "ok":true, "reviews":[...], "rules":{...} }`。
-- `reviews` 只含已通过且未隐藏的记录，并移除 `ipHash`、`userAgent`；保留网站所需的 `courseTitle`、`teacher`、`rating`、`tags`、`content`、状态和时间字段。
+- `reviews` 仅含通过服务器公开资格判断且未隐藏的记录；使用字段白名单，不返回账号归属、昵称、头像、联系方式、手机号、OpenID、`ipHash` 或 `userAgent`。正文自述信息仍可能出现；保留网站所需的 `courseTitle`、`teacher`、`rating`、`tags`、`content`、状态和时间字段。
 - `rules` 是当前评价规则，含开关、审核要求、限流值、最短长度、公告和备注。
 
 ```bash
@@ -594,7 +615,7 @@ curl -sS https://nkustudy.top/review-api/reviews
 
 请求：`{courseTitle, teacher, rating, tags?, content, website?}`。字段长度、审核、蜜罐和限流与 v1 评价提交共用同一服务；这里直接按课程标题写入，因此允许提交尚未匹配 manifest 的历史/新课程标题。
 
-成功：`{ "ok":true, "pending":true }`。主要错误：`400` 无效评价/JSON、`409` 关闭提交、`429` 限流、`413` 正文超限。
+成功受理：`{ "ok":true, "accepted":true, "pending":true|false }`，是否待审取决于相同配置规则。蜜罐返回 `accepted:false`，旧网站接口不返回 v1 的 `submitted` 字段。需要登录、手机号认证和有效账号；主要错误：`400` 无效评价/JSON、`401` 未登录、`403` 未认证/封禁、`409` 关闭提交、`429` 限流、`413` 正文超限。
 
 ```bash
 curl -sS https://nkustudy.top/review-api/submit \
@@ -624,7 +645,7 @@ curl -sS https://nkustudy.top/feedback-api/feedback
 
 ### `POST /api/v1/me/avatar`
 
-`multipart/form-data` 单文件字段 `file`，Bearer Token 鉴权。限制：JPEG/PNG、≤2 MiB（2,097,152 字节）、解码尺寸 ≤4096×4096。服务端重编码为 256×256 居中裁剪 JPEG（剥离 EXIF 等全部元信息）后送微信同步图片审核（`img_sec_check`），通过后存入 R2 `avatars/` 前缀并登记归属，返回版本化公开地址（Cloudflare CDN 直链，每次上传新 ID，不缓存旧图）。**上传不自动绑定资料**，需另行 `POST /me/profile` 传回 `avatar_url` 绑定（仅允许本人已过审资源，否则 403 `AVATAR_NOT_OWNED`）。限流每用户每日 5 次。
+`multipart/form-data` 单文件字段 `file`，用户凭证鉴权。限制：JPEG/PNG、≤2 MiB（2,097,152 字节）、解码尺寸 ≤4096×4096。服务端重编码为 256×256 居中裁剪 JPEG（剥离图片元信息）后送微信同步图片审核（`img_sec_check`），通过后存入 R2 `avatars/` 前缀并登记归属，返回公开资源地址（每次上传新 ID）。S5 新上传使用 `Cache-Control:no-store`，不能据此宣称旧一年缓存或第三方副本已经清除。**上传不自动绑定资料**，需另行 `POST /api/v1/me/profile` 传回 `avatar_url` 绑定（仅允许本人已过审资源，否则 403 `AVATAR_NOT_OWNED`）。限流每用户每日 5 次。
 
 ```json
 { "code": 0, "data": { "avatar_url": "https://resources.nkustudy.top/avatars/<opaque-id>.jpg" } }
@@ -694,7 +715,7 @@ curl -sS https://nkustudy.top/editor-settings
 
 ## 管理接口认证
 
-管理端使用**命名账号**（用户名+密码）登录；密码以 scrypt 哈希存储在服务器 SQLite 中，权限点见上文「管理员账号与权限」。Cookie 签名密钥从仅服务器可读的 `ADMIN_SECRET_FILE` 加载。密钥不是 API 参数，不应进入网页、小程序、curl 历史或 Git。当前实现**没有**自定义 secret header。
+管理端使用**命名账号**（用户名+密码）登录；密码以 scrypt 哈希存储在服务器 SQLite 中，权限点见上文「管理员账号与权限」。Cookie 是随机会话令牌，服务器以 `ADMIN_SECRET_FILE` 中的密钥计算 HMAC 摘要存库；不是自包含的签名身份。密钥不是 API 参数，不应进入网页、小程序、curl 历史或 Git。所有非 GET/HEAD 管理请求（含登录/退出）须通过 `Origin` 与 `X-NKUStudy-Admin-Request: 1` 校验，后者是固定请求来源标记，不是秘密。
 
 首次部署且账号表为空时，自动创建超管 `Shview`：优先使用一次性环境变量 `ADMIN_INITIAL_PASSWORD`（≥10 位），否则生成随机密码写入数据目录 `admin-initial-password.txt`（0600，仅 root/服务账号可读）；该账号首次登录强制改密。旧的共享 `ADMIN_PASSWORD` 登录方式已移除。
 
@@ -703,10 +724,12 @@ curl -sS https://nkustudy.top/editor-settings
 `POST /admin-api/login` 请求 `{ "username":"...", "password":"..." }`。成功返回 `{ "ok":true, "data":{ "username":"...", "permissions":[...], "mustChangePassword":false } }`，并设置：
 
 ```text
-Set-Cookie: nkustudy_admin=<signed-token>; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800
+Set-Cookie: __Host-nkustudy_admin=<random-token>; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800
 ```
 
 错误：密码错误 `403`；每 IP 5 分钟 5 次、全局 5 分钟 60 次后 `429`；无效/过大 JSON 为 `400`/`413`。
+
+服务入口 `server/admin-server.mjs` 默认绝对期限和空闲期限均为 7 天，分别接受 `ADMIN_SESSION_ABSOLUTE_TTL_MS`、`ADMIN_SESSION_IDLE_TTL_MS`。`AdminSessionStore` 单独实例的默认 8h/30min 不是入口的生效配置。Cookie `Max-Age` 当前固定 604800 秒；实际访问还受服务端期限、撤销和账号状态限制，不能仅由 Cookie 期限判断。
 
 `POST /admin-api/logout` 无需有效会话，返回 `{ "ok":true }` 并以 `Max-Age=0` 清除 Cookie。
 
@@ -718,15 +741,17 @@ read -r -s -p 'Admin password: ' ADMIN_PASSWORD_INPUT; printf '\n'
 printf '%s' "$ADMIN_PASSWORD_INPUT" \
   | node -e 'let s="";process.stdin.setEncoding("utf8");process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>process.stdout.write(JSON.stringify({username:"Shview",password:s})))' \
   | curl -sS -c admin.cookies https://nkustudy.top/admin-api/login \
+      -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' \
       -H 'Content-Type: application/json' \
       --data-binary @-
 unset ADMIN_PASSWORD_INPUT
 
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/session
-curl -sS -b admin.cookies -c admin.cookies -X POST https://nkustudy.top/admin-api/logout --data '{}'
+curl -sS -b admin.cookies -c admin.cookies -X POST https://nkustudy.top/admin-api/logout \
+  -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' --data '{}'
 ```
 
-除 login/logout 外，所有 `/admin-api/*` 均要求请求头携带登录所得 Cookie；缺失、签名无效或账号已停用返回 `401 {"ok":false,"error":"Unauthorized"}`。`GET /admin-api/session` 成功返回 `{ "ok":true, "data":{ "username":"...", "permissions":[...], "mustChangePassword":false } }`。缺少对应权限点的写操作返回 `403`，并计入审计日志。
+除 login/logout 外，所有 `/admin-api/*` 均要求请求头携带登录所得 Cookie；缺失、令牌未知/过期/撤销或账号已停用返回 `401 {"ok":false,"error":"Unauthorized"}`。`GET /admin-api/session` 成功返回 `{ "ok":true, "data":{ "username":"...", "permissions":[...], "mustChangePassword":false } }`。缺少对应权限点的操作返回 `403`，并计入审计日志。
 
 ## 管理接口：课程树与 R2
 
@@ -760,6 +785,7 @@ curl -sS -b admin.cookies -c admin.cookies -X POST https://nkustudy.top/admin-ap
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/manifest > manifest-response.json
 # 编辑时应从响应中分别取出 manifest 和 revision，并准确计算 deletedCourseUids。
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/manifest \
+  -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' \
   -H 'Content-Type: application/json' \
   --data @manifest-write-body.json
 ```
@@ -779,6 +805,7 @@ curl -sS -b admin.cookies https://nkustudy.top/admin-api/manifest \
 ```bash
 curl -sS -b admin.cookies -X POST \
   'https://nkustudy.top/admin-api/upload?courseId=<WEBSITE_COURSE_ID>&sectionIndex=0' \
+  -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' \
   -F 'files=@./example.pdf'
 ```
 
@@ -792,6 +819,7 @@ curl -sS -b admin.cookies -X POST \
 
 ```bash
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/sync-r2-all \
+  -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' \
   -H 'Content-Type: application/json' \
   --data '{"expectedRevision":"<REVISION>"}'
 ```
@@ -847,6 +875,7 @@ curl -sS -b admin.cookies https://nkustudy.top/admin-api/sync-r2-all \
 ```bash
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/about
 curl -sS -b admin.cookies https://nkustudy.top/admin-api/about \
+  -H 'Origin: https://nkustudy.top' -H 'X-NKUStudy-Admin-Request: 1' \
   -H 'Content-Type: application/json' \
   --data '{"data":{"title":"NKUStudy","content":"关于内容"},"expectedRevision":"<REVISION>"}'
 ```
@@ -877,7 +906,7 @@ GET 返回 `{ok:true,data}`，POST 接收 `{data}` 并返回 `{ok:true,data}`；
 
 ### `GET /admin-api/visit-stats`
 
-返回 `{ok:true,stats,summary}`。`summary` 仅为公开 total/today/updatedAt；`stats` 是完整的版本、总量、按天、按页面和哈希访客记录。仅管理接口可读取完整记录。服务端最多保留 400 天和 5000 个活跃访客条目。
+返回 `{ok:true,stats,summary}`，需要 `content.read`。`summary` 为公开 total/today/updatedAt/startedAt；`stats` 还含按天、按页面及近期访客记录（原始 IP、`actorHash/userAgentHash/lastSeen`）。访客按 IP+UA 摘要 30 分钟去重，下一写入清理 24 小时前访客且上限 5000；日统计每个维度最多保留最近 400 个日期键，不等于访客 IP 保存 400 天。旧带 IP 的记录补摘要时不删除 IP。
 
 ## 管理接口：备份
 
@@ -886,6 +915,8 @@ GET 返回 `{ok:true,data}`，POST 接收 `{data}` 并返回 `{ok:true,data}`；
 查询参数 `scope` 默认 `all`，允许 `all`、`manifest`、`reviews`、`feedback`、`pages`、`stats`、`config`。未知值返回 `400`。
 
 `all` 必须先设置至少16位备份加密口令；缺口令返回503。成功返回 `runtime-*.json.enc`，含SQLite全部表及已提交WAL内容、所有现有运行JSON、补写队列、本地日志归档和必要秘密配置的加密快照。加密包包括恢复需要的账户密码哈希及服务配置秘密，应按私密数据保管；口令不能与文件一起公开。文件哈希、SQLite完整性和表数量已经读回校验。课程资源/头像等R2对象字节不在此运行包中。缺必要文件、存储或校验失败不会给出成功下载。
+
+S5 已绑定注销账本时，完整备份含 `deletionLedgerHead` 水位，不包含独立权威账本；缺账本或谱系不一致拒绝打包。历史包不逐份改写。恢复到全新私密目录后保持隔离、撤销会话，须依据独立保存的最新账本重放并核对，不能用备份内水位证明外部最新性或直接启用旧账号。旧包缺历史水位、远端头像及缓存事项不能自动判通过，见 [S5 运维说明](compliance/S5_OPERATIONS.md)。
 
 其余scope仍是 `nkustudy-<scope>-backup-YYYY-MM-DD.json`，顶层明确 `complete:false`；局部配置摘要不含账户凭据。局部导出不能用于声称完整恢复。
 
@@ -961,8 +992,7 @@ curl -sS -b admin.cookies -X POST https://nkustudy.top/admin-api/backup-run \
 
 下列接口在当前版本中未注册，调用返回 `404`，其他开发者不得依赖或自行假设兼容行为：
 
-- 微信登录和个人信息：`/api/v1/auth/wechat`、`/api/v1/auth/phone`、`/api/v1/auth/logout`、`/api/v1/me`；
-- 收藏：`/api/v1/favorites` 及删除收藏；
+- 旧手机号接口设想 `/api/v1/auth/phone`；实际入口是已注册的 `/api/v1/auth/phone-verify`；
 - 投稿和举报：`/api/v1/resource-submissions`、`/api/v1/resource-submissions/mine`、`/api/v1/reports`、`/api/v1/resources/:id/reports`；
 - 旧客户端设想的 `/api/v1/resources/:id`、`/api/v1/courses/:id/reviews`；
 - `/api/v1` 下任何管理接口。

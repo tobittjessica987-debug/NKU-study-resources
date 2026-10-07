@@ -1,0 +1,35 @@
+{
+  "review_scope": [
+    "server/deployment-readiness.mjs",
+    "scripts/check-deployment-readiness.mjs",
+    "test/deployment-readiness.test.mjs"
+  ],
+  "modified_scope": [
+    "scripts/check-deployment-readiness.mjs",
+    "test/deployment-readiness.test.mjs"
+  ],
+  "confirmed_issue_fixed": "CLI static dependency initialization previously escaped the redacted exception handler. The CLI now dynamically imports within try; help and invalid arguments parse without importing runtime configuration.",
+  "verification": {
+    "command": "node --test test/deployment-readiness.test.mjs",
+    "tests": 11,
+    "pass": 11,
+    "fail": 0,
+    "loopback_access": "permitted synthetic temporary localhost listener only"
+  },
+  "production_acceptance": "productionReady and ops20Accepted remain unconditionally false; production checks remain pending",
+  "readonly_boundary": "No admin-server/store initialization, database migrations, queue replay, ledger appends, permission repair, default HTTP/cloud/notification requests. Existing SHM lock metadata and atime limitations are explicitly disclosed.",
+  "remaining_low_impact_issue": "validateSyntheticLocalhostOrigin rejects explicitly specified port 80 after URL normalization removes the default port; this is a conservative false negative.",
+  "remaining_module_boundary": "Direct module import still eagerly imports runtime-config and therefore requires valid actual process.env production paths. Shared runtime-config was intentionally unchanged.",
+  "static_gate_limit": "Managed release existence and JSON syntax are checked; active business behavior, effective deployed proxy config, ledger freshness/history coverage and actual production operations remain unverified.",
+  "sha256": {
+    "server/deployment-readiness.mjs": "20d3aa9957d1c9b727ed08aeb04eca9fe9daa7f4ffbde19739aa7c94fb66edda",
+    "scripts/check-deployment-readiness.mjs": "2c9fcc2ba0695eedbfe30a890295f61c9761eb140b0e4cac6c53f5267ddf4280",
+    "test/deployment-readiness.test.mjs": "66c707d4c2ffa845acb53f760a046846544c87aeb9d9aa1a48a03b94d25a06dd"
+  },
+  "subsequentRootResolution": {
+    "issue": "explicit default port 80",
+    "status": "fixed after this review",
+    "evidence": "../summary.json",
+    "finalSourceDigests": "../source-sha256.json"
+  }
+}
