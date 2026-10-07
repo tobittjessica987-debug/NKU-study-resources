@@ -309,7 +309,8 @@
 ### `GET /api/v1/health`
 
 - 参数/正文：无。
-- 成功 `200`：`{ "code": 0, "data": { "status": "ok" } }`。
+- 成功 `200`（注销服务已配置）：`{ "code": 0, "data": { "status": "ok", "accountDeletion": { "configured": true, "pending": 0, "ledgerSequence": 0 } } }`。
+- `accountDeletion.pending` 为待处理注销作业数，`ledgerSequence` 为已受理账本序号；未配置注销服务时该对象仅为 `{ "configured": false }`。健康响应固定 `Cache-Control: no-store`；`status: "ok"` 不等于远端清理或生产整体验收完成。
 - 主要错误：运行时 manifest/reviews 不可用时 `500 INTERNAL_ERROR`。
 
 ```bash

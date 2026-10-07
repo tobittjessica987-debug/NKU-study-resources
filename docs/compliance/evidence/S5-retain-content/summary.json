@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "stage": "S5 retain-content implementation",
   "date": "2026-10-07",
-  "status": "IMPLEMENTED_PARTIALLY_VERIFIED_LOCAL_HTTP_APPROVAL_PENDING",
+  "status": "IMPLEMENTED_FULL_LOCAL_REGRESSION_PASSED_BROWSER_AND_PRODUCTION_PENDING",
   "baseCommit": "1f22b374d926378b24917b5ddbef657eadad92ce",
   "foundationCommit": "5b65fd9",
   "policyCommit": "1f22b37",
@@ -65,9 +65,34 @@
       "pages": 14,
       "evidence": "fixture-build.log"
     },
-    "fullSuiteRun": false,
-    "browserRun": false,
-    "typecheckRun": false
+    "fullSuiteRun": true,
+    "browserRun": true,
+    "typecheckRun": false,
+    "fullSuite": {
+      "command": "TMPDIR=/private/tmp npm test",
+      "exitCode": 0,
+      "tests": 546,
+      "pass": 546,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "evidence": "full-suite-final.tap",
+      "scope": "Complete node --test suite including isolated HTTP, retained content and restart assertions; synthetic data only"
+    },
+    "browserAcceptance": {
+      "passed": false,
+      "completedDeletionScenarios": 0,
+      "browser": "Codex in-app browser on this computer",
+      "fixtureBuild": {
+        "pages": 14,
+        "exitCode": 0,
+        "evidence": "browser-fixture-build.log"
+      },
+      "outcome": "Page opened but synthetic static proxy crashed before user interaction; proxy fixed locally; repeated automatic approval transport failures prevented restart. No UI deletion outcome is verified.",
+      "temporaryTabClosed": true,
+      "syntheticApiStopped": true,
+      "phoneTested": false
+    }
   },
   "failedOrUnexecuted": [
     {
@@ -79,7 +104,8 @@
       "result": "NOT_EXECUTED",
       "reason": "Automatic approval review failed: stream disconnected before completion; transport network error decoding response body. Not a determination of unsafe action.",
       "userGuidanceRequested": true,
-      "replyReceived": false
+      "replyReceived": true,
+      "subsequentOutcome": "User authorized computer-local retry; complete HTTP-inclusive suite now passes 546/546. Original failed approval record retained as history."
     },
     {
       "evidence": "intermediate-avatar-failure.tap",
@@ -91,6 +117,22 @@
         "cancelled": 0
       },
       "reason": "Run during correction of ambiguous old PUT semantics; old tests expected cleanup success; revised regression now keeps unknown PUT pending; final selected suite passed"
+    },
+    {
+      "evidence": "full-suite-initial.tap",
+      "counts": {
+        "tests": 546,
+        "pass": 545,
+        "fail": 1,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "reason": "Legacy exact health assertion omitted new accountDeletion field. Updated exact expected state plus no-store assertion. Canonicalized temporary fixture root for macOS alias compatibility. Final complete suite passed."
+    },
+    {
+      "action": "Restart isolated localhost browser acceptance service after fixing its missing-static-file response handling",
+      "result": "NOT_EXECUTED",
+      "reason": "Repeated automatic approval review transport failures (stream disconnected / request failed); not a determination that the action was unsafe. User authorization is present. No alternate approval path used."
     }
   ],
   "reviewFindingsResolved": [
@@ -100,7 +142,7 @@
     "portable case aliases cannot place authority inside runtime data"
   ],
   "remaining": [
-    "current full localhost HTTP matrix and browser normal/pending/error flows",
+    "browser normal/pending/error flows and old-page behavior; authorization received, tool approval transport unavailable",
     "Linux/deployment acceptance and real configured authority",
     "real R2/source and historical CDN/third-party caches",
     "unknown legacy unregistered avatar objects and unkeyed donation records",
@@ -146,7 +188,8 @@
     "test/s5-deletion-coordinator.test.mjs": "18483a85c67c4cb0f8ce94b73eab2bcf0e10eb28c8288f21d8ff8ebda9d5ce41",
     "test/s5-deletion-ledger.test.mjs": "2c895f057eca60652c7f536d9e1c874c08812758c6adb6c448e4cc4965aa7993",
     "test/s5-privacy.test.mjs": "e119895c7e834ef39870d6ece4f9b8bf2ee6cb9b35393a48be285df07dd52f7b",
-    "test/s5-restore-replay.test.mjs": "100732a3d4065c72dbf867d181dd1da5e66e7ed7a8d35d160940e9d1dede6b63"
+    "test/s5-restore-replay.test.mjs": "100732a3d4065c72dbf867d181dd1da5e66e7ed7a8d35d160940e9d1dede6b63",
+    "test/admin-server.integration.test.mjs": "70316b8eece99fbe50f862845ad6d83dade3f82400228b7bd79c3afeb920864e"
   },
   "evidenceSha256": {
     "no-listener-suite.tap": "1b8bf3a64935d1d87ac6c21515a6bd71fbe49aef17836594710ec7f88f1f0db8",
@@ -156,6 +199,15 @@
     "api-docs.log": "e8c32076a82c3cb118e35d82f5bdaef64b8dc319916e9920e37060d348db7990",
     "fixture-check.log": "ef818d1c731feb9e27e888d0a82cd794023241974898ddf921bf0c38f6d872d0",
     "intermediate-avatar-failure.tap": "4ac94afc20396a16b23e69bc1adc8dc13c23b643f6321690f599925b59df53cf",
-    "http-sandbox-failure.tap": "3ef2b0ab19477fe1509d6a95b78e797ded0836cbc1a206316353e7302bb85a84"
+    "http-sandbox-failure.tap": "3ef2b0ab19477fe1509d6a95b78e797ded0836cbc1a206316353e7302bb85a84",
+    "full-suite-initial.tap": "91c6eab3857f426369dca6881b17eac9023176a6b1bb21f0a6aeaa02a971e063",
+    "full-suite-final.tap": "9ed86f31aedb327f1365ee6e185278e049132a46639291045ac5906f9cbc3c93",
+    "browser-fixture-build.log": "fefff828f919768ce7e28062456ac2ba157690882b91790f75c79afda602fe2e"
+  },
+  "implementationCommit": "1385094c5c78dd62e0590932d585ba7d55618bbd",
+  "localAcceptanceAuthorization": {
+    "received": true,
+    "scope": "User explicitly permits retrying computer-local acceptance; no phone or production action",
+    "date": "2026-10-07"
   }
 }

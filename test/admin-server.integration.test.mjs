@@ -42,8 +42,9 @@ async function waitForServer(child) {
 }
 
 test("legacy public write routes start with isolated DATA_DIR and persist submissions", async (t) => {
-  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "nkustudy-admin-integration-"));
-  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nkustudy-admin-public-"));
+  const temporaryRoot = await fs.realpath(os.tmpdir());
+  const dataDir = await fs.mkdtemp(path.join(temporaryRoot, "nkustudy-admin-integration-"));
+  const publicRoot = await fs.mkdtemp(path.join(temporaryRoot, "nkustudy-admin-public-"));
   for (const name of ["about.json", "feedback.json", "footer.json", "home.json", "links.json", "manifest.json", "participate.json", "reviews.json"]) {
     await fs.copyFile(path.join(fixtureDir, name), path.join(dataDir, name));
   }
@@ -329,7 +330,11 @@ test("legacy public write routes start with isolated DATA_DIR and persist submis
   assert.equal(staleFeedback.status, 409, "public feedback submission must make a loaded admin revision stale");
   const health = await fetch(`http://127.0.0.1:${port}/api/v1/health`);
   assert.equal(health.status, 200);
-  assert.deepEqual(await health.json(), { code: 0, data: { status: "ok" } });
+  assert.equal(health.headers.get("cache-control"), "no-store", "account cleanup progress must not use a cached health result");
+  assert.deepEqual(await health.json(), {
+    code: 0,
+    data: { status: "ok", accountDeletion: { configured: true, pending: 0, ledgerSequence: 0 } },
+  }, "the isolated runtime initializes its deletion ledger without inventing pending jobs or deletion events");
   const courses = await (await fetch(`http://127.0.0.1:${port}/api/v1/courses?page=1&page_size=20&group=${encodeURIComponent("示例分类")}`)).json();
   assert.equal(courses.code, 0);
   assert.equal(courses.data.items[0].id, "11111111-1111-4111-8111-111111111111");
