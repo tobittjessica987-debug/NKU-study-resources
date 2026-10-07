@@ -60,6 +60,7 @@ function publicAccount(row) {
     created_at: row.created_at,
     last_login_at: row.last_login_at ?? null,
     blocked: row.blocked === 1 || row.blocked === true,
+    deleted_at: row.deleted_at ?? null,
     login_count: row.login_count ?? 0,
   };
 }

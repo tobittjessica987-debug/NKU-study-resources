@@ -1,4 +1,6 @@
 import { SnapshotGate, captureRuntime, saveEncryptedBackup, verifiedUpload } from "./runtime-backup.mjs";
+import { AccountDeletionService } from "./account-deletion-service.mjs";
+import { initializeRuntimeDeletionLedger, openRuntimeDeletionLedger, readRuntimeDeletionBinding } from "./deletion-ledger.mjs";
 import { uploadPrivateR2Backup } from "./backup-r2.mjs";
 import { createOpsAlerts } from "./ops-alerts.mjs";
 import { queryAuditMetadata, lawResultAuditMetadata, recordLawResponseAudit } from "./admin-audit.mjs";
@@ -10,7 +12,7 @@ import { PassThrough } from "node:stream";
 import fs from "node:fs";
 import path from "node:path";
 import Busboy from "busboy";
-import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { AtomicJsonStore, drainJsonWrites } from "./atomic-json-store.mjs";
 import { syncCourseResponse } from "./admin-response.mjs";
 import { AdminAccountsStore, ADMIN_PERMISSION_POINTS, ADMIN_ROLE_PRESETS, hasAdminPermission } from "./admin-accounts-store.mjs";
@@ -57,16 +59,17 @@ import { DEFAULT_DONATE_CONTENT } from "./default-donate.mjs";
 import { DonatePayStore } from "./donate-pay-store.mjs";
 import { DonateOrderStore } from "./donate-order-store.mjs";
 import { decryptAes256Gcm, verifyNotifySignature } from "./wxpay-v3.mjs";
-import { appendDonateRecord, normalizeRecords } from "./donate-records.mjs";
+import { appendDonateRecord, normalizeStoredRecords } from "./donate-records.mjs";
+import { preserveDonationIdentity } from "./donation-identity-policy.mjs";
 import { UserSecurityLogStore } from "./user-security-log-store.mjs";
 import { LawEnforcementLogStore } from "./law-enforcement-store.mjs";
 import { createLawQueryService } from "./law-query-service.mjs";
-import { DEFAULT_PRIVACY_CONTENT } from "./default-privacy.mjs";
+import { DEFAULT_PRIVACY_CONTENT, effectivePrivacyDocument } from "./default-privacy.mjs";
 import { createWechatPhoneVerifier, maskPhone } from "./wechat-phone.mjs";
 import { createWxacodeService } from "./wxacode-service.mjs";
 import { createWebLoginService } from "./web-login-service.mjs";
 import { AvatarStore } from "./avatar-store.mjs";
-import { createAvatarService, AVATAR_MAX_BYTES } from "./avatar-service.mjs";
+import { createAvatarService, cleanupUserAvatars, AVATAR_MAX_BYTES } from "./avatar-service.mjs";
 import { createWechatImageModeration } from "./wechat-image-moderation.mjs";
 import sharp from "sharp";
 import { StaticReleasePublisher } from "./static-release-publisher.mjs";
@@ -250,7 +253,7 @@ setInterval(() => {
     try { store.maintain(); } catch (error) { store.writer.fail(error, "maintenance"); }
   }
 }, 24 * 3600 * 1000).unref();
-const donateOrderStore = new DonateOrderStore({ dbPath: runtime.stateDbPath });
+const donateOrderStore = new DonateOrderStore({ dbPath: runtime.stateDbPath, assertActiveUser: (id) => mpAuthService.assertActiveUser(id) });
 const catalogPath2 = path.join(dataDir, "catalog.json");
 const courseCatalog = new CourseCatalogService({
   catalogPath: catalogPath2,
@@ -261,6 +264,18 @@ const mpAuthService = new MpAuthService({
   appid: process.env.WECHAT_APPID || "",
   secret: process.env.WECHAT_APPSECRET || "",
 });
+let deletionService = null;
+let deletionLedger = null;
+const deletionBinding = readRuntimeDeletionBinding(mpAuthService.db);
+const deletionDirectory = process.env.DELETION_LEDGER_DIR || (process.env.NODE_ENV !== "production"
+  ? path.join(path.dirname(dataDir), `.${path.basename(dataDir)}-deletion-ledger`) : "");
+if (deletionBinding && !deletionDirectory) throw new Error("DELETION_LEDGER_DIR is required for an initialized account lifecycle.");
+if (deletionDirectory) {
+  deletionLedger = !deletionBinding && process.env.NODE_ENV !== "production"
+    ? initializeRuntimeDeletionLedger({ db: mpAuthService.db, dataDir, directory: deletionDirectory })
+    : openRuntimeDeletionLedger({ db: mpAuthService.db, dataDir, directory: deletionDirectory });
+  mpAuthService.isDeletionPending = (id) => deletionLedger.entries().some(entry => entry.userId === Number(id));
+}
 const lawQueryService = createLawQueryService({ db: mpAuthService.db, readReviews, readFeedback, securityLogStore, accountsStore });
 const mpFavoritesService = new MpFavoritesService({
   dbPath: runtime.stateDbPath,
@@ -410,21 +425,30 @@ const webLoginTickets = createWebLoginService();
 const avatarStore = new AvatarStore({ dbPath: runtime.stateDbPath });
 const wechatImageModeration = createWechatImageModeration({ appid: process.env.WECHAT_APPID || "", secret: process.env.WECHAT_APPSECRET || "" });
 const avatarPublicRoot = `${String(process.env.PUBLIC_RESOURCE_ORIGIN || "https://resources.nkustudy.top").replace(/\/+$/, "")}/avatars/`;
+const deleteAvatarObject = r2Client && r2Bucket ? async (key) => {
+  await r2Client.send(new DeleteObjectCommand({ Bucket: r2Bucket, Key: key }), { abortSignal: AbortSignal.timeout(30_000) });
+} : null;
 let avatarService = null;
 if (r2Client && r2Bucket && wechatImageModeration.configured) {
   avatarService = createAvatarService({
     store: avatarStore,
     moderation: wechatImageModeration,
     putObject: async (key, buffer) => {
-      await r2Client.send(new PutObjectCommand({ Bucket: r2Bucket, Key: key, Body: buffer, ContentType: "image/jpeg", CacheControl: "public, max-age=31536000, immutable" }));
+      await r2Client.send(new PutObjectCommand({ Bucket: r2Bucket, Key: key, Body: buffer, ContentType: "image/jpeg", CacheControl: "no-store" }), { abortSignal: AbortSignal.timeout(30_000) });
     },
-    deleteObject: async (key) => {
-      await r2Client.send(new DeleteObjectCommand({ Bucket: r2Bucket, Key: key }));
-    },
+    deleteObject: deleteAvatarObject,
+    assertActiveUser: (id) => mpAuthService.assertActiveUser(id),
     publicRoot: avatarPublicRoot,
     rateLimiter,
     sharpImpl: sharp,
   });
+}
+if (deletionLedger) {
+  deletionService = new AccountDeletionService({ auth: mpAuthService, ledger: deletionLedger, store: jsonStore,
+    dataDir, tickets: webLoginTickets, orders: donateOrderStore,
+    cleanupAvatars: (userId) => avatarService ? avatarService.deleteForUser(userId)
+      : cleanupUserAvatars({ store: avatarStore, deleteObject: deleteAvatarObject, userId }),
+    invalidate: () => publicApiService.invalidateSnapshot(), audit: (event) => securityLogStore.record(event) });
 }
 
 /** 公开端头像上传的 multipart 读取：单文件字段 file，2 MiB 上限。 */
@@ -477,7 +501,7 @@ const handlePublicApi = createPublicApiHandler({
   securityLog: securityLogStore,
   phoneVerifier: wechatPhoneVerifier, service: publicApiService, mpAuthService, mpFavoritesService, serviceAuthStore, consumeServiceQuota, notify: notifyModerators, readBody: readPublicBody, clientIp,
   webLoginTickets, wxacode: wxacodeService, webLoginPagePath: "pages/login-confirm/index", wxacodeEnvVersion: process.env.WXACODE_ENV_VERSION || "release",
-  avatarService, avatarStore, readAvatarUpload: readAvatarUpload });
+  avatarService, avatarStore, deletionService, readAvatarUpload: readAvatarUpload });
 
 function json(res, status, data) {
   res.__recordSubmissionAudit?.(status);
@@ -805,7 +829,7 @@ async function createCompleteBackup() {
       extraFiles["Caddyfile"] = process.env.BACKUP_CADDY_FILE || "/etc/caddy/Caddyfile";
       extraFiles["nkustudy-admin.service"] = process.env.BACKUP_SERVICE_FILE || "/etc/systemd/system/nkustudy-admin.service";
     }
-    const snapshot = captureRuntime({ db: accountsStore.db, dataDir, extraFiles,
+    const snapshot = captureRuntime({ db: accountsStore.db, dataDir, extraFiles, deletionLedger,
       requiredFiles: ["manifest.json", "about.json", "home.json", "participate.json", "links.json", "footer.json", "reviews.json", "feedback.json", "visit-stats.json", "editor-settings.json", "backup-settings.json"] });
     return saveEncryptedBackup({ snapshot, password, directory: path.join(dataDir, "private-backups") });
   });
@@ -1333,6 +1357,7 @@ function readPrivacy() {
 }
 
 function normalizePrivacy(data) {
+  data = effectivePrivacyDocument(data).document;
   return {
     title: cleanText(data.title, 120) || "隐私政策与用户协议",
     content: cleanText(data.content, 12000),
@@ -1358,7 +1383,7 @@ function normalizeDonate(data) {
     title: cleanText(data.title, 120) || '捐助支持',
     content: cleanText(data.content, 6000),
     amounts: amounts.length ? [...new Set(amounts)].sort((a, b) => a - b) : DEFAULT_DONATE_AMOUNTS,
-    records: normalizeRecords(data.records),
+    records: normalizeStoredRecords(data.records),
   };
 }
 
@@ -1683,7 +1708,8 @@ async function handleDonateNotify(req, res) {
     });
     if (!marked) return respond(500, { code: "FAIL", message: "订单不存在或金额不符" });
     try {
-      await appendDonateRecord({ store: jsonStore, filePath: donatePath, nickname: donateOrderStore.get(resource.out_trade_no)?.nickname || "", paidAtMs: Date.now() });
+      await appendDonateRecord({ store: jsonStore, filePath: donatePath, orderKey: String(resource.out_trade_no),
+        readOrder: (key) => donateOrderStore.get(key), assertActiveUser: (id) => mpAuthService.assertActiveUser(id), paidAtMs: Date.now() });
     } catch (error) {
       console.error(`[donate] append record failed: ${error.message}`);
     }
@@ -2394,7 +2420,7 @@ async function publishContent(filePath, data, expectedRevision, normalize) {
         const privateIds = new Set((current.items || []).filter((item) => item.private === true).map((item) => item.id));
         for (const item of next.items || []) if (privateIds.has(item.id)) item.private = true;
         return next;
-      } : undefined,
+      } : filePath === donatePath ? (next, current) => preserveDonationIdentity(next, current, key => donateOrderStore.get(key)) : undefined,
     });
     if (result.ok && oldData) {
       const cleanup = await cleanupOrphanContentImages(owner, oldData, result.data ?? data);
@@ -2504,6 +2530,16 @@ await contentPublishService.recoverStartup();
 await initializeRuntimeData();
 
 await migrateModerationAtStartup();
+// Upgrade only the exact known old default. Unknown custom wording remains for
+// the operator to review; the built page always displays current rules first.
+if (fs.existsSync(privacyPath)) await jsonStore.update(privacyPath, (current) => {
+  const policy = effectivePrivacyDocument(current);
+  return policy.upgradedLegacyDefault ? { ...current, ...policy.document } : current;
+});
+if (deletionService) {
+  const resumed = await deletionService.resume({ all: true });
+  if (resumed.pending) console.error("Account deletion cleanup remains pending; affected accounts stay disabled.");
+}
 
 const server = createServer(async (req, res) => {
   let url;
@@ -2818,7 +2854,8 @@ const server = createServer(async (req, res) => {
       try { jsonStore.readSync(privacyPath); } catch {
         await jsonStore.update(privacyPath, () => normalizePrivacy(structuredClone(DEFAULT_PRIVACY_CONTENT)), { initialize: normalizePrivacy(structuredClone(DEFAULT_PRIVACY_CONTENT)), mode: 0o600 });
       }
-      json(res, 200, { ok: true, ...await readPublishedContent(privacyPath, normalizePrivacy) });
+      json(res, 200, { ok: true, ...await readPublishedContent(privacyPath, normalizePrivacy),
+        customNeedsReview: effectivePrivacyDocument(jsonStore.readSync(privacyPath)).customNeedsReview });
       return;
     }
 
@@ -3430,6 +3467,13 @@ server.listen(port, host, () => {
   startDigestScheduler();
   reportOpsHealth();
   setInterval(reportOpsHealth, 30_000).unref();
+  if (deletionService) setInterval(async () => {
+    if (shuttingDown || snapshotGate.locked) return;
+    const leave = snapshotGate.enter();
+    try { await deletionService.resume(); }
+    catch { console.error("Account deletion retry failed; reconciliation required."); }
+    finally { leave(); }
+  }, 60_000).unref();
   uploadPendingAuditArchive().catch(() => {});
 });
 

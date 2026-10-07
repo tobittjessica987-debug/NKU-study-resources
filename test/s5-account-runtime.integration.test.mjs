@@ -12,11 +12,12 @@ import { createPublicApiHandler } from '../server/public-api-router.mjs';
 import { createWebLoginService } from '../server/web-login-service.mjs';
 import { AtomicJsonStore } from '../server/atomic-json-store.mjs';
 import { ReviewSubmissionService } from '../server/review-submission-service.mjs';
+import { normalizeReviewsDocument, normalizeFeedbackDocument } from '../server/moderation-model.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const password = 'S5-only-synthetic-password';
 
-test('S5 actual HTTP: account transaction invalidates confirmed tickets and all sessions without choosing a content policy', { timeout: 60000 }, async t => {
+test('S5 actual HTTP: retained public content, private replies, identity cleanup and restart', { timeout: 60000 }, async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'nku-s5-http-'));
   const app = path.join(dir, 'app'), dataDir = path.join(dir, 'data'), dbPath = path.join(dir, 'state.sqlite');
   await fs.mkdir(app); await fs.mkdir(dataDir);
@@ -64,7 +65,20 @@ test('S5 actual HTTP: account transaction invalidates confirmed tickets and all 
   const second = await request('/api/v1/auth/web-login', { method: 'POST', body: { nickname: 'S5 account A', password } });
   const ticket = (await request('/api/v1/auth/web-login/start', { method: 'POST', body: {} })).value.data.ticket;
   await request('/api/v1/auth/web-login/confirm', { method: 'POST', cookie: a.cookie, body: { ticket } });
-  const beforeContent = await Promise.all(['reviews', 'feedback'].map(name => fs.readFile(path.join(dataDir, name + '.json'), 'utf8')));
+  const nowIso = new Date().toISOString();
+  const reviews = normalizeReviewsDocument({ rules: {}, reviews: [
+    { id: 's5-public', user_id: aid, courseTitle: 'S5 synthetic course', teacher: 'S5 teacher', content: 'S5 retained public text', rating: 5, status: 'approved', helpfulBy: [aid,bid], helpfulCount: 2 },
+    { id: 's5-hidden', user_id: aid, content: 'S5 hidden text', status: 'approved', hidden: true },
+    { id: 's5-other', user_id: bid, content: 'S5 other user', status: 'pending' },
+  ] }, { nowIso });
+  const feedback = normalizeFeedbackDocument({ rules: {}, items: [
+    { id: 's5-feedback', user_id: aid, type: 'general', status: 'completed', content: 'S5 public feedback', contact: 'synthetic-A@example.invalid', reply: 'S5 public reply', replyAt: nowIso },
+    { id: 's5-private', user_id: aid, type: 'report', private: true, content: 'S5 private report', contact: 'synthetic-A@example.invalid', reply: 'S5 private reply' },
+  ] }, { nowIso });
+  await fs.writeFile(path.join(dataDir, 'reviews.json'), JSON.stringify(reviews));
+  await fs.writeFile(path.join(dataDir, 'feedback.json'), JSON.stringify(feedback));
+  const beforePublic = JSON.stringify((await request('/review-api/reviews')).value);
+  assert.match(beforePublic, /S5 retained public text/); assert.doesNotMatch(beforePublic, /S5 hidden text/);
 
   const removed = await request('/api/v1/me/delete-account', { method: 'POST', cookie: a.cookie, body: {} });
   assert.equal(removed.value.data.deleted, true);
@@ -89,7 +103,19 @@ test('S5 actual HTTP: account transaction invalidates confirmed tickets and all 
   assert.equal(redemption.value.data.status, 'expired');
   assert.equal(redemption.headers.has('set-cookie'), false);
   await request('/api/v1/auth/web-login', { method: 'POST', body: { nickname: 'S5 account A', password }, status: 401 });
-  assert.deepEqual(await Promise.all(['reviews', 'feedback'].map(name => fs.readFile(path.join(dataDir, name + '.json'), 'utf8'))), beforeContent);
+  const afterReviews = JSON.parse(await fs.readFile(path.join(dataDir, 'reviews.json'), 'utf8'));
+  const afterFeedback = JSON.parse(await fs.readFile(path.join(dataDir, 'feedback.json'), 'utf8'));
+  assert.deepEqual(afterReviews.reviews[2], reviews.reviews[2]);
+  for (const item of [...afterReviews.reviews.slice(0,2), ...afterFeedback.items]) {
+    assert.equal(item.user_id, undefined); assert.equal(item.contact, undefined); assert.equal(item.accountIdentityRemoved, true);
+  }
+  assert.equal(afterFeedback.items[1].private, true); assert.equal(afterFeedback.items[1].reply, 'S5 private reply');
+  assert.deepEqual(afterReviews.reviews[0].helpfulBy, [bid]); assert.equal(afterReviews.reviews[0].helpfulCount, 1);
+  const afterPublic = JSON.stringify((await request('/review-api/reviews')).value);
+  assert.match(afterPublic, /S5 retained public text/); assert.doesNotMatch(afterPublic, /S5 hidden text/);
+  const publicFeedback = JSON.stringify((await request('/feedback-api/feedback')).value);
+  assert.doesNotMatch(publicFeedback, /S5 private (report|reply)/);
+  assert.equal(db.prepare('SELECT status FROM account_deletion_jobs WHERE user_id=?').get(aid).status, 'complete');
   await stop(); await start();
   await request('/api/v1/me', { cookie: a.cookie, status: 401 });
   assert.equal(db.prepare('SELECT deleted_at FROM mp_users WHERE id=?').get(aid).deleted_at, row.deleted_at);

@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { digest, durableWrite, syncDir } from './durable-log.mjs';
 
 export const DELETION_LEDGER_FORMAT = 'nkustudy-deletion-ledger-v1';
 export const DELETION_LEDGER_FILENAME = 'deletion-ledger.json';
 export const DELETION_MODES = Object.freeze(['retain-published', 'withdraw-content']);
+export const DELETION_RUNTIME_TABLE = 'account_deletion_runtime';
 
 const eventFields = ['eventId', 'userId', 'userCreatedAt', 'requestedAt', 'policyVersion', 'mode'];
 const entryFields = ['sequence', 'previousHash', 'hash', ...eventFields];
@@ -86,6 +88,88 @@ function directoryPath(directory) {
   if (typeof directory !== 'string' || !path.isAbsolute(directory)) throw failure('LEDGER_DIRECTORY_REQUIRED');
   return path.resolve(directory);
 }
+function assertNoSymlinkComponents(target, { allowMissingLeaf = false } = {}) {
+  const absolute = directoryPath(target);
+  const parts = absolute.slice(path.parse(absolute).root.length).split(path.sep).filter(Boolean);
+  let cursor = path.parse(absolute).root;
+  for (let index = 0; index < parts.length; index++) {
+    cursor = path.join(cursor, parts[index]);
+    let stat;
+    try { stat = fs.lstatSync(cursor); }
+    catch (error) { if (error.code === 'ENOENT' && allowMissingLeaf && index === parts.length - 1) return absolute; throw error; }
+    if (stat.isSymbolicLink()) throw failure('LEDGER_STORAGE_UNSAFE');
+    if (index < parts.length - 1 && !stat.isDirectory()) throw failure('LEDGER_STORAGE_UNSAFE');
+  }
+  return absolute;
+}
+const within = (root, target) => {
+  // Reject portable aliases even on a case-sensitive host: an authority must
+  // remain outside snapshots when the same paths move to another filesystem.
+  const relative = path.relative(root.normalize('NFC').toLowerCase(), target.normalize('NFC').toLowerCase());
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+};
+
+/** Layout must be supplied by the caller; never infer a private authority from a backup. */
+export function assertIndependentLedgerDirectory({ directory, dataDir, restoreDestination } = {}) {
+  const target = assertNoSymlinkComponents(directory, { allowMissingLeaf: true });
+  for (const root of [dataDir, restoreDestination].filter(value => value !== undefined)) {
+    const absolute = assertNoSymlinkComponents(root, { allowMissingLeaf: true });
+    if (within(absolute, target) || within(target, absolute)) throw failure('LEDGER_NOT_INDEPENDENT');
+  }
+  return target;
+}
+
+export function readRuntimeDeletionBinding(db) {
+  if (!db?.prepare) throw failure('RUNTIME_DATABASE_REQUIRED');
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?").get(DELETION_RUNTIME_TABLE)) return null;
+  const rows = db.prepare(`SELECT * FROM ${DELETION_RUNTIME_TABLE}`).all();
+  if (rows.length !== 1 || rows[0].singleton !== 1) throw failure('RUNTIME_LEDGER_BINDING_INVALID');
+  const row = rows[0];
+  reference(row.lineage, 'RUNTIME_LEDGER_BINDING_INVALID');
+  positiveInteger(row.initialized_at, 'RUNTIME_LEDGER_BINDING_INVALID');
+  if (!Number.isSafeInteger(row.account_id_high_water) || row.account_id_high_water < 0) throw failure('RUNTIME_LEDGER_BINDING_INVALID');
+  return { lineage: row.lineage, initializedAt: row.initialized_at, accountIdHighWater: row.account_id_high_water };
+}
+
+/** Explicit offline bootstrap. It cannot establish coverage of historical deletions. */
+export function initializeRuntimeDeletionLedger({ db, dataDir, directory, lineage = randomUUID(), now = Date.now(), fault } = {}) {
+  directoryPath(dataDir);
+  const target = assertIndependentLedgerDirectory({ directory, dataDir });
+  if (readRuntimeDeletionBinding(db)) throw failure('RUNTIME_LEDGER_ALREADY_BOUND');
+  const initializedAt = positiveInteger(now, 'RUNTIME_LEDGER_INITIALIZED_AT_INVALID');
+  const hasUsers = db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'mp_users'").get();
+  if (!hasUsers) throw failure('RUNTIME_USERS_REQUIRED');
+  const maxId = db.prepare('SELECT COALESCE(MAX(id), 0) n FROM mp_users').get().n;
+  const sequence = db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'sqlite_sequence'").get()
+    ? db.prepare("SELECT seq FROM sqlite_sequence WHERE name = 'mp_users'").get()?.seq ?? 0 : 0;
+  const highWater = Math.max(maxId, sequence);
+  if (!Number.isSafeInteger(highWater) || highWater < 0) throw failure('RUNTIME_ACCOUNT_HIGH_WATER_INVALID');
+  const ledger = DeletionLedger.create({ directory: target, lineage, ...(fault ? { fault } : {}) });
+  db.pragma('synchronous = FULL');
+  db.transaction(() => {
+    if (readRuntimeDeletionBinding(db)) throw failure('RUNTIME_LEDGER_ALREADY_BOUND');
+    db.exec(`CREATE TABLE IF NOT EXISTS ${DELETION_RUNTIME_TABLE} (
+      singleton INTEGER PRIMARY KEY CHECK(singleton = 1), lineage TEXT NOT NULL UNIQUE,
+      initialized_at INTEGER NOT NULL, account_id_high_water INTEGER NOT NULL CHECK(account_id_high_water >= 0)
+    )`);
+    db.prepare(`INSERT INTO ${DELETION_RUNTIME_TABLE} VALUES (1, ?, ?, ?)`).run(ledger.head().lineage, initializedAt, highWater);
+  }).immediate();
+  return ledger;
+}
+
+export function openRuntimeDeletionLedger({ db, dataDir, directory } = {}) {
+  directoryPath(dataDir);
+  const target = assertIndependentLedgerDirectory({ directory, dataDir });
+  const binding = readRuntimeDeletionBinding(db);
+  if (!binding) throw failure('RUNTIME_LEDGER_BINDING_REQUIRED');
+  return DeletionLedger.open({ directory: target, lineage: binding.lineage });
+}
+
+export function readPrivateDeletionHead(file) {
+  const target = assertNoSymlinkComponents(file);
+  privateStorage(target, false);
+  return validateDeletionLedgerHead(JSON.parse(fs.readFileSync(target, 'utf8')));
+}
 function privateStorage(file, directory) {
   // POSIX mode bits cannot attest Windows ACLs. Do not silently claim privacy.
   if (process.platform === 'win32') throw failure('LEDGER_PRIVATE_STORAGE_UNVERIFIABLE');
@@ -116,6 +200,7 @@ export class DeletionLedger {
 
   static create({ directory, lineage, fault = () => {} } = {}) {
     const target = directoryPath(directory);
+    assertNoSymlinkComponents(target, { allowMissingLeaf: true });
     const normalizedLineage = reference(lineage, 'LEDGER_LINEAGE_REQUIRED');
     if (typeof fault !== 'function') throw failure('LEDGER_FAULT_HOOK_INVALID');
     if (process.platform === 'win32') throw failure('LEDGER_PRIVATE_STORAGE_UNVERIFIABLE');
@@ -132,6 +217,7 @@ export class DeletionLedger {
   get filePath() { return path.join(this.#directory, DELETION_LEDGER_FILENAME); }
 
   snapshot() {
+    assertNoSymlinkComponents(this.#directory);
     privateStorage(this.#directory, true);
     privateStorage(this.filePath, false);
     let parsed;

@@ -4,8 +4,8 @@
   "date": "2026-10-07",
   "branch": "codex/s5-account-lifecycle-20261007",
   "baseCommit": "1b9b06986595b6467be8a352b6f18df3bf21aa8f",
-  "status": "in_progress_retain_published_policy_confirmed",
-  "authorization": "C-16",
+  "status": "implemented_pending_http_browser_and_production_acceptance",
+  "authorization": "C-17",
   "policyDecision": {
     "id": "D-01",
     "status": "confirmed_by_user",
@@ -26,15 +26,46 @@
     "root": "route integration, HTTP races, regression and evidence"
   },
   "completed": [
-    "durable deleted_at and active-account guards",
-    "transactional identity/token/favorites cleanup",
-    "confirmed-ticket revocation and no deleted-account session reissue",
-    "legacy schema and unique nickname compatibility",
-    "body and queued JSON entry authorization rechecks",
-    "explicit success-only deletion UI",
-    "private deletion ledger and read-only head/prefix validation (not wired into runtime)"
+    "independent ledger admission and persistent resumable jobs",
+    "transactional identity/credentials/favorites cleanup and active guards",
+    "same-queue retained-content identity/vote/contact cleanup",
+    "avatar registration before PUT, draining and durable ambiguous-PUT pending",
+    "payment identity cleanup, precise keys and late callback protection",
+    "backup lineage/head capture and quarantined deletion replay plus proof",
+    "known privacy default upgrade and custom-policy precedence/review",
+    "success/pending/unconfirmed UI and audited operator avatar attestation"
   ],
   "validation": {
+    "scope": "selected no-listener regression, not full suite",
+    "selectedTestFiles": 56,
+    "tests": 430,
+    "failures": 0,
+    "skips": 0,
+    "apiRoutes": 131,
+    "fixturePages": 14,
+    "durabilityFinalTests": 37,
+    "typecheckRerun": false,
+    "browserVerified": false,
+    "productionDataRead": false,
+    "productionActions": false,
+    "http": "sandbox EPERM then automatic review transport failure; command not executed; user guidance requested"
+  },
+  "remaining": [
+    "retry actual localhost HTTP/full suite after pending approval guidance",
+    "browser normal/pending/error acceptance",
+    "Linux and fixed candidate production deployment acceptance",
+    "independent latest ledger and real avatar cleanup/cache evidence",
+    "operator review of custom privacy and legacy unattributed donations",
+    "historical unknown avatar objects and pre-ledger deletion coverage",
+    "retention/organizational and QA-21 issues remain tracked"
+  ],
+  "next": [
+    "finish localhost HTTP verification when allowed",
+    "run browser acceptance with synthetic accounts",
+    "fix and freeze a complete candidate for later combined deployment"
+  ],
+  "evidence": "../evidence/S5-retain-content/summary.json",
+  "foundationValidation": {
     "tests": 493,
     "failures": 0,
     "skips": 0,
@@ -43,22 +74,5 @@
     "typecheckRerun": false,
     "productionDataRead": false,
     "productionActions": false
-  },
-  "remaining": [
-    "Implement classified actions and disclose restricted evidence/backup exceptions",
-    "durable deletion coordinator and intent admission",
-    "JSON associations/reactions/content policy/drafts/publication/cache",
-    "known post-updater pre-rename write window",
-    "avatar registration/object/CDN cleanup",
-    "independent current ledger integration and replay of post-backup deletions",
-    "lineage/account instance/sequence rollback controls",
-    "default and stored privacy copy plus browser and deployment acceptance"
-  ],
-  "next": [
-    "Record full data action table and explicit exceptions",
-    "Implement coordinator/content and restore in parallel with UI/copy",
-    "Independent failures/restart/backup-after-deletion end-to-end acceptance",
-    "Create a complete fixed candidate for later combined deployment"
-  ],
-  "evidence": "../evidence/S5-foundation-20261007/summary.json"
+  }
 }

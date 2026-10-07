@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   DeletionLedger, DELETION_LEDGER_FORMAT, DELETION_LEDGER_FILENAME,
-  deletionLedgerHead, validateDeletionLedgerSnapshot,
+  deletionLedgerHead, validateDeletionLedgerSnapshot, assertIndependentLedgerDirectory,
 } from '../server/deletion-ledger.mjs';
 import { verifyRestoreReconciliation } from '../server/restore-reconciliation.mjs';
 
@@ -17,6 +17,14 @@ const deletion = (overrides = {}) => ({
 });
 const code = expected => error => error.code === expected;
 const failureCodes = report => report.failures.map(failure => failure.code);
+
+test('external ledger layout rejects portable case aliases of runtime data', t => {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 's5-ledger-case-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dataDir = path.join(root, 'data'); fs.mkdirSync(dataDir);
+  fs.mkdirSync(path.join(root, 'DATA'), { recursive: true });
+  assert.throws(() => assertIndependentLedgerDirectory({ dataDir, directory: path.join(root, 'DATA', 'ledger') }), { code: 'LEDGER_NOT_INDEPENDENT' });
+});
 function fixture(t, options = {}) {
   const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'nku-s5-ledger-'));
   fs.chmodSync(directory, 0o700);

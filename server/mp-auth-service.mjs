@@ -94,6 +94,7 @@ export class MpAuthService {
     this.db = new Database(this.dbPath);
     fs.chmodSync(this.dbPath, 0o600);
     this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = FULL");
     this.db.pragma("busy_timeout = 5000");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS mp_users (

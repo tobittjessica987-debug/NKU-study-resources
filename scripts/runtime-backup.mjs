@@ -15,6 +15,7 @@ try {
     process.exit(0);
   }
   const snapshot = decryptSnapshot(fs.readFileSync(source), password);
-  const result = command === 'restore' ? restoreSnapshot({ snapshot, destination: path.resolve(destination) }) : { verified: true, createdAt: snapshot.createdAt, files: snapshot.files.length, tables: snapshot.tables };
+  const result = command === 'restore' ? restoreSnapshot({ snapshot, destination: path.resolve(destination) }) : { verified: true, createdAt: snapshot.createdAt, files: snapshot.files.length, tables: snapshot.tables,
+    deletionLedgerHead: snapshot.deletionLedgerHead ?? null, deletionReplayVerified: false, externalFreshnessVerified: false };
   console.log(JSON.stringify(result, null, 2));
-} catch (error) { console.error(`Backup verification/recovery failed: ${error.message}`); process.exitCode = 1; }
+} catch { console.error('Backup verification/recovery failed: BACKUP_OPERATION_FAILED'); process.exitCode = 1; }

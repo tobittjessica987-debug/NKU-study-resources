@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: S2 user events: real HTTP outcomes, exact actors/targets, one event and no copied content
+not ok 1 - S2 user events: real HTTP outcomes, exact actors/targets, one event and no copied content
+  ---
+  duration_ms: 8.929584
+  type: 'test'
+  location: '/Users/carlos/Documents/ChatGPT/New project 2/NKU-study-resources-s2/test/s2-user-events.integration.test.mjs:14:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: S5 actual HTTP: account transaction invalidates confirmed tickets and all sessions without choosing a content policy
+not ok 2 - S5 actual HTTP: account transaction invalidates confirmed tickets and all sessions without choosing a content policy
+  ---
+  duration_ms: 31.092458
+  type: 'test'
+  location: '/Users/carlos/Documents/ChatGPT/New project 2/NKU-study-resources-s2/test/s5-account-runtime.integration.test.mjs:19:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: S5 requests paused in body reading cannot mutate after account deletion or session revocation
+ok 3 - S5 requests paused in body reading cannot mutate after account deletion or session revocation
+  ---
+  duration_ms: 312.363334
+  type: 'test'
+  ...
+# Subtest: S5 review mutations recheck account state after waiting for the JSON writer
+ok 4 - S5 review mutations recheck account state after waiting for the JSON writer
+  ---
+  duration_ms: 130.280417
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 527.789458

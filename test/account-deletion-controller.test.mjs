@@ -78,6 +78,18 @@ test("slow deletion locks input and rejects duplicate requests while pending", a
   assert.equal(h.deleted.length, 1);
 });
 
+test("accepted cleanup pending locks resubmission and never reports full success", async () => {
+  const h = harness({ fetch: async () => response({ code: 0, data: { deleted: false, pending: true, accountDisabled: true } }, 202) });
+  h.controller.setConfirmation("注销");
+  assert.equal(await h.controller.submit(), false);
+  assert.equal(h.controller.state().phase, "pending");
+  assert.equal(h.controller.state().canSubmit, false);
+  assert.match(h.controller.state().message, /清理尚在处理中/);
+  h.controller.setConfirmation("注销");
+  assert.equal(await h.controller.submit(), false);
+  assert.equal(h.calls.length, 1); assert.equal(h.deleted.length, 0);
+});
+
 test("empty or ambiguous success envelopes never authorize navigation", async () => {
   for (const body of [null, {}, { code: 0 }, { code: 0, data: {} },
     ...[false, null, 1, "true"].map((deleted) => ({ code: 0, data: { deleted } })),

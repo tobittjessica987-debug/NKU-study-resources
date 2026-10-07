@@ -1828,6 +1828,10 @@ import "vditor/dist/index.css";
         del.type = "button";
         del.className = "button secondary";
         del.textContent = "删除";
+        if (row.order_key) {
+          del.disabled = true;
+          del.title = "付款记录需保留准确归属，以便处理账号注销。";
+        }
         del.addEventListener("click", () => {
           donateState.records.splice(index, 1);
           renderDonateRecords();

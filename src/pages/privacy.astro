@@ -2,15 +2,20 @@
 import Layout from "../layouts/Layout.astro";
 import { readBuildData } from "../lib/runtime-data";
 import { markdownToHtml } from "../lib/markdown";
-import { DEFAULT_PRIVACY_CONTENT } from "../../server/default-privacy.mjs";
+import { CURRENT_PRIVACY_RULES_CONTENT, DEFAULT_PRIVACY_CONTENT, effectivePrivacyDocument } from "../../server/default-privacy.mjs";
 
-let privacy = { ...DEFAULT_PRIVACY_CONTENT };
+let savedPrivacy = null;
 try {
-  const saved = readBuildData("privacy.json");
-  if (saved && typeof saved === "object" && Object.keys(saved).length) privacy = { ...privacy, ...saved };
+  savedPrivacy = readBuildData("privacy.json");
 } catch {
   // privacy.json 尚未保存过时使用默认文案；后台保存并发布会重建本页
 }
+const { document: privacy, customNeedsReview } = effectivePrivacyDocument(savedPrivacy);
+// The complete default is also used by the editor. Render its common rules once
+// here; unknown custom text is preserved in full as supplementary explanation.
+const supplementaryContent = privacy.content === DEFAULT_PRIVACY_CONTENT.content
+  ? privacy.content.replace(CURRENT_PRIVACY_RULES_CONTENT, "")
+  : privacy.content;
 ---
 
 <Layout title={privacy.title || "隐私政策与用户协议"} eyebrow="Privacy">
@@ -24,8 +29,10 @@ try {
         </div>
       </div>
       <div class="panel-body">
-        <p class="muted">投诉举报可<a href="/report/">匿名私密提交</a>，始终不在公共页面展示。提交时已关联账号的本人可在<a href="/me/">我的反馈</a>查看处理状态和管理员回复。</p>
-        <div class="markdown-body" set:html={markdownToHtml(privacy.content || "")} />
+        <div class="markdown-body" data-current-privacy-rules set:html={markdownToHtml(CURRENT_PRIVACY_RULES_CONTENT)} />
+        <p class="muted">投诉举报可<a href="/report/">匿名私密提交</a>，始终不在公共页面展示。提交时关联的有效账号可在<a href="/me/">我的反馈</a>查看允许返回的处理回复；匿名提交或注销账号后无法通过原账号查看回复。</p>
+        {customNeedsReview && <p class="muted" data-custom-privacy-review>下方为运营方保存的其他政策说明，其中与上方现行规则不一致的内容须由运营方核对修订。账号注销与内容处理以上方现行规则为准。</p>}
+        <div class="markdown-body" data-saved-privacy-content set:html={markdownToHtml(supplementaryContent || "")} />
       </div>
     </article>
   </section>

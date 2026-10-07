@@ -1,0 +1,232 @@
+TAP version 13
+# Subtest: offline avatar attestation requires terminal-PUT evidence and a deleted account; it never claims remote deletion
+ok 1 - offline avatar attestation requires terminal-PUT evidence and a deleted account; it never claims remote deletion
+  ---
+  duration_ms: 195.599
+  type: 'test'
+  ...
+# Subtest: S5 legacy avatar and payment schemas migrate without losing resource or accounting facts
+ok 2 - S5 legacy avatar and payment schemas migrate without losing resource or accounting facts
+  ---
+  duration_ms: 17.114083
+  type: 'test'
+  ...
+# Subtest: S5 avatar registers before PUT and retains ambiguous PUT/delete failures across restart
+ok 3 - S5 avatar registers before PUT and retains ambiguous PUT/delete failures across restart
+  ---
+  duration_ms: 42.0465
+  type: 'test'
+  ...
+# Subtest: S5 avatar deletion waits for a PUT in flight and clears bound, unbound and pending history
+ok 4 - S5 avatar deletion waits for a PUT in flight and clears bound, unbound and pending history
+  ---
+  duration_ms: 6.358083
+  type: 'test'
+  ...
+# Subtest: S5 avatar rechecks deletion after decoding and moderation before any remote write
+ok 5 - S5 avatar rechecks deletion after decoding and moderation before any remote write
+  ---
+  duration_ms: 44.004833
+  type: 'test'
+  ...
+# Subtest: S5 avatar cleanup failure cannot report source success and is idempotently retryable
+ok 6 - S5 avatar cleanup failure cannot report source success and is idempotently retryable
+  ---
+  duration_ms: 13.337917
+  type: 'test'
+  ...
+# Subtest: S5 restart retains an uncertain PUT key when DELETE succeeds before the old remote PUT commits
+ok 7 - S5 restart retains an uncertain PUT key when DELETE succeeds before the old remote PUT commits
+  ---
+  duration_ms: 219.227041
+  type: 'test'
+  ...
+# Subtest: S5 payment cleanup is atomic and preserves accounting facts and unrelated orders
+ok 8 - S5 payment cleanup is atomic and preserves accounting facts and unrelated orders
+  ---
+  duration_ms: 23.388709
+  type: 'test'
+  ...
+# Subtest: S5 order creation after an upstream wait cannot recreate a deleted account association
+ok 9 - S5 order creation after an upstream wait cannot recreate a deleted account association
+  ---
+  duration_ms: 62.161334
+  type: 'test'
+  ...
+# Subtest: S5 precise donation cleanup leaves same-name legacy and other-user records unchanged
+ok 10 - S5 precise donation cleanup leaves same-name legacy and other-user records unchanged
+  ---
+  duration_ms: 2.266333
+  type: 'test'
+  ...
+# Subtest: S5 donation append reads identity inside the queue, handles late payment and is keyed idempotent
+ok 11 - S5 donation append reads identity inside the queue, handles late payment and is keyed idempotent
+  ---
+  duration_ms: 68.939125
+  type: 'test'
+  ...
+# Subtest: S5 pending deletion blocks new payment identities and callback nickname before SQL cleanup
+ok 12 - S5 pending deletion blocks new payment identities and callback nickname before SQL cleanup
+  ---
+  duration_ms: 39.441042
+  type: 'test'
+  ...
+# Subtest: coordinator completes retained-content cleanup and cannot reissue old identity
+ok 13 - coordinator completes retained-content cleanup and cannot reissue old identity
+  ---
+  duration_ms: 233.284541
+  type: 'test'
+  ...
+# Subtest: coordinator afterIntent failure remains disabled, keeps order keys and resumes
+ok 14 - coordinator afterIntent failure remains disabled, keeps order keys and resumes
+  ---
+  duration_ms: 171.313125
+  type: 'test'
+  ...
+# Subtest: coordinator afterIdentity failure remains disabled, keeps order keys and resumes
+ok 15 - coordinator afterIdentity failure remains disabled, keeps order keys and resumes
+  ---
+  duration_ms: 168.418042
+  type: 'test'
+  ...
+# Subtest: coordinator afterContent failure remains disabled, keeps order keys and resumes
+ok 16 - coordinator afterContent failure remains disabled, keeps order keys and resumes
+  ---
+  duration_ms: 166.043083
+  type: 'test'
+  ...
+# Subtest: coordinator afterAvatars failure remains disabled, keeps order keys and resumes
+ok 17 - coordinator afterAvatars failure remains disabled, keeps order keys and resumes
+  ---
+  duration_ms: 209.560625
+  type: 'test'
+  ...
+# Subtest: ledger write failure before admission leaves account active; after-rename unknown is guarded and replayed
+ok 18 - ledger write failure before admission leaves account active; after-rename unknown is guarded and replayed
+  ---
+  duration_ms: 293.993417
+  type: 'test'
+  ...
+# Subtest: avatar cleanup failure cannot become complete and retries from the persistent job
+ok 19 - avatar cleanup failure cannot become complete and retries from the persistent job
+  ---
+  duration_ms: 232.953542
+  type: 'test'
+  ...
+# Subtest: startup replay cleans content rolled back by a recovered publication snapshot
+ok 20 - startup replay cleans content rolled back by a recovered publication snapshot
+  ---
+  duration_ms: 214.876958
+  type: 'test'
+  ...
+# Subtest: account instance mismatch fails closed without deleting another account
+ok 21 - account instance mismatch fails closed without deleting another account
+  ---
+  duration_ms: 187.295708
+  type: 'test'
+  ...
+# Subtest: corrupt persisted order ownership cannot clear another account
+ok 22 - corrupt persisted order ownership cannot clear another account
+  ---
+  duration_ms: 135.841625
+  type: 'test'
+  ...
+# Subtest: donation publication preserves exact keys and cannot recover cleared nicknames
+ok 23 - donation publication preserves exact keys and cannot recover cleared nicknames
+  ---
+  duration_ms: 0.219375
+  type: 'test'
+  ...
+# Subtest: router requires coordinator and reports accepted pending instead of false success
+ok 24 - router requires coordinator and reports accepted pending instead of false success
+  ---
+  duration_ms: 102.587459
+  type: 'test'
+  ...
+# Subtest: S5 runtime bootstrap binds an external authority and refuses overwrite, unsafe layout and wrong lineage
+ok 25 - S5 runtime bootstrap binds an external authority and refuses overwrite, unsafe layout and wrong lineage
+  ---
+  duration_ms: 105.762208
+  type: 'test'
+  ...
+# Subtest: S5 backup checkpoint is bound to SQLite, excludes authority and refuses a changing or missing ledger
+ok 26 - S5 backup checkpoint is bound to SQLite, excludes authority and refuses a changing or missing ledger
+  ---
+  duration_ms: 236.98925
+  type: 'test'
+  ...
+# Subtest: S5 snapshots reject case, Unicode and file/ancestor collisions before a restore can overwrite content
+ok 27 - S5 snapshots reject case, Unicode and file/ancestor collisions before a restore can overwrite content
+  ---
+  duration_ms: 195.17
+  type: 'test'
+  ...
+# Subtest: S5 encrypted old backup replays later deletion, preserves content/accounting/logs and keeps both quarantine markers
+ok 28 - S5 encrypted old backup replays later deletion, preserves content/accounting/logs and keeps both quarantine markers
+  ---
+  duration_ms: 440.643083
+  type: 'test'
+  ...
+# Subtest: S5 replays accepted intents already at the backup watermark, not just newer sequence entries
+ok 29 - S5 replays accepted intents already at the backup watermark, not just newer sequence entries
+  ---
+  duration_ms: 261.991542
+  type: 'test'
+  ...
+# Subtest: S5 stale or missing fresh heads and legacy checkpoints leave restored business data unchanged
+ok 30 - S5 stale or missing fresh heads and legacy checkpoints leave restored business data unchanged
+  ---
+  duration_ms: 433.219875
+  type: 'test'
+  ...
+# Subtest: S5 account-instance mismatch and unsupported policy refuse cleanup before business changes
+ok 31 - S5 account-instance mismatch and unsupported policy refuse cleanup before business changes
+  ---
+  duration_ms: 423.230875
+  type: 'test'
+  ...
+# Subtest: S5 SQL-first replay faults preserve exact order keys for JSON cleanup on restart
+ok 32 - S5 SQL-first replay faults preserve exact order keys for JSON cleanup on restart
+  ---
+  duration_ms: 209.4945
+  type: 'test'
+  ...
+# Subtest: S5 restores persisted coordinator order keys even if the snapshot SQL ownership was already cleared
+ok 33 - S5 restores persisted coordinator order keys even if the snapshot SQL ownership was already cleared
+  ---
+  duration_ms: 195.53575
+  type: 'test'
+  ...
+# Subtest: S5 missing post-snapshot accounts still reserve known ledger IDs and changing heads invalidate proofs
+ok 34 - S5 missing post-snapshot accounts still reserve known ledger IDs and changing heads invalidate proofs
+  ---
+  duration_ms: 243.400958
+  type: 'test'
+  ...
+# Subtest: S5 offline avatar work stays pending and prevents a complete replay proof
+ok 35 - S5 offline avatar work stays pending and prevents a complete replay proof
+  ---
+  duration_ms: 199.222166
+  type: 'test'
+  ...
+# Subtest: S5 initialization and replay CLIs use explicit private independent paths and never activate recovery
+ok 36 - S5 initialization and replay CLIs use explicit private independent paths and never activate recovery
+  ---
+  duration_ms: 449.258625
+  type: 'test'
+  ...
+# Subtest: S5 replay reports fixed codes instead of private injected error contents
+ok 37 - S5 replay reports fixed codes instead of private injected error contents
+  ---
+  duration_ms: 153.716708
+  type: 'test'
+  ...
+1..37
+# tests 37
+# suites 0
+# pass 37
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3613.997291

@@ -4,6 +4,8 @@ import os from 'node:os';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { digest, durableWrite, privateDir, syncDir } from './durable-log.mjs';
+import { DeletionLedger, DELETION_LEDGER_FORMAT, DELETION_LEDGER_FILENAME, assertIndependentLedgerDirectory,
+  readRuntimeDeletionBinding, validateDeletionLedgerHead } from './deletion-ledger.mjs';
 
 export class SnapshotGate {
   constructor() { this.active = 0; this.locked = false; this.waiters = new Set(); }
@@ -32,11 +34,24 @@ function safeName(name) {
   return name;
 }
 function fileEntry(name, bytes) { return { name: safeName(name), bytes: bytes.length, sha256: digest(bytes), base64: bytes.toString('base64') }; }
+function refuseRecoveryArtifact(name, bytes) {
+  const base = path.posix.basename(name).normalize('NFC').toLowerCase();
+  if (base === DELETION_LEDGER_FILENAME) throw Object.assign(new Error('Snapshot cannot contain an authoritative deletion ledger'), { code: 'BACKUP_CONTAINS_DELETION_LEDGER' });
+  if (['restore-result.json', 'restore-deletion-proof.json', 'restore-deletion-replay-jobs.json', '.restore-quarantine'].includes(base)) {
+    throw Object.assign(new Error('Snapshot cannot supply recovery evidence or quarantine markers'), { code: 'BACKUP_CONTAINS_RECOVERY_ARTIFACT' });
+  }
+  let json;
+  if (name.toLowerCase().endsWith('.json')) json = JSON.parse(bytes.toString('utf8'));
+  else if (name !== 'state.sqlite') {
+    try { json = JSON.parse(bytes.toString('utf8')); } catch { /* Plain private configuration need not be JSON. */ }
+  }
+  if (json?.format === DELETION_LEDGER_FORMAT) throw Object.assign(new Error('Snapshot cannot contain an authoritative deletion ledger'), { code: 'BACKUP_CONTAINS_DELETION_LEDGER' });
+}
 function tableCounts(db) {
   const tables = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
   return Object.fromEntries(tables.map(({ name }) => [name, db.prepare(`SELECT COUNT(*) n FROM "${name.replaceAll('"', '""')}"`).get().n]));
 }
-function validateDatabase(bytes, counts) {
+function validateDatabase(bytes, counts, checkpoint) {
   // A serialized WAL-mode database cannot be deserialized as an in-memory DB
   // by SQLite. Validate on private disk, without copying the live main file.
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nku-backup-check-'));
@@ -47,13 +62,24 @@ function validateDatabase(bytes, counts) {
     restored = new Database(file);
     if (restored.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('SQLite integrity check failed');
     if (JSON.stringify(tableCounts(restored)) !== JSON.stringify(counts)) throw new Error('SQLite table counts differ');
+    const binding = readRuntimeDeletionBinding(restored);
+    if (binding && !checkpoint) throw Object.assign(new Error('Bound runtime backup requires a deletion ledger checkpoint'), { code: 'BACKUP_LEDGER_HEAD_REQUIRED' });
+    if (checkpoint && (!binding || binding.lineage !== checkpoint.lineage)) throw Object.assign(new Error('Backup deletion ledger lineage differs from SQLite binding'), { code: 'BACKUP_LEDGER_LINEAGE_MISMATCH' });
   } finally { restored?.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 }
 
 // Called with the process request gate held and JSON mutation queues drained.
 // Synchronous serialization sees committed WAL contents and cannot interleave with
 // other JavaScript work. Production must retain the existing single-process setup.
-export function captureRuntime({ db, dataDir, extraFiles = {}, requiredFiles = [], fault = () => {} }) {
+export function captureRuntime({ db, dataDir, deletionLedger, extraFiles = {}, requiredFiles = [], fault = () => {} }) {
+  const binding = readRuntimeDeletionBinding(db);
+  let checkpoint = null;
+  if (binding || deletionLedger) {
+    if (!(deletionLedger instanceof DeletionLedger)) throw Object.assign(new Error('Independent deletion ledger is required for this bound runtime'), { code: 'DELETION_LEDGER_REQUIRED' });
+    assertIndependentLedgerDirectory({ directory: deletionLedger.directory, dataDir });
+    checkpoint = deletionLedger.head();
+    if (!binding || binding.lineage !== checkpoint.lineage) throw Object.assign(new Error('Runtime deletion ledger binding differs'), { code: 'RUNTIME_LEDGER_LINEAGE_MISMATCH' });
+  }
   for (const name of requiredFiles) if (!fs.existsSync(path.join(dataDir, name))) throw new Error(`Required runtime file missing: ${name}`);
   for (const directory of ['.publish-journal', '.manifest-journal']) {
     if (fs.existsSync(path.join(dataDir, directory)) && fs.readdirSync(path.join(dataDir, directory)).length) throw new Error('Unresolved publication journal; backup incomplete');
@@ -66,40 +92,61 @@ export function captureRuntime({ db, dataDir, extraFiles = {}, requiredFiles = [
       const file = path.join(directory, name), stat = fs.lstatSync(file);
       if (stat.isSymbolicLink()) throw new Error('Symlink in runtime data; backup refused');
       if (stat.isDirectory()) walk(file, relativeName);
-      else if (name.endsWith('.json') || name === '.nkustudy-data-root') {
+      else if (name.toLowerCase().endsWith('.json') || name === '.nkustudy-data-root') {
         const bytes = fs.readFileSync(file);
-        if (name.endsWith('.json')) JSON.parse(bytes.toString('utf8'));
+        refuseRecoveryArtifact(`data/${relativeName}`, bytes);
         files.push(fileEntry(`data/${relativeName}`, bytes));
       }
     }
   };
   const counts = tableCounts(db);
   const sqlite = db.serialize();
-  validateDatabase(sqlite, counts);
+  validateDatabase(sqlite, counts, checkpoint);
   files.push(fileEntry('state.sqlite', sqlite));
   fault('afterSqlite');
   walk(dataDir);
-  for (const [name, file] of Object.entries(extraFiles)) files.push(fileEntry(`config/${safeName(name)}`, fs.readFileSync(file)));
+  for (const name of requiredFiles) {
+    if (!files.some(entry => entry.name === `data/${name}`)) throw Object.assign(new Error('Required runtime file was not captured with its exact name'), { code: 'BACKUP_REQUIRED_FILE_NOT_CAPTURED' });
+  }
+  for (const [name, file] of Object.entries(extraFiles)) {
+    if (deletionLedger && path.resolve(file) === deletionLedger.filePath) throw Object.assign(new Error('Deletion ledger must remain outside backup configuration'), { code: 'BACKUP_CONTAINS_DELETION_LEDGER' });
+    files.push(fileEntry(`config/${safeName(name)}`, fs.readFileSync(file)));
+  }
   if (new Set(files.map(file => file.name)).size !== files.length) throw new Error('Duplicate backup file');
   const snapshot = { format: 'nkustudy-runtime-v2', createdAt: new Date().toISOString(), complete: true,
     scope: 'SQLite and runtime JSON, private configuration, local audit archives and replay queues',
-    externalAssetsIncluded: false, tables: counts, files };
+    externalAssetsIncluded: false, tables: counts, files, deletionLedgerHead: checkpoint };
+  if (checkpoint && JSON.stringify(deletionLedger.head()) !== JSON.stringify(checkpoint)) throw Object.assign(new Error('Deletion ledger changed during snapshot capture'), { code: 'LEDGER_CHANGED_DURING_CAPTURE' });
   verifySnapshot(snapshot);
   return snapshot;
 }
 export function verifySnapshot(snapshot) {
   if (snapshot?.format !== 'nkustudy-runtime-v2' || snapshot.complete !== true || !Array.isArray(snapshot.files)) throw new Error('Incomplete or unsupported backup');
   const seen = new Set();
+  const portablePaths = new Map();
+  const checkpoint = snapshot.deletionLedgerHead == null ? null : validateDeletionLedgerHead(snapshot.deletionLedgerHead);
   for (const entry of snapshot.files) {
     safeName(entry.name);
+    if (entry.name !== 'state.sqlite' && !entry.name.startsWith('data/') && !entry.name.startsWith('config/')) throw Object.assign(new Error('Backup entry is outside runtime scope'), { code: 'BACKUP_ENTRY_OUTSIDE_SCOPE' });
     if (seen.has(entry.name)) throw new Error('Duplicate backup entry'); seen.add(entry.name);
+    // A snapshot must not change meaning on a case-insensitive or Unicode-
+    // normalizing filesystem. Check every ancestor as well as the final file.
+    const parts = entry.name.split('/');
+    for (let index = 1; index <= parts.length; index++) {
+      const raw = parts.slice(0, index).join('/');
+      const folded = raw.normalize('NFC').toLowerCase();
+      const file = index === parts.length;
+      const previous = portablePaths.get(folded);
+      if (previous && (previous.raw !== raw || previous.file !== file)) throw Object.assign(new Error('Backup paths collide on a portable filesystem'), { code: 'BACKUP_PATH_COLLISION' });
+      portablePaths.set(folded, { raw, file });
+    }
     const bytes = Buffer.from(entry.base64, 'base64');
     if (bytes.length !== entry.bytes || digest(bytes) !== entry.sha256) throw new Error('Backup checksum mismatch');
-    if (entry.name.endsWith('.json')) JSON.parse(bytes.toString('utf8'));
+    refuseRecoveryArtifact(entry.name, bytes);
   }
   const state = snapshot.files.find(file => file.name === 'state.sqlite');
   if (!state) throw new Error('Missing SQLite snapshot');
-  validateDatabase(Buffer.from(state.base64, 'base64'), snapshot.tables);
+  validateDatabase(Buffer.from(state.base64, 'base64'), snapshot.tables, checkpoint);
   return snapshot;
 }
 export function encryptSnapshot(snapshot, password) {
@@ -158,7 +205,9 @@ export function restoreSnapshot({ snapshot, destination, fault = () => {} }) {
     } finally { db.close(); }
     // Both common DATA_DIR layouts fail closed until deliberate reconciliation.
     if (fs.existsSync(path.join(destination, 'data'))) durableWrite(path.join(destination, 'data', '.restore-quarantine'), 'Recovery reconciliation required\n');
-    const result = { restored: true, quarantined: true, files: snapshot.files.length, originalTables: snapshot.tables, sessionsRevoked: true };
+    const result = { restored: true, quarantined: true, files: snapshot.files.length, originalTables: snapshot.tables, sessionsRevoked: true,
+      snapshotCreatedAt: snapshot.createdAt, backupDeletionLedgerHead: snapshot.deletionLedgerHead ?? null,
+      deletionReplayVerified: false, externalFreshnessVerified: false };
     durableWrite(path.join(destination, 'restore-result.json'), JSON.stringify(result, null, 2));
     syncDir(destination);
     return result;

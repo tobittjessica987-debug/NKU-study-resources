@@ -70,7 +70,7 @@
 | `POST` | `/api/v1/me/profile` | Bearer Token | 更新昵称与头像 |
 | `POST` | `/api/v1/me/web-password` | Bearer Token | 设置网页登录密码（微信端首次设置） |
 | `POST` | `/api/v1/me/web-password/change` | Bearer Token | 修改网页登录密码（需验证当前密码） |
-| `POST` | `/api/v1/me/delete-account` | Bearer Token | 注销账号（S5基础候选原子清理账号身份/凭证/收藏；内容策略与恢复重放待接入，封禁账号需联系管理员） |
+| `POST` | `/api/v1/me/delete-account` | Bearer Token | 注销账号（保留内容、清身份及业务关联；200确认完成，202仅受理并停用、清理仍待；未配置独立账本503，封禁账号需联系管理员） |
 | `GET` | `/api/v1/me/feedback` | Bearer Token | 我的反馈列表（含审核状态） |
 | `POST` | `/api/v1/reviews` | 登录且手机号已验证、限流 | 小程序提交评价 |
 | `GET` | `/review-api/reviews` | 公开 | 网站读取已通过评价及规则 |

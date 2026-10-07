@@ -264,7 +264,7 @@ import Layout from "../layouts/Layout.astro";
             <details>
               <summary class="me-summary" style="color:#dc2626;">注销账号</summary>
               <form class="review-form" style="max-width:420px;padding-top:6px;">
-                <p class="field-hint" style="margin:0;">请先查看<a href="/privacy/">当前注销说明</a>；提交后按服务端结果显示。</p>
+                <p class="field-hint" style="margin:0;">注销会停用账号、清理身份资料与业务关联；评价、反馈及回复按原公开或私密状态保留。正文中你主动写入的个人信息不会自动移除。安全日志、历史备份和缓存另按<a href="/privacy/">注销说明</a>处理。注销后不能再用原账号查看私密回复。</p>
                 <label class="admin-field">
                   <span>请输入「注销」以确认</span>
                   <input id="del-confirm" type="text" placeholder="注销" autocomplete="off" />
@@ -324,7 +324,7 @@ import Layout from "../layouts/Layout.astro";
     const deletionStatus = document.querySelector<HTMLElement>("#del-status")!;
     const deletionController = createAccountDeletionController({
       onState(state) {
-        const locked = state.phase === "submitting" || state.phase === "succeeded";
+        const locked = ["submitting", "pending", "succeeded"].includes(state.phase);
         deletionInput.disabled = locked;
         deletionButton.disabled = !state.canSubmit;
         deletionButton.setAttribute("aria-busy", String(state.phase === "submitting"));

@@ -64,7 +64,7 @@ export function decodePathPart(value) {
   }
 }
 
-export function createPublicApiHandler({ service, mpAuthService = null, mpFavoritesService = null, serviceAuthStore = null, consumeServiceQuota = null, notify = null, readBody, clientIp, securityLog = null, phoneVerifier = null, webLoginTickets = null, wxacode = null, webLoginPagePath = "pages/login-confirm/index", wxacodeEnvVersion = "release", avatarService = null, avatarStore = null, readAvatarUpload = null } = {}) {
+export function createPublicApiHandler({ service, mpAuthService = null, mpFavoritesService = null, serviceAuthStore = null, consumeServiceQuota = null, notify = null, readBody, clientIp, securityLog = null, phoneVerifier = null, webLoginTickets = null, wxacode = null, webLoginPagePath = "pages/login-confirm/index", wxacodeEnvVersion = "release", avatarService = null, avatarStore = null, deletionService = null, readAvatarUpload = null } = {}) {
   if (!service || !readBody || !clientIp) throw new Error("Public API router dependencies are required.");
   async function requireService(req) {
     if (!serviceAuthStore) throw new PublicApiError(503, "服务间接口暂未开放。", "SERVICE_AUTH_NOT_CONFIGURED");
@@ -106,7 +106,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
       if (identityAction && !["auth.register", "auth.web_login", "auth.wechat_login", "weblogin.start", "weblogin.status"].includes(identityAction)) {
         identityUserId = authUser?.id || mpAuthService?.auditUserId?.(authorizationOf(req)) || mpAuthService?.introspectToken?.(authorizationOf(req))?.user_id || null;
       }
-      if (req.method === "GET" && url.pathname === "/api/v1/health") data = service.health();
+      if (req.method === "GET" && url.pathname === "/api/v1/health") data = { ...service.health(), accountDeletion: deletionService?.health() || { configured: false } };
       else if (req.method === "GET" && url.pathname === "/api/v1/home") data = service.home();
       else if (req.method === "POST" && url.pathname === "/api/v1/auth/verify") {
         await requireService(req);
@@ -133,7 +133,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
           throw new PublicApiError(503, "支付功能暂未开通，正在接入中。", "DONATE_PAY_NOT_CONFIGURED");
         }
         // 网页会话可选：有 cookie 就记录归属，扫码付款本身不需要登录
-        const webUser = mpAuthService ? mpAuthService.verifyToken(authorizationOf(req)) : null;
+        const webUser = mpAuthService && authorizationOf(req) ? mpAuthService.requireUser(authorizationOf(req)) : null;
         data = await service.createDonateOrderNative({ userId: webUser?.id || 0, amount, nickname: body?.nickname, remark: body?.remark });
       }
       else if (req.method === "GET" && url.pathname === "/api/v1/donate/order-status") {
@@ -148,6 +148,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         if (typeof service.createDonateOrder !== "function" || !service.donatePayReady?.()) {
           throw new PublicApiError(503, "支付功能暂未开通，正在接入中。", "DONATE_PAY_NOT_CONFIGURED");
         }
+        mpAuthService.requireUser(authorizationOf(req));
         data = await service.createDonateOrder(user, amount, { nickname: body?.nickname, remark: body?.remark });
       }
       else if (req.method === "GET" && url.pathname === "/api/v1/guides") data = service.guides(url.searchParams);
@@ -322,12 +323,10 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         if (user.blocked) {
           throw new PublicApiError(403, "该账号已被封禁，无法自行注销。请联系管理员处理。", "AUTH_USER_BLOCKED");
         }
-        mpAuthService.deleteAccount(user.id);
-        webLoginTickets?.revokeForUser?.(user.id);
+        if (!deletionService) throw new PublicApiError(503, "注销清理暂未开放，请联系管理员。", "ACCOUNT_DELETION_UNAVAILABLE");
+        data = await deletionService.request(user);
         setCookies.push(clearWebSessionCookie());
-        // Tokens and same-database favorites are removed by the account transaction.
-        // Content lifecycle is a separate S5 policy/replay step; do not claim it ran here.
-        data = { deleted: true, note: "账号已停用，登录凭证与收藏已清理。" };
+        if (data.pending) { identityStatus = 202; identityCode = "ACCOUNT_CLEANUP_PENDING"; eventResult = "pending"; }
       } else if (req.method === "POST" && url.pathname === "/api/v1/me/web-password") {
         if (!mpAuthService) throw new PublicApiError(503, "暂未开放。", "MP_AUTH_NOT_CONFIGURED");
         const user = mpAuthService.requireUser(authorizationOf(req));
@@ -441,7 +440,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
       }
       }
       }
-      response = { status: 200, body: responseBody(data), options: { cache: req.method === "GET" && !dependsOnModeratedContent(url.pathname) && !authorizationOf(req) && !url.pathname.startsWith("/api/v1/me") && !url.pathname.startsWith("/api/v1/auth/") && !url.pathname.startsWith("/api/v1/donate/order-status") && url.pathname !== "/api/v1/health", setCookies } };
+      response = { status: identityStatus, body: responseBody(data), options: { cache: req.method === "GET" && !dependsOnModeratedContent(url.pathname) && !authorizationOf(req) && !url.pathname.startsWith("/api/v1/me") && !url.pathname.startsWith("/api/v1/auth/") && !url.pathname.startsWith("/api/v1/donate/order-status") && url.pathname !== "/api/v1/health", setCookies } };
     } catch (error) {
       const statusCode = error instanceof PublicApiError ? error.statusCode : 500;
       const code = error instanceof PublicApiError ? error.code : "INTERNAL_ERROR";

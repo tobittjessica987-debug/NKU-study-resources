@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "stage": "S5 retain-content implementation",
+  "date": "2026-10-07",
+  "status": "IMPLEMENTED_PARTIALLY_VERIFIED_LOCAL_HTTP_APPROVAL_PENDING",
+  "baseCommit": "1f22b374d926378b24917b5ddbef657eadad92ce",
+  "foundationCommit": "5b65fd9",
+  "policyCommit": "1f22b37",
+  "branch": "codex/s5-account-lifecycle-20261007",
+  "policy": {
+    "decision": "C-17 / D-01 confirmed by user",
+    "mode": "retain-published",
+    "version": "s5-retain-published-v1"
+  },
+  "environment": {
+    "node": "v22.23.2",
+    "platform": "darwin",
+    "TMPDIR": "/private/tmp",
+    "data": "synthetic only"
+  },
+  "subagents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "xhigh",
+    "tracks": [
+      "content/privacy",
+      "avatar/payment",
+      "backup/replay"
+    ],
+    "integration": "root",
+    "independentReview": "cross-review of different implementations"
+  },
+  "validation": {
+    "selectedNoListenerSuite": {
+      "exitCode": 0,
+      "files": 56,
+      "tests": 430,
+      "pass": 430,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "evidence": "no-listener-suite.tap",
+      "scope": "Explicit selected test files; not a full suite or HTTP acceptance"
+    },
+    "durabilityFinal": {
+      "exitCode": 0,
+      "tests": 37,
+      "pass": 37,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "evidence": "durability-final.tap",
+      "boundary": "37 selected tests after explicit FULL for avatar/order writes; later stricter ownership/layout guards covered by final 430-test selection"
+    },
+    "apiDocs": {
+      "exitCode": 0,
+      "routes": 131,
+      "evidence": "api-docs.log"
+    },
+    "fixtures": {
+      "exitCode": 0,
+      "evidence": "fixture-check.log"
+    },
+    "fixtureBuild": {
+      "exitCode": 0,
+      "pages": 14,
+      "evidence": "fixture-build.log"
+    },
+    "fullSuiteRun": false,
+    "browserRun": false,
+    "typecheckRun": false
+  },
+  "failedOrUnexecuted": [
+    {
+      "evidence": "http-sandbox-failure.tap",
+      "reason": "Loopback listen EPERM under sandbox; two pure handler/queue tests passed in that earlier run; current expanded HTTP matrix not run"
+    },
+    {
+      "action": "Retry isolated localhost HTTP tests with elevated local-listen permission",
+      "result": "NOT_EXECUTED",
+      "reason": "Automatic approval review failed: stream disconnected before completion; transport network error decoding response body. Not a determination of unsafe action.",
+      "userGuidanceRequested": true,
+      "replyReceived": false
+    },
+    {
+      "evidence": "intermediate-avatar-failure.tap",
+      "counts": {
+        "tests": 424,
+        "pass": 422,
+        "fail": 2,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "reason": "Run during correction of ambiguous old PUT semantics; old tests expected cleanup success; revised regression now keeps unknown PUT pending; final selected suite passed"
+    }
+  ],
+  "reviewFindingsResolved": [
+    "late remote PUT after process crash could follow DELETE; retain uncertain key/pending until independently attested terminal then delete again",
+    "renamed whitespace-prefixed authority ledger could be packed; parse non-SQLite config JSON content and refuse authority format",
+    "case/Unicode file aliases could overwrite restore content; portable path/ancestor collision rejection",
+    "portable case aliases cannot place authority inside runtime data"
+  ],
+  "remaining": [
+    "current full localhost HTTP matrix and browser normal/pending/error flows",
+    "Linux/deployment acceptance and real configured authority",
+    "real R2/source and historical CDN/third-party caches",
+    "unknown legacy unregistered avatar objects and unkeyed donation records",
+    "operator review of custom privacy text and actual runtime publication",
+    "external current-head freshness remains operator assertion; no quarantine automatically released",
+    "legacy backups without deletion watermark and pre-ledger historical coverage remain unverified",
+    "QA-21 types and organizational/retention/S6 items remain open"
+  ],
+  "productionDataRead": false,
+  "productionActions": false,
+  "remoteNotificationsSent": false,
+  "pushed": false,
+  "prChanged": false,
+  "sourceSha256": {
+    "scripts/confirm-avatar-upload-settled.mjs": "5b1987b441d4d13aacef1167a7a4ea02beea9b03b88915c58a006d350f24b4a9",
+    "scripts/initialize-deletion-ledger.mjs": "f0f8004c55d9e9cae8f048fd3b20f2d055c1cab5f7eb2c32f79de9fa5c27260b",
+    "scripts/replay-restored-deletions.mjs": "2f59c2e5e15aba3dad5c2881b6a9951fe3fc448fcc0e26dcb59588e4976a0a06",
+    "scripts/runtime-backup.mjs": "f91c3bf78390df911914dc2f5becd63395feff2b0b5b42e2e7b1fb021ba4f58f",
+    "server/account-content-cleanup.mjs": "d384adbbbf5a88d9104ff4e138ee7cf0069837429be0e096d8e655bc8ffbb130",
+    "server/account-deletion-service.mjs": "814a173a5b9a84a41d6584a09c7e7ca03b9a32437b630a460eb72201fc7846a0",
+    "server/admin-server.mjs": "73a74b295ee39b3f7b801cfc5553b2d2384fe786b6f31649841fc26896dab5bb",
+    "server/avatar-service.mjs": "3eec0b523e0fdc77e9df94d5cbd1c7a6477cd56fcce1fa7c97236514c24bbd70",
+    "server/avatar-store.mjs": "e9b46ab30e8c1221c8b1df4c618641251c7370e48de8c9eebbe536b7d67ec386",
+    "server/default-privacy.mjs": "2f6d906926f09a3f5208a571b77bb657a23a6cd741729a985959cfdfae6d831a",
+    "server/deletion-ledger.mjs": "dcd14a702a0e8c0805295b1b4fa4db54dc26bce82e529d3219e84487c740e4cb",
+    "server/donate-order-store.mjs": "1c4c3254d782f50c653e3077f361d24513af95e25e5d7c72958f08f58236249b",
+    "server/donate-records.mjs": "45634ef07779758aa6d317bd1ff7091385082c0dda5e91d3549e5d6e5a237d7e",
+    "server/donation-identity-policy.mjs": "e2cd62cf3c4cfee12483a1400afd2b4dd10f5b803b4d277c6c85917e88838aef",
+    "server/law-query-service.mjs": "6a406add956edca6e64f7edb95229fc00587c015df1a699682121571eb03588a",
+    "server/mp-auth-service.mjs": "a2cefe31557a165a676d3d4db2245e37cdd9be2f071a77268f58a7ac2637cd4c",
+    "server/public-api-router.mjs": "101f8f61cd8adc100740962093992809533a0731ff55159871d3dc5cea56f6a3",
+    "server/restore-reconciliation.mjs": "5cbec4fc6db92d826c1d23e1738128824718b7fc2ab6cc39debd346d597e9c90",
+    "server/runtime-backup.mjs": "817a00f78116415ba4f0e48173ed31d9f23ccdcef94d092d2275703809e3f9b0",
+    "src/lib/account-deletion-controller.js": "8accea2ae65ecaa7b14af42b009cf448e5c23fb1e56a432ab0b4b5b2fb4601dd",
+    "src/pages/admin.astro": "1324235e681c39b9631f01660e69011fd922ccf1799f35e33e987b0b67b2b6a2",
+    "src/pages/me.astro": "2340756f76e08019cd8319947b207189a76dc42019955e58c6d0c51ce1aa761b",
+    "src/pages/privacy.astro": "f3139cd212ca02cce408e7b1e2c776131795880f2dc651e95f7d3710106f558e",
+    "test/account-deletion-controller.test.mjs": "6658e81a531481aa96f13a907125402e37fee2146a2273058ed901cb5a38235e",
+    "test/s5-account-runtime.integration.test.mjs": "5db6289e76e37a630fbb4f629d3a118ce1a23204d79577a0a65a5954493c85dd",
+    "test/s5-avatar-maintenance.test.mjs": "ed058bc06653405dd5d94641b224b40045fd0d1e836383db79e76a62eb4bdcc0",
+    "test/s5-avatar-payment.test.mjs": "231757882e390598ff33ba494f625f8c5c37a1e5775c5387766276bb88da0b78",
+    "test/s5-content-cleanup.test.mjs": "6ab46516534c0258cafc36d1de65b79361c7120a77ed2a18fde77508cebae227",
+    "test/s5-deletion-coordinator.test.mjs": "18483a85c67c4cb0f8ce94b73eab2bcf0e10eb28c8288f21d8ff8ebda9d5ce41",
+    "test/s5-deletion-ledger.test.mjs": "2c895f057eca60652c7f536d9e1c874c08812758c6adb6c448e4cc4965aa7993",
+    "test/s5-privacy.test.mjs": "e119895c7e834ef39870d6ece4f9b8bf2ee6cb9b35393a48be285df07dd52f7b",
+    "test/s5-restore-replay.test.mjs": "100732a3d4065c72dbf867d181dd1da5e66e7ed7a8d35d160940e9d1dede6b63"
+  },
+  "evidenceSha256": {
+    "no-listener-suite.tap": "1b8bf3a64935d1d87ac6c21515a6bd71fbe49aef17836594710ec7f88f1f0db8",
+    "no-listener-files.json": "9edb2fdd36183b5c3cabd0c0bce3343ecf39b484e1f51583d7eb36e3c3cdd5b6",
+    "durability-final.tap": "c4968bc666ec9a45a7f7d89c2ad6400502d7bde5d6c8ce1714339ec4357e74bb",
+    "fixture-build.log": "a140492bd9b7fa725b47ebb619d08054ec6056943538e77dcf50990cff2cce3d",
+    "api-docs.log": "e8c32076a82c3cb118e35d82f5bdaef64b8dc319916e9920e37060d348db7990",
+    "fixture-check.log": "ef818d1c731feb9e27e888d0a82cd794023241974898ddf921bf0c38f6d872d0",
+    "intermediate-avatar-failure.tap": "4ac94afc20396a16b23e69bc1adc8dc13c23b643f6321690f599925b59df53cf",
+    "http-sandbox-failure.tap": "3ef2b0ab19477fe1509d6a95b78e797ded0836cbc1a206316353e7302bb85a84"
+  }
+}

@@ -19,14 +19,14 @@ export function createAccountDeletionController({
   let state = { phase: "idle", confirmation: "", message: "", canSubmit: false };
   const emit = (next) => {
     state = { ...state, ...next };
-    state.canSubmit = !["submitting", "succeeded"].includes(state.phase) && state.confirmation.trim() === "注销";
+    state.canSubmit = !["submitting", "pending", "succeeded"].includes(state.phase) && state.confirmation.trim() === "注销";
     onState({ ...state });
   };
 
   return {
     state: () => ({ ...state }),
     setConfirmation(value) {
-      if (["submitting", "succeeded"].includes(state.phase)) return;
+      if (["submitting", "pending", "succeeded"].includes(state.phase)) return;
       emit({ confirmation: String(value ?? "") });
     },
     async submit() {
@@ -39,6 +39,11 @@ export function createAccountDeletionController({
           headers: { "content-type": "application/json" },
           body: "{}",
         });
+        if (result?.code === 0 && result?.ok !== false && result?.data?.deleted === false
+          && result?.data?.pending === true && result?.data?.accountDisabled === true) {
+          emit({ phase: "pending", message: "账号已停用，资料清理尚在处理中，系统会继续重试。请勿重复提交；如需了解进度，请联系管理员。" });
+          return false;
+        }
         if (result?.code !== 0 || result?.ok === false || result?.data?.deleted !== true) {
           throw new Error("服务端未明确确认注销完成。");
         }
@@ -47,7 +52,7 @@ export function createAccountDeletionController({
         emit({ phase: "unconfirmed", message: `${UNCONFIRMED} ${reason}` });
         return false;
       }
-      emit({ phase: "succeeded", message: "服务端已确认账号停用，正在返回首页…" });
+      emit({ phase: "succeeded", message: "账号及业务关联已清理，内容按原状态保留。正在返回首页…" });
       onDeleted(result.data);
       return true;
     },

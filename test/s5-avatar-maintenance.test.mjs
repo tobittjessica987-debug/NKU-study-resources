@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { MpAuthService } from '../server/mp-auth-service.mjs';
+import { AvatarStore } from '../server/avatar-store.mjs';
+
+test('offline avatar attestation requires terminal-PUT evidence and a deleted account; it never claims remote deletion', t => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 's5-avatar-maintenance-')));
+  const dbPath=path.join(root,'state.sqlite'), evidence=path.join(root,'evidence.txt'), id='synthetic_avatar_12345';
+  const auth=new MpAuthService({dbPath}); const avatars=new AvatarStore({dbPath});
+  t.after(()=>{avatars.close();auth.close();fs.rmSync(root,{recursive:true,force:true});});
+  const user=auth.webRegister({nickname:'maintenance synthetic',password:'Valid-synthetic-maintenance'}).user;
+  avatars.register({id,userId:user.id,bytes:12,status:'pending_upload'}); avatars.markUserDeletion(user.id);
+  fs.writeFileSync(evidence,'synthetic private operator receipt only',{mode:0o600});
+  const args=['scripts/confirm-avatar-upload-settled.mjs','--offline','--confirm-remote-put-terminal',`--state-db=${dbPath}`,`--avatar-id=${id}`,`--evidence-file=${evidence}`];
+  const call=values=>spawnSync(process.execPath,values,{cwd:path.resolve(import.meta.dirname,'..'),encoding:'utf8'});
+  assert.equal(call(args).status,1); assert.equal(avatars.getById(id).upload_state,'uncertain');
+  auth.deleteAccount(user.id);
+  assert.equal(call(args.filter(x=>x!=='--confirm-remote-put-terminal')).status,1);
+  fs.chmodSync(evidence,0o644); assert.equal(call(args).status,1); fs.chmodSync(evidence,0o600);
+  const result=call(args); assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(result.stdout); assert.equal(report.operatorAttestationRecorded,true);
+  assert.equal(report.externalEvidenceAutomaticallyVerified,false); assert.equal(report.avatarDeletionVerified,false);
+  assert.equal(avatars.getById(id).upload_state,'settled'); assert.equal(avatars.getById(id).status,'cleanup_pending');
+  const audit=auth.db.prepare('SELECT * FROM avatar_cleanup_attestations').get(); assert.equal(audit.avatar_id,id); assert.match(audit.evidence_sha256,/^[a-f0-9]{64}$/);
+  assert.doesNotMatch(result.stdout+result.stderr,/private operator receipt/);
+});
