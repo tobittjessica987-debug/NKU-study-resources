@@ -142,7 +142,7 @@
     "portable case aliases cannot place authority inside runtime data"
   ],
   "remaining": [
-    "browser normal/pending/error flows and old-page behavior; authorization received, tool approval transport unavailable",
+    "browser normal/pending/error flows and old-page behavior; local service ready, browser tool requires current deletion-action confirmation, manual accounts prepared",
     "Linux/deployment acceptance and real configured authority",
     "real R2/source and historical CDN/third-party caches",
     "unknown legacy unregistered avatar objects and unkeyed donation records",
@@ -209,5 +209,15 @@
     "received": true,
     "scope": "User explicitly permits retrying computer-local acceptance; no phone or production action",
     "date": "2026-10-07"
+  },
+  "browserFollowup": {
+    "evidence": "../S5-browser-20261007/summary.json",
+    "status": "predelete_ui_verified_action_confirmation_pending",
+    "localServiceAvailable": true,
+    "realBrowserLoginVerified": true,
+    "deletionRequestsSent": 0,
+    "manualAccountsPrepared": true,
+    "browserDeletionFlowPassed": false,
+    "userManualResultReceived": false
   }
 }

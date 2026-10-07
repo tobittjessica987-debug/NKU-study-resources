@@ -1,0 +1,78 @@
+- complementary:
+  - link "NKUStudy Course Resources":
+    - /url: /
+    - strong: NKUStudy
+    - generic: Course Resources
+  - button "收拢侧边栏": ‹
+  - navigation "主导航":
+    - link "首页":
+      - /url: /
+      - generic: 首页
+    - link "课程":
+      - /url: /courses/
+      - generic: 课程
+    - link "评价":
+      - /url: /reviews/
+      - generic: 评价
+    - link "参与":
+      - /url: /participate/
+      - generic: 参与
+    - link "反馈":
+      - /url: /feedback/
+      - generic: 反馈
+    - link "友链":
+      - /url: /friends/
+      - generic: 友链
+    - link "关于":
+      - /url: /about/
+      - generic: 关于
+- main:
+  - paragraph: Me
+  - heading "我的" [level=1]
+  - button "我"
+  - button "切换为暗色":
+  - link "OpenList":
+    - /url: https://pan.nkustudy.top
+  - heading "S5浏览器正常" [level=2]
+  - paragraph: 未设置邮箱
+  - paragraph: 手机号尚未认证，暂不能提交公开内容。认证需要微信小程序手机号授权；网页暂未提供授权或短信入口，接入问题请联系站点管理员。
+  - button "退出登录"
+  - status
+  - heading "账号设置" [level=2]
+  - generic "▸ 修改昵称"
+  - generic "▸ 修改密码"
+  - heading "我的收藏" [level=2]
+  - generic: 共 0 门
+  - paragraph: 暂无收藏
+  - heading "我的评价" [level=2]
+  - generic: 共 1 条
+  - article:
+    - strong: 示例课程 · 合成教师
+    - generic: 已批准公开
+    - generic "S5合成公开评价：注销后原文保留，仅清理账号身份关联。 · 展开原文"
+    - time: 提交于 2026/10/07 20:20
+  - heading "我的反馈" [level=2]
+  - generic: 共 1 条
+  - paragraph:
+    - text: 仅展示提交时关联本账号的记录。匿名投诉举报不会出现在账号列表中。
+    - link "提交私密投诉举报":
+      - /url: /report/
+  - article:
+    - strong: S5合成私密举报
+    - generic: 待处理
+    - generic: 始终私密
+    - generic "S5合成私密内容：注销后仍保持私密，原文保留。 · 展开原文"
+    - time: 提交于 2026/10/07 20:20
+  - heading "危险操作" [level=2]
+  - generic "▸ 注销账号"
+  - paragraph:
+    - text: 注销会停用账号、清理身份资料与业务关联；评价、反馈及回复按原公开或私密状态保留。正文中你主动写入的个人信息不会自动移除。安全日志、历史备份和缓存另按
+    - link "注销说明":
+      - /url: /privacy/
+    - text: 处理。注销后不能再用原账号查看私密回复。
+  - generic: 请输入「注销」以确认
+  - textbox "请输入「注销」以确认" [active]:
+    - /placeholder: 注销
+    - text: 注销
+  - button "永久注销账号"
+  - status

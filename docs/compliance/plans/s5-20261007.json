@@ -48,11 +48,12 @@
     "productionDataRead": false,
     "productionActions": false,
     "http": "User-authorized retry completed; retained content, identity cleanup, stale credentials, persistence/restart and HTTP races passed",
-    "browserBlocker": "Synthetic proxy restart blocked by repeated automatic approval transport failure after local proxy correction; user authorization received",
+    "browserBlocker": "Service now available and pre-deletion UI verified; clicking permanent deletion requires current per-action confirmation. User question pending; independent manual accounts prepared.",
     "previousSelectedNoListener": {
       "files": 56,
       "tests": 430
-    }
+    },
+    "browserEvidence": "../evidence/S5-browser-20261007/summary.json"
   },
   "remaining": [
     "browser normal/pending/error acceptance",

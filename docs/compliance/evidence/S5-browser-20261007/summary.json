@@ -1,0 +1,53 @@
+{
+  "status": "predelete_ui_verified_action_confirmation_pending",
+  "candidateCommit": "5f79392",
+  "syntheticOnly": true,
+  "localBase": "http://127.0.0.1:54728",
+  "serviceRetainedForManualAcceptance": true,
+  "observed": [
+    "Real desktop browser password login of S5浏览器正常 succeeded",
+    "My page displays one approved public synthetic review and one always-private synthetic complaint",
+    "Deletion notice describes identity cleanup, content retention and loss of private-reply access",
+    "Permanent deletion button is disabled before confirmation input and enabled after typing 注销",
+    "Public review detail shows two synthetic public reviews, including manual account fixture"
+  ],
+  "notYetVerified": [
+    "Success UI after deletion",
+    "Pending UI after deletion",
+    "Unknown-result failure UI and no automatic retry",
+    "Old browser session and old password rejection after deletion",
+    "Content visibility after deletion"
+  ],
+  "actionApproval": {
+    "attempted": "Click 永久注销账号 on disposable synthetic normal account",
+    "executed": false,
+    "reason": "Browser automatic approval review requires current per-action confirmation for permanent deletion, including synthetic accounts. Parent requested the user confirmation; awaiting answer."
+  },
+  "deleteRequestsRecorded": 0,
+  "manualAccounts": [
+    {
+      "nickname": "S5手动正常",
+      "id": 4
+    },
+    {
+      "nickname": "S5手动待清理",
+      "id": 5
+    },
+    {
+      "nickname": "S5手动故障",
+      "id": 6
+    }
+  ],
+  "evidence": [
+    "normal-before.jpg",
+    "normal-before-dom.txt",
+    "provenance.json",
+    "nkustudy-s5-browser.mjs",
+    "nkustudy-s5-manual-fixtures.mjs"
+  ],
+  "limitations": [
+    "No production accounts, data or remote resources used",
+    "Full 546-test suite intentionally not repeated",
+    "Temporary service may cease if host or process stops"
+  ]
+}

@@ -1,0 +1,412 @@
+{
+  "candidateCommit": "5f79392e635439101fbf3811d67cf85ee3e35894",
+  "isolatedServerFiles": [
+    {
+      "path": "server/account-content-cleanup.mjs",
+      "sha256": "d384adbbbf5a88d9104ff4e138ee7cf0069837429be0e096d8e655bc8ffbb130",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/account-deletion-service.mjs",
+      "sha256": "814a173a5b9a84a41d6584a09c7e7ca03b9a32437b630a460eb72201fc7846a0",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-accounts-store.mjs",
+      "sha256": "ae337c61209a163e93dc2b94e374f2460a26c4e0dc1565f63447f8b8d1b65476",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-audit.mjs",
+      "sha256": "e83713bb43b7be38a1e3355e675ee15f80ce5e7d9fc10e19540215e00432a30d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-response.mjs",
+      "sha256": "70f8152ce2c5d8fe9e88e572b5625714c8d62365a0c06c537424be3dd8bab60d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-route-permissions.mjs",
+      "sha256": "0e3fba620d490a6efad17a7d50e77041aefea33146336d4b9a10f52cc7d8545b",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-server.mjs",
+      "sha256": "73a74b295ee39b3f7b801cfc5553b2d2384fe786b6f31649841fc26896dab5bb",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/admin-session-store.mjs",
+      "sha256": "81a9c24ef25c1c063774cf505c526d8f0e282ef40c1846fb1a3399ba5863dd0b",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/ai-provider-store.mjs",
+      "sha256": "e0fced2bea65d50f11893f8a8e45cfaec877ef1b5dc0e65d72175ac003f76256",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/atomic-json-store.mjs",
+      "sha256": "de468c150e2d3cf5a8b56048437478d490dd4d74e7a83e1cedeef5d5ab5c246d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/avatar-service.mjs",
+      "sha256": "3eec0b523e0fdc77e9df94d5cbd1c7a6477cd56fcce1fa7c97236514c24bbd70",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/avatar-store.mjs",
+      "sha256": "e9b46ab30e8c1221c8b1df4c618641251c7370e48de8c9eebbe536b7d67ec386",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/backup-preflight.mjs",
+      "sha256": "e7e7ab7b1c45fc3eca547b49c82853cdd6616219401df24dbaca96771e31ff87",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/backup-r2.mjs",
+      "sha256": "36a517ecf7af8a949f9c98936dc5efbe2f012c892bf0c1ecbcebe4cc2d841b8d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/catalog-import.mjs",
+      "sha256": "e1ade04835df60198715b768af0953e9537f151e0c63bf42ca75d906f516fc90",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/client-identity.mjs",
+      "sha256": "2724f488cca3d7f718662c441c0c559982a4c3530bb1d330cbc877c1586170ef",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/content-images.mjs",
+      "sha256": "7d30330b2196f4d9add04ebde987ec2585b135f4f62ccd2b7965af888758768f",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/content-publish-service.mjs",
+      "sha256": "ac59965667727c9fd69a5605f96e3ea19ed424c56bfc05f260f8fdd661ed9ca6",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/content-revision.mjs",
+      "sha256": "1617374aaffade013a7e5a3c249032fee9f1a2e90b0a747801bee0958b459920",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/course-catalog-service.mjs",
+      "sha256": "3c37f3f623ba589de142a9d510260afc3ad02a2156feec95acf216d65f7ad69e",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/data/learning-compass-snapshot.json",
+      "sha256": "a6e4c45f9766fa2c0f270b34c407cf46ae4df4598101ab94ba402a3dd772964c",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/default-donate.mjs",
+      "sha256": "60607fc10c75e9ca89f4cb0d730a3c43b0caf323bcd16003cf057a91c8916733",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/default-privacy.mjs",
+      "sha256": "2f6d906926f09a3f5208a571b77bb657a23a6cd741729a985959cfdfae6d831a",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/deletion-ledger.mjs",
+      "sha256": "dcd14a702a0e8c0805295b1b4fa4db54dc26bce82e529d3219e84487c740e4cb",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/donate-order-store.mjs",
+      "sha256": "1c4c3254d782f50c653e3077f361d24513af95e25e5d7c72958f08f58236249b",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/donate-pay-store.mjs",
+      "sha256": "f8e56920d4a18c60111ce386408468acd43a22aa23e420d2ec30a8b07629151d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/donate-records.mjs",
+      "sha256": "45634ef07779758aa6d317bd1ff7091385082c0dda5e91d3549e5d6e5a237d7e",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/donation-identity-policy.mjs",
+      "sha256": "e2cd62cf3c4cfee12483a1400afd2b4dd10f5b803b4d277c6c85917e88838aef",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/durable-log.mjs",
+      "sha256": "b6334426def299c2e40966a88ef0020924c8d3c65f050da0f80fed6aded1b177",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/entry-log-archive.mjs",
+      "sha256": "d6f7f1984b326b7f2abdf6a8db8e992055a380d0ecd1b1f05c60496443184656",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/feishu-notify-service.mjs",
+      "sha256": "106dbb26e8e0b3f913b715a9a8f088868e3596b7e7aa8befa53e75d1441c0191",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/guide-assistant-service.mjs",
+      "sha256": "e065eb3f4974122d06ebdbf0285bdc30520a0880f72fb5b718d504de6ab77186",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/law-enforcement-store.mjs",
+      "sha256": "8895fb603e106c561241edf547a450c01c06342c0581f3a5d6b27dd8dcf463c1",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/law-query-service.mjs",
+      "sha256": "6a406add956edca6e64f7edb95229fc00587c015df1a699682121571eb03588a",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/learning-compass-service.mjs",
+      "sha256": "513813f585e2390dfa3095d1adaea06b57ddbd5446e901b4a2fe5be039a48706",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/manifest-schema.mjs",
+      "sha256": "4941359a083061b9ecff78fe4ca67c5f952395fb3bf6d2e03a75ed1ab8dbe3d9",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/manifest-service.mjs",
+      "sha256": "8a83de914c6357313731d3fbd0a79669429a103c085a7f5eedd805b8da04beaf",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/moderation-model.mjs",
+      "sha256": "2d6db3353a7a65d951230925e4f3985c0069bec8eeb5aa2cfaee73365d8cebca",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/moderation-service.mjs",
+      "sha256": "b6077df4cf593e421cf07de9c3cb780c8fe2229697e30632ed0927fdeb0f3e77",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/mp-auth-service.mjs",
+      "sha256": "a2cefe31557a165a676d3d4db2245e37cdd9be2f071a77268f58a7ac2637cd4c",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/mp-favorites-service.mjs",
+      "sha256": "6b3445ac4b409ea5a12feffe7000e05609c0cae94b40b9652a474de078a099de",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/ops-alerts.mjs",
+      "sha256": "bea8263c1a5226e8922e2da99d11d963d16266bf83e98af037db3b78c5662e6e",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/persistent-rate-limiter.mjs",
+      "sha256": "13ada2642660b6ffd08c7e0941c8f4d37986330d96e406e00ca81c796fbf3c4d",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/public-api-dto.mjs",
+      "sha256": "b4af0e56a60614a6b44d87136b8b416cb0e6277060b74086a29419f1b8b50bac",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/public-api-errors.mjs",
+      "sha256": "f455f3b6403736b21f68bc0244da827d67495b10c93cdedd742045d4d448ab3c",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/public-api-router.mjs",
+      "sha256": "101f8f61cd8adc100740962093992809533a0731ff55159871d3dc5cea56f6a3",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/public-api-service.mjs",
+      "sha256": "8731e5a39dc1db93d16c329c1e5da2cd8c605794b83ffc260f165bf4bb13a5ae",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/qwen-provider.mjs",
+      "sha256": "7fed9b2f46c44775f46d3d0d6078841cbcbf9e50ad6ca7cba61df763c8bf7d00",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/r2-mutation-plan.mjs",
+      "sha256": "a7343b49669ec04abc9552e0cbdd2101ded6dc54969b218d0a09d75cdb747cc2",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/r2-sync-merge.mjs",
+      "sha256": "5ffd0a02a9600b5f0751503f28f7866fc2c74a9cd71e0b2a43b85ab1c69e3c99",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/r2-transaction.mjs",
+      "sha256": "94929d00063d8e4a0ad752b943485ba940973ffe33e6149e596d0d7353dfe4e2",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/read-json-body.mjs",
+      "sha256": "b464ac8e6f16cd9a919954f2b8571189a94f5368430f2a2d0ae6e84ce4879c69",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/restore-reconciliation.mjs",
+      "sha256": "5cbec4fc6db92d826c1d23e1738128824718b7fc2ab6cc39debd346d597e9c90",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/review-keyword-filter.mjs",
+      "sha256": "9406f52e2595d23cea2e8055ddd0049c01ef4a7efcabf5102545d174a995cbe5",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/review-submission-service.mjs",
+      "sha256": "718c0a6108a86943eccc60f46ead2a656d265c3b87a1f36a7dc3a07b29513246",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/runtime-backup.mjs",
+      "sha256": "817a00f78116415ba4f0e48173ed31d9f23ccdcef94d092d2275703809e3f9b0",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/runtime-config.mjs",
+      "sha256": "f5377dc7cabc34c9b4dbe276b5c7f4d7a43a48ea8ee81d042977daba5a9273be",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/service-auth-store.mjs",
+      "sha256": "8a2a96f8714c7988ff7b8349ebae555c40092df15288db7b2e27a847b30956a2",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/snapshot-cache.mjs",
+      "sha256": "450a38510ba211cb5ae69fad1a5f13e04c2ee0efdcc0768020adf1ca847c902f",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/static-release-publisher.mjs",
+      "sha256": "685cb1b953f309b998a31288c9bbbe58bc349271740fe6db3c7dcd5506b05e3a",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/text-integrity.mjs",
+      "sha256": "dde7711b2a13f8c473fed6e54e6d5a5cf71e31665529290a70159888b6dc0af5",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/user-identity.mjs",
+      "sha256": "72d1beb14d3f6fddf90d67d47dbe8e2a6c894549c6c79af3a084d83fdcf062c2",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/user-security-log-store.mjs",
+      "sha256": "c3b7a466ed6ef8f26c52cbe169c4de8880b5fdd194f086d24ddae4de57acc95b",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/web-login-service.mjs",
+      "sha256": "3742a646e3416323243e62958b6501876027519fa9a69b4ea16f9ecef87992d4",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/wechat-image-moderation.mjs",
+      "sha256": "3539a2a57199d826fade674d1a74380448b7bea9c6bb46bc329d847a2f1a8d70",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/wechat-phone.mjs",
+      "sha256": "fb2398448908bf22fddd3f46d66ba2115ecef1dbe4a4b2870a0188ec8dec9938",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/wxacode-service.mjs",
+      "sha256": "f6460a0e1e276aa4706fb9f07023e3e7f3399e424c836a31083f4776d748bf01",
+      "matchesCommit": true
+    },
+    {
+      "path": "server/wxpay-v3.mjs",
+      "sha256": "e9ac53cf3272ecc42059b2f936a0c19ba057c762b84f3dda71f779585c0c4726",
+      "matchesCommit": true
+    }
+  ],
+  "allServerFilesMatchCommit": true,
+  "temporaryHarnessScripts": [
+    {
+      "path": "nkustudy-s5-browser.mjs",
+      "sha256": "06e0a5d02857175244eae1fc93e508db98c428e288bd7af75463bad7b40c9592"
+    },
+    {
+      "path": "nkustudy-s5-manual-fixtures.mjs",
+      "sha256": "2360b4b7e4066d241985fb6f77c3b323573fee9abb22821f89771d4548020398"
+    }
+  ],
+  "beforeSyntheticJsonFiles": [
+    {
+      "path": "about.json",
+      "sha256": "eb6f09f8c488118c870001e32158e6ddaa65c08db664a20a0a49f5dbeedf0c7e"
+    },
+    {
+      "path": "backup-settings.json",
+      "sha256": "61785a2047cca6f73a68bfa9e6f94a3984396b96e9e80e00c843a64c7b5c1acd"
+    },
+    {
+      "path": "editor-settings.json",
+      "sha256": "8b10aed71acc344ef960803d529d92bfb35511d64e75f80cb2512b6ea1eca722"
+    },
+    {
+      "path": "feedback.json",
+      "sha256": "81cf2de7d449219c2aa7e917873809c74ef38636efe57c55de468fb4f8f1fa8e"
+    },
+    {
+      "path": "footer.json",
+      "sha256": "4182a369b993779de739fba6b3e7b0a54b76a193200766c8153ede250d07eeb1"
+    },
+    {
+      "path": "guides.json",
+      "sha256": "e1e37b077b450a2344f210e9d5f0ef962442b11985ce36a39a400537c5d270d0"
+    },
+    {
+      "path": "home.json",
+      "sha256": "6165ea93337e3fd42c889ecdd39cc9383a9202914645269c7d9ade1c4b660ed4"
+    },
+    {
+      "path": "links.json",
+      "sha256": "b8c348184a2d1ab955d04402f881aa50ae1184474831b5211878c7f26f0bb67d"
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "ce7bb60cac8eba9d994b30fd0f7fc87475adc0b141714897d5729261b149df7b"
+    },
+    {
+      "path": "notify-settings.json",
+      "sha256": "5acf3ff77b4420677b5923071f303facaba7a9273a346284a667a275df325146"
+    },
+    {
+      "path": "participate.json",
+      "sha256": "0d0520b96c7d081aae76260556e7b8d101cbc0f815d120280e5003143964470a"
+    },
+    {
+      "path": "reviews.json",
+      "sha256": "f389d27364e66d858f9f3168cfb0fd77331d1b2552296e5063c7950bd9d95cc1"
+    },
+    {
+      "path": "visit-stats.json",
+      "sha256": "5cf07b1b4ff6b4a2b39290893cedb8477ac30e36569365728d5448344e8984fb"
+    }
+  ],
+  "syntheticOnly": true,
+  "localBase": "http://127.0.0.1:54728"
+}
