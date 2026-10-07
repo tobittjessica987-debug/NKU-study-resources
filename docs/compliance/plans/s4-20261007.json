@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "stage": "S4",
+  "date": "2026-10-07",
+  "status": "local_implementation_and_scoped_acceptance_complete_production_pending",
+  "baseCommit": "4e665001c661de35a387d227cd5c68e5c024146a",
+  "branch": "codex/s4-query-export-20261007",
+  "decisions": [
+    "C-08",
+    "C-15"
+  ],
+  "tasks": [
+    "LAW-14",
+    "LAW-15",
+    "GOV-16 controlled delivery portion"
+  ],
+  "parallelWork": [
+    {
+      "agent": "s4_query_backend_xhigh",
+      "scope": "Exact queries, complete log snapshots, history, audit fault recovery"
+    },
+    {
+      "agent": "s4_query_ui_xhigh",
+      "scope": "Law panel, client controller and UI tests"
+    },
+    {
+      "agent": "s4_delivery_workflow_xhigh",
+      "scope": "Controlled delivery SOP, offline record validator and synthetic tests"
+    },
+    {
+      "agent": "s4_independent_review_xhigh",
+      "scope": "Independent read-only review and audit fault reproductions"
+    },
+    {
+      "agent": "root",
+      "scope": "Route integration, actual HTTP and browser acceptance, final regression, documentation and local commit"
+    }
+  ],
+  "subagentModel": "gpt-6.1-sol",
+  "subagentReasoningEffort": "xhigh",
+  "acceptance": {
+    "tests": {
+      "passed": 463,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "apiRoutes": 131,
+    "fixturePages": 14,
+    "auditFaultIndependentTests": 12,
+    "browser": [
+      "content.read administrator navigation and query",
+      "340 logs: page 2 of 7",
+      "history refresh",
+      "404 clears previous result",
+      "500 HTML export gives error",
+      "download initiation shown; disk receipt not verified"
+    ],
+    "typeCheck": {
+      "exitCode": 1,
+      "errors": 1665,
+      "warnings": 0,
+      "hints": 38,
+      "initialDefaultHeapExitCode": 134,
+      "freshBaselineCompared": false
+    }
+  },
+  "limits": [
+    "Time filters apply only to security_logs/admin_audit; account/content are linked context",
+    "Collection is not atomic across JSON and SQLite",
+    "Preparation and response-ready audits are not proof of file delivery",
+    "Immutable 200 can coexist with correlated 503 compensation; inspect both",
+    "Continuously unwritable stores cannot persist unavailable evidence; bounded failure handling and recovery review required"
+  ],
+  "excluded": [
+    "Production deployment and real personal data",
+    "S3 production acceptance",
+    "Real notifications",
+    "Private R2 activation",
+    "S5 deletion/retention policy decisions",
+    "S6 overall closure"
+  ],
+  "pending": [
+    "Actual browser file landing and byte/hash verification on deployment",
+    "Production routes, administrator sessions and archive audit configuration",
+    "Real entry-log window coverage and proxy topology",
+    "Actual roster, controlled channels, retention policies and recipient confirmation"
+  ],
+  "evidence": "../evidence/S4-local-20261007/summary.json"
+}

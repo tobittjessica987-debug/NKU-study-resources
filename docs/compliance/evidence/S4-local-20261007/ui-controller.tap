@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: query filters keep exact log actions, Beijing time, reference and independent pages; export omits all pagination
+ok 1 - query filters keep exact log actions, Beijing time, reference and independent pages; export omits all pagination
+  ---
+  duration_ms: 2.578583
+  type: 'test'
+  ...
+# Subtest: invalid ranges and references are rejected without a request; malformed stored time never throws
+ok 2 - invalid ranges and references are rejected without a request; malformed stored time never throws
+  ---
+  duration_ms: 15.174333
+  type: 'test'
+  ...
+# Subtest: GET requests retain the admin cookie, bypass cache and report HTTP/JSON errors
+ok 3 - GET requests retain the admin cookie, bypass cache and report HTTP/JSON errors
+  ---
+  duration_ms: 17.14025
+  type: 'test'
+  ...
+# Subtest: a stalled GET request exits loading with a timeout error
+ok 4 - a stalled GET request exits loading with a timeout error
+  ---
+  duration_ms: 5.103042
+  type: 'test'
+  ...
+# Subtest: query results expose full totals and four independent pagination positions
+ok 5 - query results expose full totals and four independent pagination positions
+  ---
+  duration_ms: 1.470042
+  type: 'test'
+  ...
+# Subtest: loading and failed queries clear old records; an empty successful scope stays distinct from an error
+ok 6 - loading and failed queries clear old records; an empty successful scope stays distinct from an error
+  ---
+  duration_ms: 0.373333
+  type: 'test'
+  ...
+# Subtest: an older query response or failure cannot replace newer results or changed filters
+ok 7 - an older query response or failure cannot replace newer results or changed filters
+  ---
+  duration_ms: 0.412083
+  type: 'test'
+  ...
+# Subtest: malformed pagination, inconsistent counts, target and filters are visible query errors
+ok 8 - malformed pagination, inconsistent counts, target and filters are visible query errors
+  ---
+  duration_ms: 0.904666
+  type: 'test'
+  ...
+# Subtest: law history uses the dedicated GET endpoint, filters and independent pages
+ok 9 - law history uses the dedicated GET endpoint, filters and independent pages
+  ---
+  duration_ms: 0.737625
+  type: 'test'
+  ...
+# Subtest: a failed history refresh is an error, and stale history does not appear under new filters
+ok 10 - a failed history refresh is an error, and stale history does not appear under new filters
+  ---
+  duration_ms: 0.563958
+  type: 'test'
+  ...
+# Subtest: complete export downloads the validated full JSON and server filename using current filters
+ok 11 - complete export downloads the validated full JSON and server filename using current filters
+  ---
+  duration_ms: 0.591959
+  type: 'test'
+  ...
+# Subtest: partial, inconsistent, malformed and mismatched export packages never download
+ok 12 - partial, inconsistent, malformed and mismatched export packages never download
+  ---
+  duration_ms: 0.5335
+  type: 'test'
+  ...
+# Subtest: HTTP failures and HTML downloads remain visible errors without a fake export file
+ok 13 - HTTP failures and HTML downloads remain visible errors without a fake export file
+  ---
+  duration_ms: 1.241584
+  type: 'test'
+  ...
+# Subtest: a valid HTTP attachment preserves the server JSON bytes and UTF-8 filename
+ok 14 - a valid HTTP attachment preserves the server JSON bytes and UTF-8 filename
+  ---
+  duration_ms: 0.65625
+  type: 'test'
+  ...
+# Subtest: an export arriving after filters change or a newer export cannot download or replace state
+ok 15 - an export arriving after filters change or a newer export cannot download or replace state
+  ---
+  duration_ms: 0.871083
+  type: 'test'
+  ...
+# Subtest: 401 query, export and history invoke the session expiry handler
+ok 16 - 401 query, export and history invoke the session expiry handler
+  ---
+  duration_ms: 0.174417
+  type: 'test'
+  ...
+# Subtest: the real query service contract renders empty collections, pages beyond 300 and full exports through the controller
+ok 17 - the real query service contract renders empty collections, pages beyond 300 and full exports through the controller
+  ---
+  duration_ms: 3.8155
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 122.690459

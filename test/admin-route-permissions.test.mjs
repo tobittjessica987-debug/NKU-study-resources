@@ -39,7 +39,8 @@ test("declared permissions are valid permission points", () => {
   }
 });
 
-test("law enforcement routes require the dedicated law.manage permission", () => {
-  assert.equal(ADMIN_ROUTE_PERMISSIONS["GET /admin-api/law-query"], "law.manage");
-  assert.equal(ADMIN_ROUTE_PERMISSIONS["GET /admin-api/law-export"], "law.manage");
+test("C-08 law routes require an authenticated administrator without an additional role", () => {
+  for (const endpoint of ['law-query', 'law-export', 'law-logs']) {
+    assert.equal(ADMIN_ROUTE_PERMISSIONS[`GET /admin-api/${endpoint}`], "__auth__");
+  }
 });

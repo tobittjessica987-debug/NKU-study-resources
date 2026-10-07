@@ -1,0 +1,52 @@
+{
+  "environment": "local synthetic only",
+  "url": "http://127.0.0.1:57668/admin/",
+  "administrator": "S4viewer (synthetic content.read only)",
+  "steps": [
+    {
+      "step": "Open law panel and query account 1 with security action review.submit",
+      "result": "passed; 340 security logs and account/content context shown"
+    },
+    {
+      "step": "Move security logs to page 2",
+      "result": "passed; page 2/7, total 340, page size 50"
+    },
+    {
+      "step": "Refresh law history",
+      "result": "passed; persisted query/export history remains visible"
+    },
+    {
+      "step": "Export full JSON",
+      "result": "UI download initiation shown; download event timed out; disk landing not verified",
+      "serverAudit": {
+        "eventId": "beb34fd9-c71d-414b-90bb-78d8126a17d6",
+        "counts": {
+          "account": 1,
+          "reviews": 1,
+          "feedback": 15,
+          "security_logs": 340,
+          "admin_audit": 2
+        },
+        "bytes": 126396,
+        "sha256": "e04999603819c2a42f15a204b003528be7c09f843aa5049c4c4337d1db92cd37"
+      }
+    },
+    {
+      "step": "Inject one HTML 500 export response via local proxy",
+      "result": "passed; explicit unreadable HTTP 500 error; no false download success"
+    },
+    {
+      "step": "Query nonexistent account",
+      "result": "passed; not-found shown; previous result cleared"
+    },
+    {
+      "step": "Return to account 1 and refresh history",
+      "result": "passed"
+    }
+  ],
+  "screenshots": [
+    "ui-panel.jpg",
+    "ui-history.jpg"
+  ],
+  "backendSamplingBoundary": "Browser API process started before final audit fault patch; latest audit patch is covered by final full HTTP suite and independent real-store review. UI unchanged."
+}

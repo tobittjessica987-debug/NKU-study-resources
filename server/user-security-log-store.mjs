@@ -63,9 +63,22 @@ export class UserSecurityLogStore {
     this.prune(now);
     this.writer.maintenanceError = null;
   }
+  /** One synchronous collection; callers can filter/page it without rereading archives. */
+  snapshot() {
+    const unique = new Map();
+    // Read hot rows first so a concurrent archive-then-delete rollover cannot
+    // fall between an earlier archive listing and a later empty hot selection.
+    const hot = this.db.prepare("SELECT * FROM user_security_logs").all();
+    for (const row of [...archivedRows(this.archiveDir, "user_security_logs"), ...hot]) {
+      const { event_id, ...legacy } = row;
+      // Legacy ids may overlap after a restore. Deduplicate identical rows, not ids.
+      unique.set(event_id || `legacy:${JSON.stringify(legacy)}`, row);
+    }
+    return [...unique.values()];
+  }
+
   query({ userId, targetType, targetId, action, from = 0, to = Date.now(), page = 1, pageSize = 100 } = {}) {
-    const unique = new Map([...archivedRows(this.archiveDir, "user_security_logs"), ...this.db.prepare("SELECT * FROM user_security_logs").all()].map(row => [row.event_id || `legacy-${row.id}`, row]));
-    const rows = [...unique.values()].filter(row => (userId === undefined || row.user_id === Number(userId)) && (!targetType || row.target_type === targetType) && (!targetId || row.target_id === String(targetId)) && (!action || row.action === action) && row.at >= Number(from) && row.at <= Number(to)).sort((a, b) => b.id - a.id);
+    const rows = this.snapshot().filter(row => (userId === undefined || row.user_id === Number(userId)) && (!targetType || row.target_type === targetType) && (!targetId || row.target_id === String(targetId)) && (!action || row.action === action) && row.at >= Number(from) && row.at <= Number(to)).sort((a, b) => b.id - a.id);
     page = Math.max(1, Math.floor(Number(page) || 1)); pageSize = Math.min(1000, Math.max(1, Math.floor(Number(pageSize) || 100)));
     return { items: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize };
   }

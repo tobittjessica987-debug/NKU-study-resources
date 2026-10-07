@@ -113,6 +113,7 @@
 | `POST` | `/admin-api/privacy` | Cookie（content.edit） | 发布隐私政策 |
 | `GET` | `/admin-api/law-query` | Cookie（所有有效管理员） | 依法调取：按账号/内容聚合证据（每次留痕） |
 | `GET` | `/admin-api/law-export` | Cookie（所有有效管理员） | 依法调取：导出 JSON（每次留痕） |
+| `GET` | `/admin-api/law-logs` | Cookie（所有有效管理员） | 调取历史：归档及在线记录筛选、分页 |
 | `POST` | `/admin-api/donate-pay` | Cookie（services.manage） | 保存微信支付商户配置 |
 | `POST` | `/admin-api/about` | Cookie（需相应权限） | 发布关于页内容 |
 | `GET` | `/admin-api/participate` | Cookie（需相应权限） | 读取参与贡献页和 revision |
@@ -984,4 +985,32 @@ npm run check:api-docs
 
 响应含`logHealth`：user/admin/law各自的`ok,pending,inFlight,error,maintenanceError`。失败持久队列不可删除；自动30秒尝试补写。用户结果`interrupted`和管理员`status:0`表示中断后实际结果需核对；结果不是正常业务失败或成功的断言。
 
-`law-query/law-export`按C-08接受所有有效管理员，结果中的`log_pagination`、`audit_pagination`明确总数，`log_page/log_page_size/audit_page/from/to/action`控制日志范围。一次导出仅包含所选日志页，不能把它当作所有页的完整交付；完整交付界面及流程仍留S4。查询条件中的手机号/openid不在审计里重复存原值，失败条件记服务端HMAC摘要，成功归于已解析的对象ID；失败及拒绝也留痕。
+S2时期的`law-export`仅包含所选日志页；以下S4候选已改为同一范围完整导出。S4尚未部署，不能把源码行为写成生产回执。查询条件中的手机号/openid不在审计里重复存原值；失败条件记服务端HMAC，成功归于精确解析的对象ID，成功/失败/拒绝均留痕。
+
+## S4 管理员查询与完整导出（2026-10-07候选）
+
+三个`/admin-api/law-*`入口均要求有效管理员Cookie。按C-08不要求额外`law.manage`角色，导航与权限注册表一致；未登录、普通用户、停用、过期及撤销管理员会话拒绝。备份及其他管理功能权限不因此改变。相关响应均`Cache-Control:no-store`。
+
+### `GET /admin-api/law-query`
+
+`type=account`（默认）用`value`精确匹配用户ID、11位手机号或openid；`type=review|feedback`用`id`精确匹配内容ID。账号DTO不包含密码哈希、会话或令牌。账号查询关联该用户的内容及其处置审计；不会通过模糊匹配`1`把`10`的内容带入。已删除内容可依据留存的成功投稿事件恢复ID关联，不能凭空重建已经缺失的原文或作者映射；限制见响应`scopeNotes`。
+
+`from/to`为非负毫秒或带时区ISO时间（含端点），默认0至本次收集时间；**只筛安全日志和管理员审计，账号和内容是关联上下文**。`action`精确筛安全日志动作，`audit_action`精确筛管理员审计动作。可选`reference`为1至80位字母、数字、点、下划线、冒号或横线，用于内部登记关联，不是导出审批门槛。
+
+分页分别为`review_page/feedback_page/content_page_size`、`log_page/log_page_size`、`audit_page/audit_page_size`；默认每页100，最大1000，`audit_page_size`缺省时兼容`log_page_size`。响应`{ok:true,audit_event_id,data}`；data含`query/range/account/reviews/feedback/security_logs/admin_audit/counts/complete/snapshot`，以及`reviews_pagination/feedback_pagination/log_pagination/audit_pagination`。分页元数据有`total/page/page_size/returned/total_pages/has_more/truncated`，总数是所选范围全部记录数，`complete=false`表示本页响应并未包含全部记录。
+
+### `GET /admin-api/law-export`
+
+使用相同标识、时间及动作筛选，**忽略分页参数**，同步收集各源一次后导出全量关联结果；不循环下载变化中的多页。正文包含查询全部字段，并增加`exported_at/exported_by/audit_event_id`、`complete:true`、计数、范围和上限说明。`snapshot.atomic_across_sources=false`明确这不是JSON与SQLite多个来源之间的原子快照；要求固定共同时间点时须执行受控停写流程。
+
+每类超过50000条或最终JSON超过32 MiB时返回`413 LAW_EXPORT_TOO_LARGE`，须缩小日志范围或按内容ID导出，不返回带附件头的半包。找不到对象404，非法筛选400，坏归档/待恢复日志503；错误没有下载附件头。成功`Content-Disposition:attachment`与`X-Content-SHA256`对应实际下载字节；管理员审计和调取日志使用相同`event_id`，记录对象、筛选摘要、数量、字节数、哈希和结果，不复制原文/手机号/openid。生成/下载记录不表示已经对外发送或已被接收。
+
+两份日志必须先接受证据才发送结果。调取日志原事件为`outcome:prepared/status:0/intendedStatus`，管理员审计的`delivery:response_ready`表示响应准备就绪，均不是下载或接收证明。任何日志结果写入失败返回503、无附件；可写存储记录失败。若原记录已不可变或原队列纠正也失败，追加新`event_id`的503并以`relatedEventId`关联原请求；复核时必须一起看关联事件，不能单看原200。连续故障有界重试，不保证不可写存储凭空保存失败详情；待恢复意图/准备记录不是成功，须恢复后核对。
+
+### `GET /admin-api/law-logs`
+
+真正读取SQLite及归档调取历史，支持`actor/type/exported/from/to/page/page_size`。actor及type精确匹配，exported接受true/false（兼容1/0）；时间规则同上，默认50条，最大1000。响应`{ok:true,items,total,page,page_size,returned,total_pages,has_more,truncated,filters}`。读取历史本身写管理员审计，但不新增同一调取历史列表里的假查询。旧无校验历史归档仍可读取；损坏或待恢复时明确失败，不静默当成空列表。
+
+`exported`只区分导出请求和查询请求，不代表导出成功；结果以摘要及关联管理员审计为准。新事件可能是一条准备记录加一条关联失败补偿，不能按记录行数直接当成独立请求数量。
+
+外部交付的登记、范围复核、文件哈希、交付对象/方式及接收确认见[S4受控交付操作单](compliance/S4_CONTROLLED_DELIVERY.md)。本轮只使用合成记录演练，没有读取或发送真实生产个人资料。

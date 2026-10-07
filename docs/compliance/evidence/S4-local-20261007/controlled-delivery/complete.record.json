@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "request": {
+    "requestRef": "synthetic-request",
+    "registeredAt": "2026-10-07T10:05:00+08:00",
+    "subjectRef": "synthetic-unit",
+    "documentRef": "synthetic-document",
+    "agentRef": "synthetic-agent",
+    "basisRef": "synthetic-basis",
+    "scope": {
+      "from": "2026-10-07T10:00:00+08:00",
+      "to": "2026-10-07T10:04:59+08:00",
+      "timeZone": "Asia/Shanghai",
+      "inclusive": true,
+      "sites": [
+        "synthetic.invalid"
+      ],
+      "selectors": [
+        {
+          "kind": "user_id",
+          "value": "synthetic-user-1"
+        }
+      ],
+      "sources": [
+        "security_logs"
+      ],
+      "timeAppliesTo": [
+        "security_logs"
+      ],
+      "fields": [
+        "occurred_at",
+        "user_id",
+        "action"
+      ]
+    }
+  },
+  "verification": {
+    "at": "2026-10-07T10:06:00+08:00",
+    "verifierRef": "synthetic-responsible-role",
+    "subject": true,
+    "document": true,
+    "agent": true,
+    "basis": true
+  },
+  "decision": {
+    "at": "2026-10-07T10:07:00+08:00",
+    "actorRef": "synthetic-responsible-role",
+    "outcome": "approve",
+    "reasonRef": "synthetic-minimal-scope-review",
+    "approvedScope": {
+      "from": "2026-10-07T10:00:00+08:00",
+      "to": "2026-10-07T10:04:59+08:00",
+      "timeZone": "Asia/Shanghai",
+      "inclusive": true,
+      "sites": [
+        "synthetic.invalid"
+      ],
+      "selectors": [
+        {
+          "kind": "user_id",
+          "value": "synthetic-user-1"
+        }
+      ],
+      "sources": [
+        "security_logs"
+      ],
+      "timeAppliesTo": [
+        "security_logs"
+      ],
+      "fields": [
+        "occurred_at",
+        "user_id",
+        "action"
+      ]
+    }
+  },
+  "archive": {
+    "at": "2026-10-07T10:12:00+08:00",
+    "custodianRef": "synthetic-archive-role",
+    "recordRef": "synthetic-private-register",
+    "retentionPolicyRef": "synthetic-policy-pending-real-owner",
+    "restricted": true
+  },
+  "collection": {
+    "at": "2026-10-07T10:08:00+08:00",
+    "operatorRef": "synthetic-admin",
+    "queryAuditRef": "synthetic-query-event",
+    "exportAuditRef": "synthetic-export-event",
+    "sourceRefs": [
+      "synthetic-local-records"
+    ],
+    "scope": {
+      "from": "2026-10-07T10:00:00+08:00",
+      "to": "2026-10-07T10:04:59+08:00",
+      "timeZone": "Asia/Shanghai",
+      "inclusive": true,
+      "sites": [
+        "synthetic.invalid"
+      ],
+      "selectors": [
+        {
+          "kind": "user_id",
+          "value": "synthetic-user-1"
+        }
+      ],
+      "sources": [
+        "security_logs"
+      ],
+      "timeAppliesTo": [
+        "security_logs"
+      ],
+      "fields": [
+        "occurred_at",
+        "user_id",
+        "action"
+      ]
+    },
+    "exportEvidence": {
+      "sha256": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598",
+      "bytes": 131
+    },
+    "transformationRef": null,
+    "artifact": {
+      "sha256": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598",
+      "bytes": 131,
+      "recordCount": 1,
+      "storageRef": "synthetic-private-artifact",
+      "credentialsExcluded": true
+    },
+    "completeness": {
+      "state": "complete",
+      "matchedCount": 1,
+      "exportedCount": 1,
+      "truncated": false,
+      "gaps": []
+    }
+  },
+  "delivery": {
+    "at": "2026-10-07T10:09:00+08:00",
+    "recipientSubjectRef": "synthetic-unit",
+    "recipientAgentRef": "synthetic-agent",
+    "methodRef": "synthetic-offline-tabletop-no-send",
+    "transferRef": "synthetic-transfer-record",
+    "sha256": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598"
+  },
+  "receipt": {
+    "at": "2026-10-07T10:10:00+08:00",
+    "recipientAgentRef": "synthetic-agent",
+    "sha256": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598",
+    "confirmationRef": "synthetic-receipt-no-real-recipient"
+  }
+}

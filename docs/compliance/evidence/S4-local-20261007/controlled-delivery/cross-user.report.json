@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "recordKind": "synthetic",
+  "outcome": "invalid_record",
+  "evidenceBoundary": "record_consistency_only",
+  "externalDeliveryVerified": false,
+  "productionDataRead": false,
+  "dataSent": false,
+  "failures": [
+    {
+      "field": "collection.scope.selectors",
+      "code": "OUT_OF_SCOPE"
+    }
+  ]
+}

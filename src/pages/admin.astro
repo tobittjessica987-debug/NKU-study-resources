@@ -440,23 +440,38 @@ import "vditor/dist/index.css";
             <h2>依法调取（内部）</h2>
           </div>
           <div class="panel-body">
-            <p class="field-hint">仅在收到合法调取要求并按 SOP 核验后使用。每次查询与导出都会记录（查询人/时间/条件/结果）。流程见 docs/SECURITY_COMPLIANCE_SOP.md。</p>
-            <div class="filter-row">
-              <select class="searchbar" id="law-query-type" style="max-width:160px;">
-                <option value="account">按账号</option>
-                <option value="review">按评价 ID</option>
-                <option value="feedback">按反馈/举报 ID</option>
-              </select>
-              <input class="searchbar" id="law-query-value" type="text" placeholder="user_id / 手机号 / openid / 内容ID" style="max-width: 320px;" />
-              <button class="button" id="law-query-run" type="button">查询</button>
-              <button class="button secondary" id="law-export-run" type="button">导出 JSON</button>
-              <span class="muted" id="law-admin-status"></span>
-            </div>
-            <div id="law-result" style="margin-top: 14px;"></div>
-            <div class="filter-row" style="margin-top: 18px;">
-              <button class="button secondary" id="law-log-refresh" type="button">刷新调取记录</button>
-            </div>
-            <div id="law-logs" style="margin-top: 10px;"></div>
+            <p class="field-hint">所有有效管理员均可查询与导出，每次请求都会留痕。对外交付资料需核验要求并记录交付对象、范围和接收确认；本机下载不代表已交付。</p>
+            <p class="field-hint">时间范围（北京时间，包含起止时刻）仅筛选安全日志与管理员审计；账号与关联评价、反馈/举报作为上下文保留。操作名称分别精确匹配两类日志，留空表示全部。</p>
+            <form id="law-query-form">
+              <div class="law-filter-grid">
+                <label class="admin-field"><span>查询类型</span><select class="searchbar" id="law-query-type"><option value="account">按账号</option><option value="review">按评价 ID</option><option value="feedback">按反馈/举报 ID</option></select></label>
+                <label class="admin-field"><span>账号或内容 ID</span><input class="searchbar" id="law-query-value" type="text" autocomplete="off" placeholder="user_id / 手机号 / openid / 内容 ID" /></label>
+                <label class="admin-field"><span>日志开始时间（北京）</span><input class="searchbar" id="law-query-from" type="datetime-local" step="1" /></label>
+                <label class="admin-field"><span>日志结束时间（北京）</span><input class="searchbar" id="law-query-to" type="datetime-local" step="1" /></label>
+                <label class="admin-field"><span>安全日志操作 action</span><input class="searchbar" id="law-query-action" type="text" placeholder="精确操作名称，可留空" /></label>
+                <label class="admin-field"><span>管理员审计操作 audit_action</span><input class="searchbar" id="law-query-audit-action" type="text" placeholder="精确操作名称，可留空" /></label>
+                <label class="admin-field"><span>关联编号（可选）</span><input class="searchbar" id="law-query-reference" type="text" maxlength="80" placeholder="字母、数字及 . _ : -" /></label>
+              </div>
+              <div class="filter-row">
+                <button class="button" id="law-query-run" type="submit">查询</button>
+                <button class="button secondary" id="law-export-run" type="button">导出完整 JSON</button>
+                <span class="muted" id="law-admin-status" role="status" aria-live="polite"></span>
+              </div>
+            </form>
+            <p class="muted" id="law-export-status" role="status" aria-live="polite"></p>
+            <div id="law-result" class="law-result" aria-live="polite"></div>
+            <h3>调取记录</h3>
+            <form id="law-log-form">
+              <div class="law-filter-grid">
+                <label class="admin-field"><span>操作人</span><input class="searchbar" id="law-log-actor" type="text" placeholder="管理员账号，可留空" /></label>
+                <label class="admin-field"><span>查询类型</span><select class="searchbar" id="law-log-type"><option value="">全部类型</option><option value="account">账号</option><option value="review">评价</option><option value="feedback">反馈/举报</option></select></label>
+                <label class="admin-field"><span>操作</span><select class="searchbar" id="law-log-exported"><option value="">查询与导出</option><option value="false">仅查询</option><option value="true">仅导出</option></select></label>
+                <label class="admin-field"><span>开始时间（北京）</span><input class="searchbar" id="law-log-from" type="datetime-local" step="1" /></label>
+                <label class="admin-field"><span>结束时间（北京）</span><input class="searchbar" id="law-log-to" type="datetime-local" step="1" /></label>
+              </div>
+              <div class="filter-row"><button class="button secondary" id="law-log-refresh" type="submit">刷新调取记录</button><span class="muted" id="law-log-status" role="status" aria-live="polite"></span></div>
+            </form>
+            <div id="law-logs" class="law-result" aria-live="polite"></div>
           </div>
         </div>
       </div>
@@ -869,6 +884,7 @@ import "vditor/dist/index.css";
     import Vditor from "vditor";
     import { r2SyncStatus, statusWithWarnings } from "../lib/admin-response-warnings.js";
     import { createModerationDraftStore } from "../lib/moderation-drafts.js";
+    import { createLawQueryController, createLawLogController, formatLawTime } from "../lib/law-query-controller.js";
 
     type ModerationKind = "reviews" | "feedback";
     type ModerationRules = {
@@ -1057,7 +1073,6 @@ import "vditor/dist/index.css";
     const privacyAdminEditor = document.querySelector("#privacy-admin-editor");
     const privacyAdminStatus = document.querySelector("#privacy-admin-status");
     let privacyState = null;
-    let lawResultData = null;
     const donateRecordsEditor = document.querySelector("#donate-records-editor");
     const donateStatsBody = document.querySelector("#donate-stats-body");
     const donateAdminEditor = document.querySelector("#donate-admin-editor");
@@ -1135,7 +1150,7 @@ import "vditor/dist/index.css";
       "audit.read": "审计查看",
       "ai.manage": "AI 问答",
       "services.manage": "服务密钥",
-      "law.manage": "依法调取",
+      "law.manage": "依法调取（兼容项，所有有效管理员默认可用）",
     };
     const rolePresetFallback = {
       super_admin: ["accounts.manage", "audit.read", "backup.manage", "content.edit", "content.moderate", "content.read", "storage.delete", "storage.manage"],
@@ -1158,7 +1173,7 @@ import "vditor/dist/index.css";
       donate: "content.edit",
       privacy: "content.edit",
       reports: "content.moderate",
-      law: "law.manage",
+      law: null,
       "editor-settings": "content.edit",
       backup: "backup.manage",
       accounts: "accounts.manage",
@@ -1616,66 +1631,137 @@ import "vditor/dist/index.css";
       mountMarkdownEditors(privacyAdminEditor);
     }
 
-    async function runLawQuery({ exportJson = false } = {}) {
-      const status = document.querySelector("#law-admin-status");
-      const type = document.querySelector("#law-query-type").value;
-      const value = document.querySelector("#law-query-value").value.trim();
-      if (!value) { status.textContent = "请输入查询值"; return; }
-      status.textContent = "查询中...";
-      try {
-        const param = type === "account" ? "value" : "id";
-        const url = `${exportJson ? "/law-export" : "/law-query"}?type=${encodeURIComponent(type)}&${param}=${encodeURIComponent(value)}`;
-        if (exportJson) {
-          status.textContent = "";
-          window.location.href = url;
-          await new Promise((r) => setTimeout(r, 800));
-          await loadLawLogs();
-          return;
+    const lawInput = (id: string) => document.querySelector<HTMLInputElement | HTMLSelectElement>(`#${id}`)!.value;
+    const readLawQuery = () => ({
+      type: lawInput("law-query-type"), value: lawInput("law-query-value"),
+      from: lawInput("law-query-from"), to: lawInput("law-query-to"),
+      action: lawInput("law-query-action"), audit_action: lawInput("law-query-audit-action"),
+      reference: lawInput("law-query-reference"),
+    });
+    const readLawLogFilters = () => ({ actor: lawInput("law-log-actor"), type: lawInput("law-log-type"), exported: lawInput("law-log-exported"), from: lawInput("law-log-from"), to: lawInput("law-log-to") });
+    const lawNode = (tag: string, text = "", className = "") => {
+      const node = document.createElement(tag);
+      node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    };
+    const lawQueryController = createLawQueryController({ onState: renderLawQueryState, onUnauthorized: showSessionExpired });
+    const lawLogController = createLawLogController({ onState: renderLawLogsState, onUnauthorized: showSessionExpired });
+    type LawPagination = { total: number; page: number; page_size: number; returned: number; total_pages: number; has_more: boolean; truncated: boolean };
+    type LawQueryView = { phase: string; data: any; error: string; exportPhase: string; exportMessage: string };
+    type LawLogView = { phase: string; data: any; error: string };
+
+    function lawPager(page: LawPagination, onPage: (page: number) => void) {
+      const pager = lawNode("div", "", "filter-row law-pager");
+      const previous = document.createElement("button");
+      previous.type = "button";
+      previous.className = "button secondary";
+      previous.textContent = "上一页";
+      previous.disabled = page.page <= 1;
+      previous.addEventListener("click", () => onPage(page.page - 1));
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "button secondary";
+      next.textContent = "下一页";
+      next.disabled = !page.has_more;
+      next.addEventListener("click", () => onPage(page.page + 1));
+      pager.append(previous, lawNode("span", `第 ${page.page} / ${Math.max(1, page.total_pages)} 页 · 共 ${page.total} 条 · 本页 ${page.returned} 条${page.has_more ? " · 还有更多" : ""}`, "muted"), next);
+      return pager;
+    }
+
+    function lawRecordDetails(record: Record<string, unknown>) {
+      const details = lawNode("details", "", "law-record-details");
+      details.append(lawNode("summary", "查看完整记录"), lawNode("pre", JSON.stringify(record, null, 2)));
+      return details;
+    }
+
+    function renderLawQueryState(view: LawQueryView) {
+      const status = document.querySelector<HTMLElement>("#law-admin-status")!;
+      const exportStatus = document.querySelector<HTMLElement>("#law-export-status")!;
+      const box = document.querySelector<HTMLElement>("#law-result")!;
+      document.querySelector<HTMLButtonElement>("#law-query-run")!.disabled = view.phase === "loading";
+      document.querySelector<HTMLButtonElement>("#law-export-run")!.disabled = view.exportPhase === "loading";
+      box.setAttribute("aria-busy", String(view.phase === "loading"));
+      status.textContent = view.phase === "loading" ? "正在查询…" : view.error || (view.phase === "ready" ? "查询已返回。" : "");
+      exportStatus.textContent = view.exportMessage;
+      box.replaceChildren();
+      if (view.phase !== "ready") {
+        box.append(lawNode("p", view.phase === "loading" ? "正在加载本次查询结果…" : view.error || "输入账号或内容 ID 后查询。", "muted"));
+        return;
+      }
+      const data = view.data;
+      box.append(lawNode("p", `查询对象：${data.query.target} · 返回时间（北京）：${formatLawTime(data.generatedAt)}${data.query.reference ? ` · 关联编号：${data.query.reference}` : ""}`, "field-hint"));
+      box.append(lawNode("p", `日志范围（北京，含端点）：${formatLawTime(data.range.from_ms)} 至 ${formatLawTime(data.range.to_ms)} · 安全日志操作：${data.query.filters.action || "全部"} · 管理员审计操作：${data.query.filters.audit_action || "全部"}`, "field-hint"));
+      if (!data.complete) box.append(lawNode("p", "当前显示各类结果的一页，请分别翻页查看；完整 JSON 导出会包含当前日志筛选范围及全部关联内容。", "field-hint"));
+      if (data.account) {
+        const account = data.account;
+        const card = lawNode("article", "", "card law-record");
+        card.append(lawNode("h3", `账号 #${account.id} · ${account.nickname || "无昵称"}`));
+        card.append(lawNode("p", `手机号：${account.phone || "未验证"} · 验证时间（北京）：${formatLawTime(account.phone_verified_at)} · 状态：${account.blocked ? "已封禁" : "正常"}`));
+        card.append(lawNode("p", `注册（北京）：${formatLawTime(account.created_at)} · 最近登录（北京）：${formatLawTime(account.last_login_at)}`, "muted"));
+        card.append(lawRecordDetails(account));
+        box.append(card);
+      } else box.append(lawNode("p", "没有关联账号（内容可能来自匿名提交或账号已不在当前库中）。", "muted"));
+      for (const [key, paginationKey, title] of [
+        ["reviews", "reviews_pagination", "关联评价"],
+        ["feedback", "feedback_pagination", "关联反馈/举报"],
+        ["security_logs", "log_pagination", "安全日志"],
+        ["admin_audit", "audit_pagination", "管理员审计"],
+      ]) {
+        const section = lawNode("section", "", "law-result-section");
+        section.setAttribute("aria-label", title);
+        section.append(lawNode("h3", `${title}（共 ${data[paginationKey].total} 条）`));
+        if (!data[key].length) section.append(lawNode("p", data[paginationKey].total ? "本页没有记录。" : "没有符合条件的记录。", "muted"));
+        for (const record of data[key]) {
+          const card = lawNode("article", "", "card law-record");
+          if (key === "reviews") {
+            card.append(lawNode("h4", `评价 ${record.id} · ${record.courseTitle || ""} · ${record.teacher || ""}`), lawNode("p", record.content || "", "law-record-body"));
+          } else if (key === "feedback") {
+            card.append(lawNode("h4", `反馈/举报 ${record.id} · ${record.type || ""} · ${record.title || ""}`), lawNode("p", record.content || "", "law-record-body"));
+            if (record.report_url || record.report_target) card.append(lawNode("p", `关联：${record.report_url || ""} ${record.report_target || ""}`, "muted"));
+          } else if (key === "security_logs") {
+            card.append(lawNode("p", `${formatLawTime(record.at)}（北京） · ${record.action} · ${record.target_type || ""}:${record.target_id || ""} · ${record.result || ""}`));
+            card.append(lawNode("p", `账号：${record.user_id ?? "—"} · IP：${record.ip || "—"}`, "muted"));
+          } else {
+            card.append(lawNode("p", `${formatLawTime(record.at)}（北京） · ${record.username || "—"} · ${record.action || "—"} · HTTP ${record.status ?? "—"}`));
+            card.append(lawNode("p", `对象：${record.target || "—"} · IP：${record.ip || "—"}`, "muted"));
+          }
+          card.append(lawRecordDetails(record));
+          section.append(card);
         }
-        const response = await fetch(url, { headers: { "x-nkustudy-admin-request": "1" } });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || "查询失败");
-        lawResultData = data.data;
-        renderLawResult();
-        renderLawLogs(data.law_logs || []);
-        status.textContent = "";
-      } catch (error) {
-        status.textContent = error.message;
+        section.append(lawPager(data[paginationKey], (page) => { void lawQueryController.page(key, page).then((ok) => { if (ok) void loadLawLogs(); }); }));
+        box.append(section);
       }
     }
 
-    function renderLawResult() {
-      const box = document.querySelector("#law-result");
-      if (!lawResultData) { box.innerHTML = ""; return; }
-      const d = lawResultData;
-      const esc = escapeHtml;
-      const accountHtml = d.account ? `
-        <div class="card" style="padding:14px 18px;margin-bottom:12px;">
-          <b>账号 #${d.account.id}</b> · 昵称：${esc(d.account.nickname) || "-"} · 手机号：${esc(d.account.phone) || "未验证"}（验证时间：${d.account.phone_verified_at ? new Date(d.account.phone_verified_at).toISOString().slice(0, 19) : "-"}）
-          <div class="muted" style="font-size:0.85em;">注册 ${new Date(d.account.created_at).toISOString().slice(0, 19)} · 最近登录 ${d.account.last_login_at ? new Date(d.account.last_login_at).toISOString().slice(0, 19) : "-"} · 状态 ${d.account.blocked ? "已封禁" : "正常"}</div>
-        </div>` : "";
-      const listHtml = (rows, label) => rows.length ? `<p><b>${label}（${rows.length}）</b></p>` : "";
-      box.innerHTML = `
-        ${accountHtml}
-        ${listHtml(d.reviews, "评价")}
-        ${d.reviews.map((r) => `<div class="card" style="padding:10px 14px;margin-bottom:8px;"><b>${esc(r.courseTitle)} · ${esc(r.teacher)}</b> <span class="muted">(${esc(r.status)}${r.hidden ? "·hidden" : ""})</span><div style="font-size:0.9em;">${esc(String(r.content ?? "").slice(0, 200))}</div></div>`).join("")}
-        ${listHtml(d.feedback, "反馈/举报")}
-        ${d.feedback.map((f) => `<div class="card" style="padding:10px 14px;margin-bottom:8px;"><b>[${esc(f.type)}] ${esc(f.title)}</b> <span class="muted">(${esc(f.status)})</span>${f.report_url ? `<div class="muted" style="font-size:0.85em;">关联：${esc(f.report_url)} ${esc(f.report_target || "")}</div>` : ""}<div style="font-size:0.9em;">${esc(String(f.content ?? "").slice(0, 200))}</div></div>`).join("")}
-        ${listHtml(d.security_logs, "安全日志（最近展示）")}
-        ${(d.security_logs || []).slice(0, 30).map((l) => `<div class="muted" style="font-size:0.8em;">${new Date(l.at).toISOString().slice(0, 19)} · ${esc(l.action)} · ${esc(l.target_type)}:${esc(l.target_id)} · IP ${esc(l.ip)} · ${esc(l.result)}</div>`).join("")}
-      `;
+    function renderLawLogsState(view: LawLogView) {
+      const box = document.querySelector<HTMLElement>("#law-logs")!;
+      const status = document.querySelector<HTMLElement>("#law-log-status")!;
+      document.querySelector<HTMLButtonElement>("#law-log-refresh")!.disabled = view.phase === "loading";
+      status.textContent = view.phase === "loading" ? "正在加载调取记录…" : view.error;
+      box.setAttribute("aria-busy", String(view.phase === "loading"));
+      box.replaceChildren();
+      if (view.phase !== "ready") {
+        box.append(lawNode("p", view.phase === "loading" ? "正在加载本次调取记录…" : view.error || "刷新后查看调取记录。", "muted"));
+        return;
+      }
+      if (!view.data.items.length) box.append(lawNode("p", "没有符合条件的调取记录。", "muted"));
+      for (const record of view.data.items) {
+        const card = lawNode("article", "", "card law-record");
+        card.append(lawNode("p", `${formatLawTime(record.at)}（北京） · ${record.queried_by} · ${record.exported ? "导出" : "查询"} · ${record.query_type}`));
+        card.append(lawNode("p", `条件：${record.query_value}`, "law-record-body"), lawNode("p", `结果：${record.result_summary || "—"}`, "law-record-body"), lawRecordDetails(record));
+        box.append(card);
+      }
+      box.append(lawPager(view.data, (page) => { void lawLogController.page(page); }));
     }
 
-    function renderLawLogs(rows) {
-      const box = document.querySelector("#law-logs");
-      box.innerHTML = rows.length ? `<table class="admin-table"><thead><tr><th>时间</th><th>操作人</th><th>类型</th><th>条件</th><th>导出</th><th>结果概要</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${new Date(row.at + 8 * 3600 * 1000).toISOString().slice(0, 19)}</td><td>${escapeHtml(row.queried_by)}</td><td>${escapeHtml(row.query_type)}</td><td>${escapeHtml(row.query_value)}</td><td>${row.exported ? "是" : "否"}</td><td class="muted">${escapeHtml(row.result_summary)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">暂无调取记录</p>';
+    async function runLawQuery({ exportJson = false } = {}) {
+      const ok = exportJson ? await lawQueryController.exportJson(readLawQuery()) : await lawQueryController.load(readLawQuery());
+      if (ok) await loadLawLogs();
     }
 
     async function loadLawLogs() {
-      try {
-        const response = await fetch("/admin-api/law-query?type=none", { headers: { "x-nkustudy-admin-request": "1" } });
-        // law-query 每次都会记录，改用轻量方式：直接查询日志走 law-query 的 law_logs 字段不合适
-      } catch {}
+      await lawLogController.load(readLawLogFilters(), lawLogController.state().page);
     }
 
     async function loadDonateAdmin() {
@@ -2502,6 +2588,8 @@ async function loadMpUsersAdmin() {
     function showSessionExpired() {
       const wasSignedIn = !adminApp.hidden;
       sessionState = { username: "", permissions: [], mustChangePassword: false };
+      lawQueryController.reset();
+      lawLogController.reset();
       adminApp.hidden = true;
       loginPanel.hidden = false;
       loginStatus.textContent = wasSignedIn ? "登录已过期，请重新登录。" : "";
@@ -5239,8 +5327,8 @@ async function loadMpUsersAdmin() {
           renderReportsAdmin();
         }
         if (tab === "law") {
-          document.querySelector("#law-admin-status").textContent = "";
-          renderLawLogs([]);
+          renderLawQueryState(lawQueryController.state());
+          await loadLawLogs();
         }
         if (tab === "donate" && !donateState) {
           donateAdminStatus.textContent = "加载中...";
@@ -5424,9 +5512,17 @@ async function loadMpUsersAdmin() {
       document.querySelector(selector)?.addEventListener("input", () => { reportsAdminPage = 1; renderReportsAdmin(); });
       document.querySelector(selector)?.addEventListener("change", () => { reportsAdminPage = 1; renderReportsAdmin(); });
     }
-    document.querySelector("#law-query-run").addEventListener("click", () => runLawQuery());
-    document.querySelector("#law-export-run").addEventListener("click", () => runLawQuery({ exportJson: true }));
-    document.querySelector("#law-log-refresh").addEventListener("click", () => renderLawLogs([]));
+    document.querySelector("#law-query-form")!.addEventListener("submit", (event) => { event.preventDefault(); void runLawQuery(); });
+    document.querySelector("#law-export-run")!.addEventListener("click", () => { void runLawQuery({ exportJson: true }); });
+    document.querySelector("#law-log-form")!.addEventListener("submit", (event) => { event.preventDefault(); void loadLawLogs(); });
+    document.querySelectorAll("#law-query-form input, #law-query-form select").forEach((input) => {
+      input.addEventListener("input", () => lawQueryController.invalidate());
+      input.addEventListener("change", () => lawQueryController.invalidate());
+    });
+    document.querySelectorAll("#law-log-form input, #law-log-form select").forEach((input) => {
+      input.addEventListener("input", () => lawLogController.invalidate());
+      input.addEventListener("change", () => lawLogController.invalidate());
+    });
     document.querySelector("#reload-donate-stats").addEventListener("click", () => loadDonateStats());
     for (const selector of ["#donate-stats-search", "#donate-stats-status", "#donate-stats-source"]) {
       document.querySelector(selector)?.addEventListener("input", () => { donateStatsPage = 1; renderDonateStats(); });
@@ -5555,6 +5651,43 @@ async function loadMpUsersAdmin() {
     checkSession();
   </script>
   <style>
+    #law-admin-panel .law-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    #law-admin-panel .admin-field,
+    #law-admin-panel .searchbar,
+    #law-admin-panel :global(.law-result),
+    #law-admin-panel :global(.law-record) {
+      min-width: 0;
+      max-width: 100%;
+    }
+    #law-admin-panel .searchbar { width: 100%; }
+    #law-admin-panel :global(.law-result) { margin-top: 14px; }
+    #law-admin-panel :global(.law-result-section) {
+      margin-top: 20px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    #law-admin-panel :global(.law-record) {
+      margin-bottom: 10px;
+      padding: 12px 16px;
+      overflow-wrap: anywhere;
+    }
+    #law-admin-panel :global(.law-record h3),
+    #law-admin-panel :global(.law-record h4) { margin: 0 0 8px; }
+    #law-admin-panel :global(.law-record-body),
+    #law-admin-panel :global(.law-record-details pre) {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    #law-admin-panel :global(.law-record-details summary) { cursor: pointer; }
+    #law-admin-panel :global(.law-record-details pre) { font-size: 0.82rem; }
+    #law-admin-panel :global(.law-pager) { margin-top: 12px; }
+    #law-admin-panel :global(.law-pager .muted) { overflow-wrap: anywhere; }
     .admin-content :global(.moderation-row),
     .admin-content :global(.moderation-editor),
     .admin-content :global(.moderation-editor-fields),

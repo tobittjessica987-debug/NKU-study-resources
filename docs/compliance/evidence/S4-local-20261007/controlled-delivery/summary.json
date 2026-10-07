@@ -1,0 +1,120 @@
+{
+  "actualAt": "2026-10-07T12:31:34.683666+08:00",
+  "scope": "synthetic_local_only",
+  "recordChecks": {
+    "complete": {
+      "ok": true,
+      "outcome": "archived_delivery_record",
+      "failures": []
+    },
+    "unverified_refusal": {
+      "ok": true,
+      "outcome": "archived_refusal_record",
+      "failures": []
+    },
+    "scope_refusal": {
+      "ok": true,
+      "outcome": "archived_refusal_record",
+      "failures": []
+    },
+    "cross-user": {
+      "ok": false,
+      "outcome": "invalid_record",
+      "failures": [
+        {
+          "field": "collection.scope.selectors",
+          "code": "OUT_OF_SCOPE"
+        }
+      ]
+    },
+    "missing-file-hash": {
+      "ok": false,
+      "outcome": "invalid_record",
+      "failures": [
+        {
+          "field": "collection.artifact.sha256",
+          "code": "SHA256_REQUIRED"
+        },
+        {
+          "field": "collection.artifact",
+          "code": "UNRECORDED_TRANSFORMATION"
+        },
+        {
+          "field": "delivery.sha256",
+          "code": "DELIVERY_HASH_MISMATCH"
+        },
+        {
+          "field": "receipt.sha256",
+          "code": "RECEIPT_HASH_MISMATCH"
+        }
+      ]
+    },
+    "missing-receipt": {
+      "ok": false,
+      "outcome": "invalid_record",
+      "failures": [
+        {
+          "field": "receipt.at",
+          "code": "TIMESTAMP_WITH_ZONE_REQUIRED"
+        },
+        {
+          "field": "receipt.at",
+          "code": "EVENT_ORDER_INVALID"
+        },
+        {
+          "field": "receipt.recipientAgentRef",
+          "code": "RECIPIENT_MISMATCH"
+        },
+        {
+          "field": "receipt.sha256",
+          "code": "RECEIPT_HASH_MISMATCH"
+        },
+        {
+          "field": "receipt.confirmationRef",
+          "code": "REFERENCE_REQUIRED"
+        },
+        {
+          "field": "archive.at",
+          "code": "EVENT_ORDER_INVALID"
+        }
+      ]
+    }
+  },
+  "syntheticArtifact": {
+    "sha256": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598",
+    "bytes": 131,
+    "actualLocalFileDigestMatched": true
+  },
+  "documentedNetworkSnippet": {
+    "selectedRows": 3,
+    "inclusiveTimeBoundaries": true,
+    "subMicrosecondOutsideBoundsExcluded": true,
+    "exactHostFilter": true,
+    "queryAndHeadersRemoved": true,
+    "privateOutputMode": "0600",
+    "invalidRowStopsWithoutOutput": true,
+    "completeWindowVerified": false,
+    "unsupportedWindowPrecisionStopsWithoutOutput": true
+  },
+  "tests": {
+    "passed": 13,
+    "failed": 0
+  },
+  "externalDeliveryVerified": false,
+  "productionDataRead": false,
+  "dataSent": false,
+  "remaining": [
+    "actual responsible roster and escalation channels",
+    "retention policy confirmation",
+    "fixed candidate production export and audit validation",
+    "actual entry-log window topology and completeness",
+    "real request verification and recipient acknowledgement"
+  ],
+  "finalVerifiedAt": "2026-10-07T12:33:56.121107+08:00",
+  "sourceSha256": {
+    "docs/SECURITY_COMPLIANCE_SOP.md": "171242c45de130474d39ac0f7d0c45405bc81f175148314bc2f3e6dc0356c0fd",
+    "docs/compliance/S4_CONTROLLED_DELIVERY.md": "cd5766be2740ff832c8018408bacf657ab940b4244dd20549f9a88821ef7ae0a",
+    "scripts/verify-controlled-delivery.mjs": "efa8b41c0e489181acf29a508fab5a1cc5f53e578db559bab492e8a5c7705fe2",
+    "test/controlled-delivery.test.mjs": "424a41800276fd0fb285a40a08daf18ca0f907f66aa75dadca2fd6e0e0416d7a"
+  }
+}

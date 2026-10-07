@@ -1,9 +1,9 @@
 import { SnapshotGate, captureRuntime, saveEncryptedBackup, verifiedUpload } from "./runtime-backup.mjs";
 import { uploadPrivateR2Backup } from "./backup-r2.mjs";
 import { createOpsAlerts } from "./ops-alerts.mjs";
-import { queryAuditMetadata } from "./admin-audit.mjs";
+import { queryAuditMetadata, lawResultAuditMetadata, recordLawResponseAudit } from "./admin-audit.mjs";
 import { authorizationOf, requirePhoneVerifiedUser } from "./user-identity.mjs";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { PassThrough } from "node:stream";
@@ -60,6 +60,7 @@ import { decryptAes256Gcm, verifyNotifySignature } from "./wxpay-v3.mjs";
 import { appendDonateRecord, normalizeRecords } from "./donate-records.mjs";
 import { UserSecurityLogStore } from "./user-security-log-store.mjs";
 import { LawEnforcementLogStore } from "./law-enforcement-store.mjs";
+import { createLawQueryService } from "./law-query-service.mjs";
 import { DEFAULT_PRIVACY_CONTENT } from "./default-privacy.mjs";
 import { createWechatPhoneVerifier, maskPhone } from "./wechat-phone.mjs";
 import { createWxacodeService } from "./wxacode-service.mjs";
@@ -259,6 +260,7 @@ const mpAuthService = new MpAuthService({
   appid: process.env.WECHAT_APPID || "",
   secret: process.env.WECHAT_APPSECRET || "",
 });
+const lawQueryService = createLawQueryService({ db: mpAuthService.db, readReviews, readFeedback, securityLogStore, accountsStore });
 const mpFavoritesService = new MpFavoritesService({
   dbPath: runtime.stateDbPath,
   readManifest: () => cleanManifestResources(jsonStore.readSync(manifestPath)),
@@ -981,14 +983,14 @@ function attachAdminAudit(req, res, url) {
     if (!recorded) {
       recorded = true;
       const actor = req.__adminAccount?.username || base.username;
-      const detail = JSON.stringify({ outcome: status >= 500 ? "error" : status >= 400 ? "rejected" : "ok", ...event.summary });
-      accountsStore.audit({ ...base, username: actor, action: event.action, status, target: event.target, detail, eventId: event.eventId });
-      for (const change of event.changes || []) accountsStore.audit({ ...base, eventId: change.eventId, username: actor, action: `content.${change.operation}`, status,
-        target: `${event.objectType}:${change.id}`, detail: JSON.stringify({ request: event.eventId, applied: status < 400, fields: change.fields, states: change.states }) });
       if (["/admin-api/law-query", "/admin-api/law-export"].includes(url.pathname)) {
-        const metadata = queryAuditMetadata(url, secret);
-        lawLogStore.record({ queriedBy: actor, queryType: metadata.scope, queryValue: event.target || `hash:${metadata.criteriaHash}`,
-          exported: url.pathname.endsWith("export"), resultSummary: `status=${status} ${detail}` });
+        recordLawResponseAudit({ accountsStore, lawLogStore, base, event, actor, status,
+          queryType: event.summary.scope, exported: url.pathname.endsWith("export") });
+      } else {
+        const detail = JSON.stringify({ outcome: status >= 500 ? "error" : status >= 400 ? "rejected" : "ok", ...event.summary });
+        accountsStore.audit({ ...base, username: actor, action: event.action, status, target: event.target, detail, eventId: event.eventId });
+        for (const change of event.changes || []) accountsStore.audit({ ...base, eventId: change.eventId, username: actor, action: `content.${change.operation}`, status,
+          target: `${event.objectType}:${change.id}`, detail: JSON.stringify({ request: event.eventId, applied: status < 400, fields: change.fields, states: change.states }) });
       }
     }
     return writeHead(status, ...args);
@@ -2826,72 +2828,17 @@ const server = createServer(async (req, res) => {
     }
 
     /** 依法调取：聚合账号/内容/日志/处置证据。每次调用均留痕。 */
-    async function buildLawQueryResult(params) {
-      const type = String(params.get("type") || "account");
-      const result = { query: { type, at: new Date().toISOString() }, account: null, reviews: [], feedback: [], security_logs: [], admin_audit: [] };
-      const reviewsData = readReviews();
-      const feedbackData = readFeedback();
-      let user = null;
-      if (type === "account") {
-        const value = String(params.get("value") || "").trim();
-        if (/^\d+$/.test(value)) user = mpAuthService.selectUserByIdPublic ? null : null;
-        // 按形态识别：纯数字→user_id；1开头11位→手机号；wx开头/长度28+→openid
-        const db = mpAuthService.db;
-        if (/^\d{1,10}$/.test(value)) user = db.prepare("SELECT * FROM mp_users WHERE id = ?").get(Number(value));
-        else if (/^1\d{10}$/.test(value)) user = db.prepare("SELECT * FROM mp_users WHERE phone = ?").get(value);
-        else user = db.prepare("SELECT * FROM mp_users WHERE openid = ?").get(value);
-        if (!user) throw Object.assign(new Error("未找到该账号。"), { statusCode: 404 });
-        result.account = { id: user.id, nickname: user.nickname, phone: user.phone || "", phone_verified_at: user.phone_verified_at || null, openid: user.openid, created_at: user.created_at, last_login_at: user.last_login_at, blocked: user.blocked === 1, login_count: user.login_count };
-        result.reviews = (reviewsData.reviews || []).filter((review) => Number(review.user_id) === user.id);
-        result.feedback = (feedbackData.items || []).filter((item) => Number(item.user_id) === user.id);
-        result.security_logs = securityLogStore.byUser(user.id, { limit: 300 });
-
-      } else if (type === "review") {
-        const id = String(params.get("id") || "").trim();
-        const review = (reviewsData.reviews || []).find((item) => item.id === id);
-        if (!review) throw Object.assign(new Error("未找到该评价。"), { statusCode: 404 });
-        result.reviews = [review];
-        result.security_logs = securityLogStore.byTarget("review", id, { limit: 100 });
-        if (review.user_id) {
-          const db = mpAuthService.db;
-          const u = db.prepare("SELECT * FROM mp_users WHERE id = ?").get(Number(review.user_id));
-          if (u) result.account = { id: u.id, nickname: u.nickname, phone: u.phone || "", phone_verified_at: u.phone_verified_at || null, openid: u.openid, created_at: u.created_at, blocked: u.blocked === 1 };
-        }
-      } else if (type === "feedback") {
-        const id = String(params.get("id") || "").trim();
-        const item = (feedbackData.items || []).find((entry) => entry.id === id);
-        if (!item) throw Object.assign(new Error("未找到该反馈/举报。"), { statusCode: 404 });
-        result.feedback = [item];
-        result.security_logs = securityLogStore.byTarget("feedback", id, { limit: 100 });
-        if (item.user_id) {
-          const db = mpAuthService.db;
-          const u = db.prepare("SELECT * FROM mp_users WHERE id = ?").get(Number(item.user_id));
-          if (u) result.account = { id: u.id, nickname: u.nickname, phone: u.phone || "", phone_verified_at: u.phone_verified_at || null, openid: u.openid, created_at: u.created_at, blocked: u.blocked === 1 };
-        }
-      } else {
-        throw Object.assign(new Error("查询类型无效。"), { statusCode: 400 });
-      }
-      const selection = type === "account" ? { userId: user.id } : { targetType: type, targetId: String(params.get("id") || "").trim() };
-      const logs = securityLogStore.query({ ...selection, page: params.get("log_page"), pageSize: params.get("log_page_size"),
-        from: params.get("from") || 0, to: params.get("to") || Date.now(), action: params.get("action") });
-      result.security_logs = logs.items;
-      result.log_pagination = { total: logs.total, page: logs.page, page_size: logs.page_size };
-      const audit = accountsStore.queryAudit({ includeArchived: true, target: type === "account" ? `user:${user.id}` : `${type}:${selection.targetId}`,
-        page: params.get("audit_page"), pageSize: params.get("log_page_size"), from: params.get("from") || 0, to: params.get("to") || Date.now() });
-      result.admin_audit = audit.items;
-      result.audit_pagination = { total: audit.total, page: audit.page, page_size: audit.page_size };
-      return result;
-    }
-
     if (req.method === "GET" && url.pathname === "/admin-api/law-query") {
       // C-08: requireAuth above accepts every enabled administrator.
       try {
-        const result = await buildLawQueryResult(url.searchParams);
-        req.__audit.target = result.account ? `user:${result.account.id}` : `${result.query.type}:${url.searchParams.get("id") || ""}`;
-        Object.assign(req.__audit.summary, { reviews: result.reviews.length, feedback: result.feedback.length, logs: result.security_logs.length, logPage: result.log_pagination, auditPage: result.audit_pagination });
-        json(res, 200, { ok: true, data: result, law_logs: lawLogStore.listRecent(20) });
+        const result = lawQueryService.query(url.searchParams);
+        req.__audit.target = result.query.target;
+        Object.assign(req.__audit.summary, lawResultAuditMetadata(result, secret));
+        Object.assign(req.__audit.summary, { counts: result.counts, returned: { reviews: result.reviews.length, feedback: result.feedback.length, logs: result.security_logs.length, audit: result.admin_audit.length }, complete: result.complete });
+        json(res, 200, { ok: true, audit_event_id: req.__audit.eventId, data: result });
       } catch (error) {
-        json(res, Number(error.statusCode) || 500, { ok: false, error: String(error.message || "查询失败。") });
+        const status = Number(error.statusCode) || 500;
+        json(res, status, { ok: false, code: error.code || "LAW_QUERY_FAILED", error: status < 500 ? error.message : "查询失败，请重试或联系维护者。", audit_event_id: req.__audit.eventId });
       }
       return;
     }
@@ -2899,14 +2846,33 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/admin-api/law-export") {
       // C-08: requireAuth above accepts every enabled administrator.
       try {
-        const result = await buildLawQueryResult(url.searchParams);
-        req.__audit.target = result.account ? `user:${result.account.id}` : `${result.query.type}:${url.searchParams.get("id") || ""}`;
-        Object.assign(req.__audit.summary, { reviews: result.reviews.length, feedback: result.feedback.length, logs: result.security_logs.length, logPage: result.log_pagination, auditPage: result.audit_pagination });
-        const body = JSON.stringify({ exported_at: new Date().toISOString(), exported_by: account.username, ...result }, null, 2);
-        res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="law-export-${Date.now()}.json"`, "cache-control": "no-store" });
+        const result = lawQueryService.export(url.searchParams);
+        req.__audit.target = result.query.target;
+        Object.assign(req.__audit.summary, lawResultAuditMetadata(result, secret));
+        const body = JSON.stringify({ exported_at: new Date().toISOString(), exported_by: account.username, audit_event_id: req.__audit.eventId, ...result }, null, 2);
+        const bytes = Buffer.byteLength(body);
+        if (bytes > 32 * 1024 * 1024) throw Object.assign(new Error("导出超过32 MiB，请缩小日志时间范围或改按内容ID导出。"), { statusCode: 413, code: "LAW_EXPORT_TOO_LARGE" });
+        const sha256 = createHash("sha256").update(body).digest("hex");
+        Object.assign(req.__audit.summary, { counts: result.counts, complete: true, bytes, sha256 });
+        res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="law-export-${Date.now()}.json"`, "cache-control": "no-store", "x-content-type-options": "nosniff", "x-content-sha256": sha256 });
         res.end(body);
       } catch (error) {
-        json(res, Number(error.statusCode) || 500, { ok: false, error: String(error.message || "导出失败。") });
+        const status = Number(error.statusCode) || 500;
+        json(res, status, { ok: false, code: error.code || "LAW_EXPORT_FAILED", error: status < 500 ? error.message : "导出失败，请重试或联系维护者。", audit_event_id: req.__audit.eventId });
+      }
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/admin-api/law-logs") {
+      // Reading the history is audited, but does not add a query to that same history.
+      try {
+        const params = url.searchParams;
+        const result = lawLogStore.query({ actor: params.get("actor"), type: params.get("type"), exported: params.get("exported"), from: params.get("from"), to: params.get("to"), page: params.get("page"), pageSize: params.get("page_size") });
+        Object.assign(req.__audit.summary, { total: result.total, returned: result.items.length, page: result.page });
+        json(res, 200, { ok: true, ...result });
+      } catch (error) {
+        const status = Number(error.statusCode) || 500;
+        json(res, status, { ok: false, code: error.code || "LAW_LOGS_FAILED", error: status < 500 ? error.message : "调取记录读取失败，请重试或联系维护者。" });
       }
       return;
     }

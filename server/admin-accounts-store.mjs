@@ -310,10 +310,20 @@ export class AdminAccountsStore {
     this.writer.maintenanceError = null;
   }
 
-  queryAudit({ page = 1, pageSize = 50, username = "", action = "", target = "", from = 0, to = Date.now(), includeArchived = false } = {}) {
+  snapshotAudit({ includeArchived = false } = {}) {
+    const unique = new Map();
+    const hot = this.db.prepare("SELECT * FROM admin_audit_log").all();
+    for (const row of [...(includeArchived ? archivedRows(this.archiveDir, "admin_audit_log") : []), ...hot]) {
+      const { event_id, ...legacy } = row;
+      unique.set(event_id || `legacy:${JSON.stringify(legacy)}`, row);
+    }
+    return [...unique.values()];
+  }
+
+  queryAudit({ page = 1, pageSize = 50, username = "", action = "", actionExact = false, target = "", targets, from = 0, to = Date.now(), includeArchived = false } = {}) {
     if (includeArchived) {
-      const unique = new Map([...archivedRows(this.archiveDir, "admin_audit_log"), ...this.db.prepare("SELECT * FROM admin_audit_log").all()].map(row => [row.event_id || `legacy-${row.id}`, row]));
-      const rows = [...unique.values()].filter(row => (!username || row.username === username) && (!action || row.action.includes(action)) && (!target || row.target === target) && row.at >= Number(from) && row.at <= Number(to)).sort((a, b) => b.id - a.id);
+      const selectedTargets = Array.isArray(targets) ? new Set(targets.map(String)) : null;
+      const rows = this.snapshotAudit({ includeArchived: true }).filter(row => (!username || row.username === username) && (!action || (actionExact ? row.action === action : row.action.includes(action))) && (!target || row.target === target) && (!selectedTargets || selectedTargets.has(row.target)) && row.at >= Number(from) && row.at <= Number(to)).sort((a, b) => b.id - a.id);
       page = Math.max(1, Math.floor(Number(page) || 1)); pageSize = Math.min(1000, Math.max(1, Math.floor(Number(pageSize) || 50)));
       return { items: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page, page_size: pageSize };
     }
@@ -326,9 +336,16 @@ export class AdminAccountsStore {
       params.push(String(username));
     }
     if (action) {
-      conditions.push("action LIKE ?");
-      params.push(`%${String(action)}%`);
+      conditions.push(actionExact ? "action = ?" : "action LIKE ?");
+      params.push(actionExact ? String(action) : `%${String(action)}%`);
     }
+    if (target) { conditions.push("target = ?"); params.push(String(target)); }
+    if (Array.isArray(targets)) {
+      conditions.push(targets.length ? `target IN (${targets.map(() => "?").join(", ")})` : "0");
+      params.push(...targets.map(String));
+    }
+    conditions.push("at >= ?", "at <= ?");
+    params.push(Number(from), Number(to));
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const total = Number(this.db.prepare(`SELECT COUNT(*) AS count FROM admin_audit_log ${where}`).get(...params).count);
     const rows = this.db

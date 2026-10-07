@@ -1,0 +1,3 @@
+{"ts": "1791338400.0", "status": 200, "user_agent": "Synthetic QA", "source_port_kind": "direct_peer", "request": {"host": "synthetic.invalid", "method": "GET", "uri": "/start", "remote_ip": "198.51.100.23", "remote_port": 45000}}
+{"ts": "1791338460.0", "status": 200, "user_agent": "Synthetic QA", "source_port_kind": "direct_peer", "request": {"host": "synthetic.invalid", "method": "GET", "uri": "/middle", "remote_ip": "198.51.100.23", "remote_port": 45000}}
+{"ts": "1791338699.0", "status": 200, "user_agent": "Synthetic QA", "source_port_kind": "direct_peer", "request": {"host": "synthetic.invalid", "method": "GET", "uri": "/end", "remote_ip": "198.51.100.23", "remote_port": 45000}}

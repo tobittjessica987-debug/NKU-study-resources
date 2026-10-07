@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "request": {
+    "requestRef": "synthetic-request",
+    "registeredAt": "2026-10-07T10:05:00+08:00",
+    "subjectRef": null,
+    "documentRef": "synthetic-document",
+    "agentRef": "synthetic-agent",
+    "basisRef": "synthetic-basis",
+    "scope": {
+      "from": "2026-10-07T10:00:00+08:00",
+      "to": "2026-10-07T10:04:59+08:00",
+      "timeZone": "Asia/Shanghai",
+      "inclusive": true,
+      "sites": [
+        "synthetic.invalid"
+      ],
+      "selectors": [
+        {
+          "kind": "user_id",
+          "value": "synthetic-user-1"
+        }
+      ],
+      "sources": [
+        "security_logs"
+      ],
+      "timeAppliesTo": [
+        "security_logs"
+      ],
+      "fields": [
+        "occurred_at",
+        "user_id",
+        "action"
+      ]
+    }
+  },
+  "verification": {
+    "at": "2026-10-07T10:06:00+08:00",
+    "verifierRef": "synthetic-responsible-role",
+    "subject": false,
+    "document": true,
+    "agent": true,
+    "basis": true
+  },
+  "decision": {
+    "at": "2026-10-07T10:07:00+08:00",
+    "actorRef": "synthetic-responsible-role",
+    "outcome": "refuse",
+    "reasonRef": "synthetic-refusal-review",
+    "refusalCode": "unverified_subject"
+  },
+  "archive": {
+    "at": "2026-10-07T10:12:00+08:00",
+    "custodianRef": "synthetic-archive-role",
+    "recordRef": "synthetic-private-register",
+    "retentionPolicyRef": "synthetic-policy-pending-real-owner",
+    "restricted": true
+  }
+}

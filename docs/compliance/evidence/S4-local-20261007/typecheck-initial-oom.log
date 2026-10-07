@@ -1,0 +1,506 @@
+
+> nkustudy@0.1.0 check
+> astro check
+
+12:29:04 [vite] Re-optimizing dependencies because vite config has changed
+12:29:04 [types] Generated 175ms
+12:29:04 [check] Getting diagnostics for Astro files in /Users/carlos/Documents/ChatGPT/New project 2/NKU-study-resources-s2...
+[96mpublic/qrcode-generator.js[0m:[93m1781[0m:[93m32[0m - [93mwarning[0m[90m ts(6133): [0m'buffer' is declared but its value is never read.
+
+[7m1781[0m     _this.getLength = function(buffer) {
+[7m    [0m [93m                               ~~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m1759[0m:[93m9[0m - [93mwarning[0m[90m ts(6133): [0m'_data' is declared but its value is never read.
+
+[7m1759[0m     var _data = data;
+[7m    [0m [93m        ~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m1739[0m:[93m32[0m - [93mwarning[0m[90m ts(6133): [0m'buffer' is declared but its value is never read.
+
+[7m1739[0m     _this.getLength = function(buffer) {
+[7m    [0m [93m                               ~~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m1730[0m:[93m9[0m - [93mwarning[0m[90m ts(6133): [0m'_data' is declared but its value is never read.
+
+[7m1730[0m     var _data = data;
+[7m    [0m [93m        ~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m1675[0m:[93m32[0m - [93mwarning[0m[90m ts(6133): [0m'buffer' is declared but its value is never read.
+
+[7m1675[0m     _this.getLength = function(buffer) {
+[7m    [0m [93m                               ~~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m1618[0m:[93m32[0m - [93mwarning[0m[90m ts(6133): [0m'buffer' is declared but its value is never read.
+
+[7m1618[0m     _this.getLength = function(buffer) {
+[7m    [0m [93m                               ~~~~~~[0m
+[96mpublic/qrcode-generator.js[0m:[93m949[0m:[93m25[0m - [93mwarning[0m[90m ts(6133): [0m'i' is declared but its value is never read.
+
+[7m949[0m         return function(i, j) { return j % 3 == 0; };
+[7m   [0m [93m                        ~[0m
+[96mpublic/qrcode-generator.js[0m:[93m947[0m:[93m28[0m - [93mwarning[0m[90m ts(6133): [0m'j' is declared but its value is never read.
+
+[7m947[0m         return function(i, j) { return i % 2 == 0; };
+[7m   [0m [93m                           ~[0m
+[96mpublic/qrcode-generator.js[0m:[93m29[0m:[93m7[0m - [93mwarning[0m[90m ts(80002): [0mThis constructor function may be converted to a class declaration.
+
+[7m29[0m   var qrcode = function(typeNumber, errorCorrectionLevel) {
+[7m  [0m [93m      ~~~~~~[0m
+
+[96mscripts/build-learning-compass-snapshot.mjs[0m:[93m120[0m:[93m11[0m - [93mwarning[0m[90m ts(6133): [0m'chunksById' is declared but its value is never read.
+
+[7m120[0m     const chunksById = new Map((guide.chunks || []).map((chunk) => [chunk.chunk_id, chunk]));
+[7m   [0m [93m          ~~~~~~~~~~[0m
+
+[96mscripts/upload-guide-sources.mjs[0m:[93m13[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'createReadStream' is declared but its value is never read.
+
+[7m13[0m import { createReadStream, existsSync, readFileSync } from "node:fs";
+[7m  [0m [93m         ~~~~~~~~~~~~~~~~[0m
+
+[96mserver/admin-server.mjs[0m:[93m1323[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'readPrivacy' is declared but its value is never read.
+
+[7m1323[0m function readPrivacy() {
+[7m    [0m [93m         ~~~~~~~~~~~[0m
+[96mserver/admin-server.mjs[0m:[93m1095[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'objectKey' is declared but its value is never read.
+
+[7m1095[0m function objectKey(...parts) {
+[7m    [0m [93m         ~~~~~~~~~[0m
+[96mserver/admin-server.mjs[0m:[93m1025[0m:[93m48[0m - [93mwarning[0m[90m ts(6133): [0m'ip' is declared but its value is never read.
+
+[7m1025[0m function requirePhoneVerifiedUgcUser(req, res, ip) {
+[7m    [0m [93m                                               ~~[0m
+[96mserver/admin-server.mjs[0m:[93m420[0m:[93m31[0m - [93mwarning[0m[90m ts(2570): [0mCould not find name 'DeleteObjectCommand'. Did you mean 'DeleteObjectsCommand'?
+
+[7m420[0m       await r2Client.send(new DeleteObjectCommand({ Bucket: r2Bucket, Key: key }));
+[7m   [0m [93m                              ~~~~~~~~~~~~~~~~~~~[0m
+[96mserver/admin-server.mjs[0m:[93m65[0m:[93m37[0m - [93mwarning[0m[90m ts(6133): [0m'maskPhone' is declared but its value is never read.
+
+[7m65[0m import { createWechatPhoneVerifier, maskPhone } from "./wechat-phone.mjs";
+[7m  [0m [93m                                    ~~~~~~~~~[0m
+[96mserver/admin-server.mjs[0m:[93m20[0m:[93m28[0m - [93mwarning[0m[90m ts(6133): [0m'ManifestConflictError' is declared but its value is never read.
+
+[7m20[0m import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+[7m  [0m [93m                           ~~~~~~~~~~~~~~~~~~~~~[0m
+[96mserver/admin-server.mjs[0m:[93m20[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'manifestRevision' is declared but its value is never read.
+
+[7m20[0m import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+[7m  [0m [93m         ~~~~~~~~~~~~~~~~[0m
+
+[96mserver/donate-records.mjs[0m:[93m1[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'AtomicJsonStore' is declared but its value is never read.
+
+[7m1[0m import { AtomicJsonStore } from "./atomic-json-store.mjs";
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mserver/r2-sync-merge.mjs[0m:[93m3[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'cloneFile' is declared but its value is never read.
+
+[7m3[0m function cloneFile(file, existing) {
+[7m [0m [93m         ~~~~~~~~~[0m
+
+[96msrc/layouts/Layout.astro[0m:[93m81[0m:[93m48[0m - [91merror[0m[90m ts(7053): [0mElement implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ home: string; book: string; star: string; spark: string; message: string; link: string; info: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ home: string; book: string; star: string; spark: string; message: string; link: string; info: string; }'.
+
+[7m81[0m               <span class="nav-icon" set:html={icons[item.icon]} />
+[7m  [0m [91m                                               ~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m347[0m:[93m33[0m - [91merror[0m[90m ts(2339): [0mProperty 'dataset' does not exist on type 'Element'.
+
+[7m347[0m         if (!countEl || footer?.dataset.realVisits !== "true") return;
+[7m   [0m [91m                                ~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m313[0m:[93m31[0m - [91merror[0m[90m ts(7006): [0mParameter 'value' implicitly has an 'any' type.
+
+[7m313[0m       const parseStartedAt = (value) => {
+[7m   [0m [91m                              ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m260[0m:[93m21[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m260[0m           } catch { status.textContent = "网络错误"; }
+[7m   [0m [91m                    ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m258[0m:[93m42[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m258[0m             if (!r.ok || d.code !== 0) { status.textContent = d.message || "注册失败"; return; }
+[7m   [0m [91m                                         ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m256[0m:[93m204[0m - [91merror[0m[90m ts(2339): [0mProperty 'value' does not exist on type 'Element'.
+
+[7m256[0m             const r = await fetch("/api/v1/auth/web-register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#reg-nickname").value, password: pw }) });
+[7m   [0m [91m                                                                                                                                                                                                           ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m256[0m:[93m164[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m256[0m             const r = await fetch("/api/v1/auth/web-register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#reg-nickname").value, password: pw }) });
+[7m   [0m [91m                                                                                                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m254[0m:[93m29[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m254[0m           if (pw !== pw2) { status.textContent = "两次密码不一致"; return; }
+[7m   [0m [91m                            ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m253[0m:[93m64[0m - [91merror[0m[90m ts(2339): [0mProperty 'value' does not exist on type 'Element'.
+
+[7m253[0m           const pw2 = document.querySelector("#reg-password2").value;
+[7m   [0m [91m                                                               ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m253[0m:[93m23[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m253[0m           const pw2 = document.querySelector("#reg-password2").value;
+[7m   [0m [91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m252[0m:[93m62[0m - [91merror[0m[90m ts(2339): [0mProperty 'value' does not exist on type 'Element'.
+
+[7m252[0m           const pw = document.querySelector("#reg-password").value;
+[7m   [0m [91m                                                             ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m252[0m:[93m22[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m252[0m           const pw = document.querySelector("#reg-password").value;
+[7m   [0m [91m                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m251[0m:[93m11[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m251[0m           status.textContent = "";
+[7m   [0m [91m          ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m247[0m:[93m21[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m247[0m           } catch { status.textContent = "网络错误"; }
+[7m   [0m [91m                    ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m245[0m:[93m42[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m245[0m             if (!r.ok || d.code !== 0) { status.textContent = d.message || "登录失败"; return; }
+[7m   [0m [91m                                         ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m243[0m:[93m260[0m - [91merror[0m[90m ts(2339): [0mProperty 'value' does not exist on type 'Element'.
+
+[7m243[0m             const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#auth-nickname").value, password: document.querySelector("#auth-password").value }) });
+[7m   [0m [91m                                                                                                                                                                                                                                                                   ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m243[0m:[93m219[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m243[0m             const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#auth-nickname").value, password: document.querySelector("#auth-password").value }) });
+[7m   [0m [91m                                                                                                                                                                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m243[0m:[93m202[0m - [91merror[0m[90m ts(2339): [0mProperty 'value' does not exist on type 'Element'.
+
+[7m243[0m             const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#auth-nickname").value, password: document.querySelector("#auth-password").value }) });
+[7m   [0m [91m                                                                                                                                                                                                         ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m243[0m:[93m161[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m243[0m             const r = await fetch("/api/v1/auth/web-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ nickname: document.querySelector("#auth-nickname").value, password: document.querySelector("#auth-password").value }) });
+[7m   [0m [91m                                                                                                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m241[0m:[93m11[0m - [91merror[0m[90m ts(18047): [0m'status' is possibly 'null'.
+
+[7m241[0m           status.textContent = "";
+[7m   [0m [91m          ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m238[0m:[93m221[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m238[0m         document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-register-form").style.display = "none"; document.querySelector("#auth-login-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                                                                                            ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m238[0m:[93m178[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m238[0m         document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-register-form").style.display = "none"; document.querySelector("#auth-login-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m238[0m:[93m154[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m238[0m         document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-register-form").style.display = "none"; document.querySelector("#auth-login-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                         ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m238[0m:[93m108[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m238[0m         document.querySelector("#auth-show-login")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-register-form").style.display = "none"; document.querySelector("#auth-login-form").style.display = ""; });
+[7m   [0m [91m                                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m237[0m:[93m224[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m237[0m         document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-login-form").style.display = "none"; document.querySelector("#auth-register-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                                                                                               ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m237[0m:[93m178[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m237[0m         document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-login-form").style.display = "none"; document.querySelector("#auth-register-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m237[0m:[93m154[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m237[0m         document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-login-form").style.display = "none"; document.querySelector("#auth-register-form").style.display = ""; });
+[7m   [0m [91m                                                                                                                                                         ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m237[0m:[93m111[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m237[0m         document.querySelector("#auth-show-register")?.addEventListener("click", (e) => { e.preventDefault(); document.querySelector("#auth-login-form").style.display = "none"; document.querySelector("#auth-register-form").style.display = ""; });
+[7m   [0m [91m                                                                                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m228[0m:[93m55[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m228[0m           document.querySelector("#auth-wechat-form").style.display = wechat ? "" : "none";
+[7m   [0m [91m                                                      ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m228[0m:[93m11[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m228[0m           document.querySelector("#auth-wechat-form").style.display = wechat ? "" : "none";
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m227[0m:[93m57[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m227[0m           document.querySelector("#auth-register-form").style.display = "none";
+[7m   [0m [91m                                                        ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m227[0m:[93m11[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m227[0m           document.querySelector("#auth-register-form").style.display = "none";
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m226[0m:[93m54[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m226[0m           document.querySelector("#auth-login-form").style.display = wechat ? "none" : "";
+[7m   [0m [91m                                                     ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m226[0m:[93m11[0m - [91merror[0m[90m ts(2531): [0mObject is possibly 'null'.
+
+[7m226[0m           document.querySelector("#auth-login-form").style.display = wechat ? "none" : "";
+[7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m221[0m:[93m32[0m - [91merror[0m[90m ts(7006): [0mParameter 'wechat' implicitly has an 'any' type.
+
+[7m221[0m         function authSwitchTab(wechat) {
+[7m   [0m [91m                               ~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m202[0m:[93m20[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m202[0m           loginBtn.style.display = "";
+[7m   [0m [91m                   ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m202[0m:[93m11[0m - [91merror[0m[90m ts(18047): [0m'loginBtn' is possibly 'null'.
+
+[7m202[0m           loginBtn.style.display = "";
+[7m   [0m [91m          ~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m197[0m:[93m26[0m - [91merror[0m[90m ts(2339): [0mProperty 'onclick' does not exist on type 'Element'.
+
+[7m197[0m                 loginBtn.onclick = () => location.href = "/me/";
+[7m   [0m [91m                         ~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m197[0m:[93m17[0m - [91merror[0m[90m ts(18047): [0m'loginBtn' is possibly 'null'.
+
+[7m197[0m                 loginBtn.onclick = () => location.href = "/me/";
+[7m   [0m [91m                ~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m196[0m:[93m26[0m - [91merror[0m[90m ts(2339): [0mProperty 'style' does not exist on type 'Element'.
+
+[7m196[0m                 loginBtn.style.display = "";
+[7m   [0m [91m                         ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m196[0m:[93m17[0m - [91merror[0m[90m ts(18047): [0m'loginBtn' is possibly 'null'.
+
+[7m196[0m                 loginBtn.style.display = "";
+[7m   [0m [91m                ~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m195[0m:[93m26[0m - [91merror[0m[90m ts(2339): [0mProperty 'title' does not exist on type 'Element'.
+
+[7m195[0m                 loginBtn.title = `已登录：${d.data.user.nickname}`;
+[7m   [0m [91m                         ~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m195[0m:[93m17[0m - [91merror[0m[90m ts(18047): [0m'loginBtn' is possibly 'null'.
+
+[7m195[0m                 loginBtn.title = `已登录：${d.data.user.nickname}`;
+[7m   [0m [91m                ~~~~~~~~[0m
+[96msrc/layouts/Layout.astro[0m:[93m194[0m:[93m17[0m - [91merror[0m[90m ts(18047): [0m'loginBtn' is possibly 'null'.
+
+[7m194[0m                 loginBtn.textContent = "我";
+[7m   [0m [91m                ~~~~~~~~[0m
+
+[96msrc/lib/law-query-controller.js[0m:[93m208[0m:[93m7[0m - [93mwarning[0m[90m ts(80007): [0m'await' has no effect on the type of this expression.
+
+[7m208[0m       await download(result);
+[7m   [0m [93m      ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/lib/markdown.ts[0m:[93m22[0m:[93m10[0m - [91merror[0m[90m ts(2722): [0mCannot invoke an object which is possibly 'undefined'.
+
+[7m22[0m   return defaultImageRender(tokens, idx, options, env, self);
+[7m  [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+[96msrc/lib/markdown.ts[0m:[93m18[0m:[93m7[0m - [91merror[0m[90m ts(18047): [0m'token.attrs' is possibly 'null'.
+
+[7m18[0m       token.attrs[srcIndex][1] = src.slice(0, src.length - match[0].length);
+[7m  [0m [91m      ~~~~~~~~~~~[0m
+[96msrc/lib/markdown.ts[0m:[93m15[0m:[93m24[0m - [91merror[0m[90m ts(18047): [0m'token.attrs' is possibly 'null'.
+
+[7m15[0m     const src = String(token.attrs[srcIndex][1] || "");
+[7m  [0m [91m                       ~~~~~~~~~~~[0m
+
+[96msrc/lib/reviews.ts[0m:[93m34[0m:[93m6[0m - [91merror[0m[90m ts(2339): [0mProperty 'replace' does not exist on type 'RegExp'.
+
+[7m34[0m     .replace(/（/g, "(")
+[7m  [0m [91m     ~~~~~~~[0m
+[96msrc/lib/reviews.ts[0m:[93m35[0m:[93m24[0m - [91merror[0m[90m ts(1005): [0m')' expected.
+
+[7m35[0m     .replace(/）/g, ")");
+[7m  [0m [91m                       ~[0m
+[96msrc/lib/reviews.ts[0m:[93m33[0m:[93m14[0m - [91merror[0m[90m ts(1161): [0mUnterminated regular expression literal.
+
+[7m33[0m     .replace(/[、，,．。：:；;·—\-_/\]/g, "")
+[7m  [0m [91m             ~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+
+<--- Last few GCs --->
+
+[62923:0x94080c000]    80394 ms: Scavenge (interleaved) 4041.7 (4123.7) -> 4039.7 (4124.9) MB, pooled: 0 MB, 21.46 / 0.00 ms  (average mu = 0.462, current mu = 0.552) allocation failure; 
+[62923:0x94080c000]    81357 ms: Scavenge (interleaved) 4042.8 (4124.9) -> 4041.8 (4145.7) MB, pooled: 0 MB, 948.38 / 0.00 ms  (average mu = 0.462, current mu = 0.552) allocation failure; 
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x10067b750 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 2: 0x100857464 v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 3: 0x100a66a78 v8::internal::Heap::stack() [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 4: 0x100a64e18 v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 5: 0x100a5940c v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 6: 0x100a59c44 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 7: 0x100a3cf30 v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 8: 0x100e59390 v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+ 9: 0x10131ddf4 Builtins_CEntry_Return1_ArgvOnStack_NoBuiltinExit [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+10: 0x10c4b1074 
+11: 0x10ccec61c 
+12: 0x10bee997c 
+13: 0x10c4a77d8 
+14: 0x10c925d1c 
+15: 0x10c6ea490 
+16: 0x10bf386b0 
+17: 0x10ccd48dc 
+18: 0x10ca1d480 
+19: 0x10bf32ae4 
+20: 0x10cb8987c 
+21: 0x10cce0a60 
+22: 0x10bf8fd80 
+23: 0x10cce033c 
+24: 0x10beeeaac 
+25: 0x10bf38408 
+26: 0x10c188c58 
+27: 0x10c493868 
+28: 0x10c8671e8 
+29: 0x10bf1e278 
+30: 0x10c6e93ac 
+31: 0x10c4a7838 
+32: 0x10c925d1c 
+33: 0x10c6ea490 
+34: 0x10bf386b0 
+35: 0x10ccd48dc 
+36: 0x10ca1d480 
+37: 0x10bf32ae4 
+38: 0x10cb8987c 
+39: 0x10cce0a60 
+40: 0x10bf8fd80 
+41: 0x10cce033c 
+42: 0x10beeeaac 
+43: 0x10c314004 
+44: 0x10bf13924 
+45: 0x10bf383d0 
+46: 0x10c188c58 
+47: 0x10c493868 
+48: 0x10c8671e8 
+49: 0x10bf1e278 
+50: 0x10c6e93ac 
+51: 0x10c4a7838 
+52: 0x10c925d1c 
+53: 0x10c6ea490 
+54: 0x10bf386b0 
+55: 0x10ccd48dc 
+56: 0x10cb97044 
+57: 0x10ccd3700 
+58: 0x10c872da4 
+59: 0x10ccd36d0 
+60: 0x10c872da4 
+61: 0x10ccd36d0 
+62: 0x10c872da4 
+63: 0x10ccd36d0 
+64: 0x10c872da4 
+65: 0x10ccd36d0 
+66: 0x10c872da4 
+67: 0x10ccd36d0 
+68: 0x10c872da4 
+69: 0x10ccd36d0 
+70: 0x10c872da4 
+71: 0x10ccd36d0 
+72: 0x10c872da4 
+73: 0x10ccd36d0 
+74: 0x10c872da4 
+75: 0x10ccd36d0 
+76: 0x10c872da4 
+77: 0x10ccd36d0 
+78: 0x10c872da4 
+79: 0x10ccd36d0 
+80: 0x10c872da4 
+81: 0x10ccd36d0 
+82: 0x10c872da4 
+83: 0x10ccd36d0 
+84: 0x10c872da4 
+85: 0x10ccd36d0 
+86: 0x10c872da4 
+87: 0x10ccd36d0 
+88: 0x10c872da4 
+89: 0x10ccd36d0 
+90: 0x10c872da4 
+91: 0x10ccd36d0 
+92: 0x10c872da4 
+93: 0x10ccd36d0 
+94: 0x10c872cdc 
+95: 0x10ccd36d0 
+96: 0x10c872da4 
+97: 0x10ccd36d0 
+98: 0x10c872da4 
+99: 0x10ccd36d0 
+100: 0x10c872da4 
+101: 0x10ccd36d0 
+102: 0x10c872da4 
+103: 0x10ccd36d0 
+104: 0x10c872da4 
+105: 0x10ccd36d0 
+106: 0x10c872da4 
+107: 0x10ccd36d0 
+108: 0x10c872da4 
+109: 0x10ccd36d0 
+110: 0x10c872da4 
+111: 0x10ccd36d0 
+112: 0x10c872da4 
+113: 0x10ccd36d0 
+114: 0x10c872da4 
+115: 0x10ccd36d0 
+116: 0x10c872da4 
+117: 0x10ccd36d0 
+118: 0x10c872da4 
+119: 0x10ccd36d0 
+120: 0x10c872da4 
+121: 0x10ccd36d0 
+122: 0x10c872da4 
+123: 0x10ccd36d0 
+124: 0x10c872da4 
+125: 0x10ccd36d0 
+126: 0x10c872da4 
+127: 0x10ccd36d0 
+128: 0x10c872da4 
+129: 0x10ccd36d0 
+130: 0x10c872da4 
+131: 0x10ccd36d0 
+132: 0x10c872da4 
+133: 0x10ccd36d0 
+134: 0x10c872da4 
+135: 0x10ccd36d0 
+136: 0x10c872da4 
+137: 0x10ccd36d0 
+138: 0x10c872da4 
+139: 0x10ccd36d0 
+140: 0x10c872da4 
+141: 0x10ccd36d0 
+142: 0x10c872da4 
+143: 0x10ccd36d0 
+144: 0x10c872da4 
+145: 0x10ccd36d0 
+146: 0x10c872da4 
+147: 0x10ccd36d0 
+148: 0x10c872da4 
+149: 0x10ccd36d0 
+150: 0x10c872da4 
+151: 0x10ccd36d0 
+152: 0x10c872da4 
+153: 0x10ccd36d0 
+154: 0x10c872da4 
+155: 0x10ccd36d0 
+156: 0x10c872da4 
+157: 0x10cb986e0 
+158: 0x10bf13924 
+159: 0x10c873630 
+160: 0x10c925cec 
+161: 0x10c6ea490 
+162: 0x10c6eab44 
+163: 0x10bf386b0 
+164: 0x10beebab0 
+165: 0x10ca1d480 
+166: 0x10c297c34 
+167: 0x10bf8e328 
+168: 0x10be5b3bc 
+169: 0x10be5bc10 
+170: 0x10bf95920 
+171: 0x10134cb5c Builtins_ArrayMap [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+172: 0x10cbacc18 
+173: 0x10c76c5d8 
+174: 0x10c4ac4f4 
+175: 0x1012c5410 Builtins_AsyncFunctionAwaitResolveClosure [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+176: 0x101390f78 Builtins_PromiseFulfillReactionJob [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+177: 0x1012b56f4 Builtins_RunMicrotasks [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+178: 0x101286af4 Builtins_JSRunMicrotasksEntry [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+179: 0x1009be824 v8::internal::(anonymous namespace)::Invoke(v8::internal::Isolate*, v8::internal::(anonymous namespace)::InvokeParams const&) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+180: 0x1009bf0cc v8::internal::(anonymous namespace)::InvokeWithTryCatch(v8::internal::Isolate*, v8::internal::(anonymous namespace)::InvokeParams const&) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+181: 0x1009bf204 v8::internal::Execution::TryRunMicrotasks(v8::internal::Isolate*, v8::internal::MicrotaskQueue*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+182: 0x1009ec484 v8::internal::MicrotaskQueue::RunMicrotasks(v8::internal::Isolate*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+183: 0x1009ecc08 v8::internal::MicrotaskQueue::PerformCheckpoint(v8::Isolate*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+184: 0x10057a878 node::InternalCallbackScope::Close() [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+185: 0x10057a338 node::InternalCallbackScope::~InternalCallbackScope() [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+186: 0x100609c38 node::Environment::RunTimers(uv_timer_s*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+187: 0x101260c40 uv__run_timers [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+188: 0x101264680 uv_run [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+189: 0x10057b394 node::SpinEventLoopInternal(node::Environment*) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+190: 0x1006c5af4 node::NodeMainInstance::Run() [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+191: 0x1006368b8 node::Start(int, char**) [/Users/carlos/.local/share/fnm/node-versions/v22.23.2/installation/bin/node]
+192: 0x18aad44e4 start [/usr/lib/dyld]

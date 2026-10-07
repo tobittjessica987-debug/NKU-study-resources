@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "recordKind": "synthetic",
+  "outcome": "invalid_record",
+  "evidenceBoundary": "record_consistency_only",
+  "externalDeliveryVerified": false,
+  "productionDataRead": false,
+  "dataSent": false,
+  "failures": [
+    {
+      "field": "collection.artifact.sha256",
+      "code": "SHA256_REQUIRED"
+    },
+    {
+      "field": "collection.artifact",
+      "code": "UNRECORDED_TRANSFORMATION"
+    },
+    {
+      "field": "delivery.sha256",
+      "code": "DELIVERY_HASH_MISMATCH"
+    },
+    {
+      "field": "receipt.sha256",
+      "code": "RECEIPT_HASH_MISMATCH"
+    }
+  ]
+}

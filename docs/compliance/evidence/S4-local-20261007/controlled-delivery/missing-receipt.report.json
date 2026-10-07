@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "recordKind": "synthetic",
+  "outcome": "invalid_record",
+  "evidenceBoundary": "record_consistency_only",
+  "externalDeliveryVerified": false,
+  "productionDataRead": false,
+  "dataSent": false,
+  "failures": [
+    {
+      "field": "receipt.at",
+      "code": "TIMESTAMP_WITH_ZONE_REQUIRED"
+    },
+    {
+      "field": "receipt.at",
+      "code": "EVENT_ORDER_INVALID"
+    },
+    {
+      "field": "receipt.recipientAgentRef",
+      "code": "RECIPIENT_MISMATCH"
+    },
+    {
+      "field": "receipt.sha256",
+      "code": "RECEIPT_HASH_MISMATCH"
+    },
+    {
+      "field": "receipt.confirmationRef",
+      "code": "REFERENCE_REQUIRED"
+    },
+    {
+      "field": "archive.at",
+      "code": "EVENT_ORDER_INVALID"
+    }
+  ]
+}

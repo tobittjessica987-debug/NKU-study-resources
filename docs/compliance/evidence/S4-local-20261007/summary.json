@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-07T04:51:52.105603+00:00",
+  "stage": "S4",
+  "branch": "codex/s4-query-export-20261007",
+  "baseCommit": "4e665001c661de35a387d227cd5c68e5c024146a",
+  "status": "local implementation and scoped acceptance complete; production pending",
+  "runtime": "v22.23.2",
+  "checks": {
+    "fullSuite": {
+      "command": "TMPDIR=/private/tmp npm test",
+      "exitCode": 0,
+      "passed": 463,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "raw": "full-suite.tap",
+      "additionalAssertion": "Real HTTP attachment byte limit: 20000 records under row cap exceed 32 MiB; 413 without attachment/hash/complete or partial body."
+    },
+    "apiRegistry": {
+      "exitCode": 0,
+      "routes": 131,
+      "raw": "api-docs.log"
+    },
+    "fixtures": {
+      "exitCode": 0,
+      "raw": "fixtures.log"
+    },
+    "fixtureBuild": {
+      "exitCode": 0,
+      "pages": 14,
+      "raw": "fixture-build.log"
+    },
+    "types": {
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 npm run check",
+      "exitCode": 1,
+      "errors": 1665,
+      "warnings": 0,
+      "hints": 38,
+      "raw": "typecheck.log",
+      "initialDefaultHeapExit": 134,
+      "initialRaw": "typecheck-initial-oom.log",
+      "freshS3BaselineCompared": false
+    },
+    "independentAuditTests": {
+      "passed": 12,
+      "failed": 0,
+      "details": "independent-review.json"
+    },
+    "browser": {
+      "details": "ui-steps.json",
+      "diskDownloadVerified": false
+    },
+    "delivery": {
+      "details": "controlled-delivery/summary.json",
+      "cliDemo": "controlled-delivery-demo.json",
+      "recordConsistencyOnly": true,
+      "realRecipientConfirmation": false,
+      "sourceHashBoundary": "Agent delivery summary was sampled before the primary appended audit interpretation guidance; current source hashes and final documents are recorded separately."
+    }
+  },
+  "sourceSha256": {
+    "scripts/verify-controlled-delivery.mjs": "efa8b41c0e489181acf29a508fab5a1cc5f53e578db559bab492e8a5c7705fe2",
+    "server/admin-accounts-store.mjs": "ae337c61209a163e93dc2b94e374f2460a26c4e0dc1565f63447f8b8d1b65476",
+    "server/admin-audit.mjs": "e83713bb43b7be38a1e3355e675ee15f80ce5e7d9fc10e19540215e00432a30d",
+    "server/admin-route-permissions.mjs": "0e3fba620d490a6efad17a7d50e77041aefea33146336d4b9a10f52cc7d8545b",
+    "server/admin-server.mjs": "1d553ebf9b51ce12eaa77b264dc7ac4b52b9b32c39176ec573a18e1a2346012c",
+    "server/law-enforcement-store.mjs": "8895fb603e106c561241edf547a450c01c06342c0581f3a5d6b27dd8dcf463c1",
+    "server/law-query-service.mjs": "ffe8a981b68c8ed783ab0d3c5696fdf9441b6ed702cd50c8946f1a4fe153da65",
+    "server/user-security-log-store.mjs": "c3b7a466ed6ef8f26c52cbe169c4de8880b5fdd194f086d24ddae4de57acc95b",
+    "src/lib/law-query-controller.js": "3bd580d52d40aec7e5c99f7fecf7f56c950de11acdd1d3883a6527938842bd17",
+    "src/pages/admin.astro": "d12ab28b85a91b00046e47001b1ccf22fb91e135eb34e33f393ae5e34b2d822d",
+    "test/admin-route-permissions.test.mjs": "a932f02ce3921870a897fa20ff28629e7013d8c52cbc22e59b5581d7eb1e9532",
+    "test/controlled-delivery.test.mjs": "424a41800276fd0fb285a40a08daf18ca0f907f66aa75dadca2fd6e0e0416d7a",
+    "test/law-enforcement-store.test.mjs": "344a0924c843dd700c2ac7e0db2d9cd8a53b02505d6849a680458c468a71c92d",
+    "test/law-query-controller.test.mjs": "c735bc544e32ce3e98a1760ecc6ccf256d39255001b0a11fcc978f125bea792c",
+    "test/law-query-service.test.mjs": "c9afad365eae5cbce620a1b6fcd8b0ab3c1f568839267048d31f53c2bf978d1a",
+    "test/law-response-audit.test.mjs": "bdd25d5519357816431054a0a819c77164a9f127e02df56f1d01ee4bf4081225",
+    "test/s4-law-runtime.integration.test.mjs": "758c08b6ffc55c5cf4240ebed1bf412ebad0306a66baa5cfc0e1655296fb15df"
+  },
+  "sourceHashesCapturedAfterFinalSuite": true,
+  "productionDataRead": false,
+  "dataSent": false,
+  "productionDeployed": false,
+  "pushed": false,
+  "prChanged": false,
+  "pending": [
+    "S3 and S4 production acceptance",
+    "Browser file landing and actual private file permissions",
+    "Real entry-log window coverage and proxy topology",
+    "Actual organizational roster, channels and recipient acknowledgement",
+    "QA-21 type errors",
+    "D-01 / S5 retention decision",
+    "S6 remaining consistency and operations tasks"
+  ],
+  "evidenceSha256": {
+    "api-docs.log": "e8c32076a82c3cb118e35d82f5bdaef64b8dc319916e9920e37060d348db7990",
+    "controlled-delivery/complete.record.json": "78fab6a634ed9d3432b66cf53e890584e3514466b15950070f5e2dbe755ae3d3",
+    "controlled-delivery/complete.report.json": "13da04e8f39d0bdc4984ffbe4c47164e9a194715d78fe8d164cf649b0f2636e8",
+    "controlled-delivery/controlled-delivery.tap": "611680a2926380030b398781878d0a05478c0f416382a93a818f9e8d6554cb8f",
+    "controlled-delivery/cross-user.record.json": "d7f6d6064b9730676ac517c72ba9351bb88f4f797db72711c016c3d84fd76d64",
+    "controlled-delivery/cross-user.report.json": "87ff8cbcd21ab84271e864036541b1b0e6ab2f3fe4a479004c0a7a753db28ebf",
+    "controlled-delivery/documented-entry-filter.py": "288f05cbfa084de37205804f91de8de73172ef5b733c2bb94dc3544855ddf0b7",
+    "controlled-delivery/final-entry-excerpt.jsonl": "5075a7280735514e391d03880e7e9f0a8d13c4ad6cc4557134529e742fe233cd",
+    "controlled-delivery/missing-file-hash.record.json": "36318cf0ddc827d6302a5120141628def68c10bfac237f0acb6aa0a157c3ca00",
+    "controlled-delivery/missing-file-hash.report.json": "3c6717dc144d600693d75dc29d1ffbeac8de12253b5ff86dfa5be7947b8e5a34",
+    "controlled-delivery/missing-receipt.record.json": "5671992fa4ec5f3174dd9744cd67c80f1ef026c198f0f48425acec9f94ff106d",
+    "controlled-delivery/missing-receipt.report.json": "e12bd44662e9ac7804d854548e768f583c9ee77eb3a0c690e2fbbf7d60f369e8",
+    "controlled-delivery/scope-refusal.record.json": "fd0696977784dbf50c32daa3a1f85e3d46094c0a1a6ff2dd119c001bac4446e0",
+    "controlled-delivery/scope-refusal.report.json": "361e47e350b6855581747e00e720c2c572ad9f4f1988dd9a3ba08ec98e936169",
+    "controlled-delivery/summary.json": "c03087c2b45257d84adda9b74a454cbbb91fa57b4cd798a371ef7ab9043abf95",
+    "controlled-delivery/synthetic-artifact.json": "4e0d9e11f2308c54527fec228c1587c78c11cbd0f65ce6cce3063068946bb598",
+    "controlled-delivery/synthetic-entry-excerpt.jsonl": "5075a7280735514e391d03880e7e9f0a8d13c4ad6cc4557134529e742fe233cd",
+    "controlled-delivery/synthetic-entry-snapshot.jsonl.gz": "fbe726faccf300b46a8e5945518c6ebcabc23a59952c05f30d2c93c7b058692c",
+    "controlled-delivery/synthetic-invalid-entry.jsonl": "32b3c0023adeec129811b68db2e09ab0eac9c7c6849f384a1b377a8ac0145436",
+    "controlled-delivery/unverified-refusal.record.json": "cfb57864142f8f739a831873bd707f8f849262008b58194ea0c22bcaeb53aaa2",
+    "controlled-delivery/unverified-refusal.report.json": "361e47e350b6855581747e00e720c2c572ad9f4f1988dd9a3ba08ec98e936169",
+    "controlled-delivery-demo.json": "7fb970ab041410a7929a0556cfc411ae4e03b752ff3a39fedd733bf498040caa",
+    "fixture-build.log": "a5d7c84e14628161c60d87bb5eb925790b3b2e235a3cc8e2455589607d381c9c",
+    "fixtures.log": "ef818d1c731feb9e27e888d0a82cd794023241974898ddf921bf0c38f6d872d0",
+    "full-suite.tap": "3a80ff681d8abe2dc7125d169ce8268463588cccaa7cf333309b3d7043b2862d",
+    "independent-review.json": "dfee4d1e217829a3aa2df766c0f183e907adc966b4a88543cbd38c7f87193794",
+    "typecheck-initial-oom.log": "da6875c1d27d15b6cd3e3f2b5d5986d9107b1b4068bb071f7cbbdc591a592316",
+    "typecheck.log": "c85bb2a04dc00d4ecd4a30402c70cdc7dc43cad53d1d238c5da6d836b4775c8e",
+    "ui-controller.tap": "405a15db74fe90e0e24b31b5608d52344e84a59dcb68ffb562206828a325c2ce",
+    "ui-history.jpg": "2774059ad016fb6a1d75c27da4df40afda8bb683dac38b458a00d68c9dcd8932",
+    "ui-panel.jpg": "5f866a0f5157a808f83bc4a70b38f04e44f8875ea6d5218fc085746585848814",
+    "ui-steps.json": "08d66746f914b26c5214ccc62dd7555c0ea8b32e1f58abb359508532f7084bfe"
+  }
+}

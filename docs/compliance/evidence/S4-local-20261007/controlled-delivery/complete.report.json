@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "recordKind": "synthetic",
+  "outcome": "archived_delivery_record",
+  "evidenceBoundary": "record_consistency_only",
+  "externalDeliveryVerified": false,
+  "productionDataRead": false,
+  "dataSent": false,
+  "failures": []
+}

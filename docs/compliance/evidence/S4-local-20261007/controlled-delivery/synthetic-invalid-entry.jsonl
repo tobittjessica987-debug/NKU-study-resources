@@ -1,0 +1,2 @@
+{"ts": 1791338400.0, "status": 200, "user_agent": "Synthetic QA", "request": {"host": "synthetic.invalid", "method": "GET", "uri": "/start", "remote_ip": "198.51.100.23", "remote_port": 45000, "headers": {"Authorization": "SYNTHETIC_QUERY_HEADER_SECRET_NOT_IN_EXCERPT"}}, "resp_headers": {"X-Synthetic-Secret": "SYNTHETIC_QUERY_HEADER_SECRET_NOT_IN_EXCERPT"}, "source_port_kind": "direct_peer"}
+{invalid-json}

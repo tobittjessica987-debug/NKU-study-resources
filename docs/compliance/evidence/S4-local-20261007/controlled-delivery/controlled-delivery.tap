@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: synthetic archived delivery has a digest of the actual synthetic bytes and checks declarations only
+ok 1 - synthetic archived delivery has a digest of the actual synthetic bytes and checks declarations only
+  ---
+  duration_ms: 10.578083
+  type: 'test'
+  ...
+# Subtest: unverified and excessive requests can be archived as refusals without supplying data
+ok 2 - unverified and excessive requests can be archived as refusals without supplying data
+  ---
+  duration_ms: 0.573959
+  type: 'test'
+  ...
+# Subtest: approval requires verification of the unit, document, agent and basis
+ok 3 - approval requires verification of the unit, document, agent and basis
+  ---
+  duration_ms: 1.68875
+  type: 'test'
+  ...
+# Subtest: approved and collected scope cannot exceed exact time, site, selector, fields or sources
+ok 4 - approved and collected scope cannot exceed exact time, site, selector, fields or sources
+  ---
+  duration_ms: 2.030792
+  type: 'test'
+  ...
+# Subtest: removing a promised time filter is broader scope even when the range strings stay the same
+ok 5 - removing a promised time filter is broader scope even when the range strings stay the same
+  ---
+  duration_ms: 0.320041
+  type: 'test'
+  ...
+# Subtest: missing or mismatched file hashes and missing reception confirmation fail
+ok 6 - missing or mismatched file hashes and missing reception confirmation fail
+  ---
+  duration_ms: 2.315417
+  type: 'test'
+  ...
+# Subtest: truncation, missing rows or known gaps cannot be called complete
+ok 7 - truncation, missing rows or known gaps cannot be called complete
+  ---
+  duration_ms: 0.881417
+  type: 'test'
+  ...
+# Subtest: partial delivery preserves the gap and requires a recorded review before delivery
+ok 8 - partial delivery preserves the gap and requires a recorded review before delivery
+  ---
+  duration_ms: 0.634
+  type: 'test'
+  ...
+# Subtest: recipient, chronology, credentials and restricted archive remain required
+ok 9 - recipient, chronology, credentials and restricted archive remain required
+  ---
+  duration_ms: 1.075084
+  type: 'test'
+  ...
+# Subtest: invalid dates, unzoned times, duplicate selectors and unknown schemas fail without throwing
+ok 10 - invalid dates, unzoned times, duplicate selectors and unknown schemas fail without throwing
+  ---
+  duration_ms: 0.747209
+  type: 'test'
+  ...
+# Subtest: offline checks do not read application paths, write files or request network transport
+ok 11 - offline checks do not read application paths, write files or request network transport
+  ---
+  duration_ms: 0.500959
+  type: 'test'
+  ...
+# Subtest: CLI checks only its explicit register and never echoes private input, paths or parsing errors
+ok 12 - CLI checks only its explicit register and never echoes private input, paths or parsing errors
+  ---
+  duration_ms: 139.58075
+  type: 'test'
+  ...
+# Subtest: CLI provides fixed synthetic examples, an offline tabletop result and clear exits
+ok 13 - CLI provides fixed synthetic examples, an offline tabletop result and clear exits
+  ---
+  duration_ms: 202.379125
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 406.786167
