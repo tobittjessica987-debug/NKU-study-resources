@@ -4,13 +4,16 @@
   "date": "2026-10-07",
   "branch": "codex/s5-account-lifecycle-20261007",
   "baseCommit": "1b9b06986595b6467be8a352b6f18df3bf21aa8f",
-  "status": "in_progress_common_foundation_verified_policy_decision_required",
+  "status": "in_progress_retain_published_policy_confirmed",
   "authorization": "C-16",
   "policyDecision": {
     "id": "D-01",
-    "status": "awaiting_user_answer",
+    "status": "confirmed_by_user",
     "question": "Retain already-public reviews/ordinary feedback without account identity, or withdraw this user's business content?",
-    "inferredFromS3": false
+    "inferredFromS3": false,
+    "mode": "retain-published",
+    "policyVersion": "s5-retain-published-v1",
+    "decision": "User explicitly retains content and clears account identity and associations after voluntary deletion."
   },
   "subagents": {
     "model": "gpt-6.1-sol",
@@ -42,7 +45,7 @@
     "productionActions": false
   },
   "remaining": [
-    "D-01 plus private complaint/payment/retention classification",
+    "Implement classified actions and disclose restricted evidence/backup exceptions",
     "durable deletion coordinator and intent admission",
     "JSON associations/reactions/content policy/drafts/publication/cache",
     "known post-updater pre-rename write window",
@@ -52,7 +55,6 @@
     "default and stored privacy copy plus browser and deployment acceptance"
   ],
   "next": [
-    "User chooses D-01",
     "Record full data action table and explicit exceptions",
     "Implement coordinator/content and restore in parallel with UI/copy",
     "Independent failures/restart/backup-after-deletion end-to-end acceptance",
