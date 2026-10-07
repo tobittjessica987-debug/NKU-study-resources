@@ -108,6 +108,7 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { createOwnerListController, requestUserJson } from "../lib/user-submissions-controller.js";
+  import { createAccountDeletionController } from "../lib/account-deletion-controller.js";
 
   type FavoriteItem = { name: string; term?: string; resource_count?: number };
   type ReviewItem = { course_title: string; teacher_name: string; body: string; status: string; publicationState?: string; hidden?: boolean; created_at: string };
@@ -263,14 +264,14 @@ import Layout from "../layouts/Layout.astro";
             <details>
               <summary class="me-summary" style="color:#dc2626;">注销账号</summary>
               <form class="review-form" style="max-width:420px;padding-top:6px;">
-                <p class="field-hint" style="margin:0;">注销将删除登录方式与收藏，已发布的评价和反馈内容会保留但解除关联。此操作不可撤销。</p>
+                <p class="field-hint" style="margin:0;">请先查看<a href="/privacy/">当前注销说明</a>；提交后按服务端结果显示。</p>
                 <label class="admin-field">
                   <span>请输入「注销」以确认</span>
                   <input id="del-confirm" type="text" placeholder="注销" autocomplete="off" />
                 </label>
                 <div class="filter-row" style="border-left:none;background:none;padding:0;">
                   <button type="button" class="button me-danger" id="del-btn" disabled>永久注销账号</button>
-                  <span class="me-status" id="del-status"></span>
+                  <span class="me-status" id="del-status" role="status" aria-live="polite"></span>
                 </div>
               </form>
             </details>
@@ -318,18 +319,23 @@ import Layout from "../layouts/Layout.astro";
     });
 
     // —— 注销（输入「注销」双重确认）——
-    document.querySelector("#del-confirm")?.addEventListener("input", (e) => {
-      document.querySelector("#del-btn").disabled = e.target.value.trim() !== "注销";
+    const deletionInput = document.querySelector<HTMLInputElement>("#del-confirm")!;
+    const deletionButton = document.querySelector<HTMLButtonElement>("#del-btn")!;
+    const deletionStatus = document.querySelector<HTMLElement>("#del-status")!;
+    const deletionController = createAccountDeletionController({
+      onState(state) {
+        const locked = state.phase === "submitting" || state.phase === "succeeded";
+        deletionInput.disabled = locked;
+        deletionButton.disabled = !state.canSubmit;
+        deletionButton.setAttribute("aria-busy", String(state.phase === "submitting"));
+        deletionStatus.className = `me-status${state.phase === "unconfirmed" ? " err" : state.phase === "succeeded" ? " ok" : ""}`;
+        deletionStatus.textContent = state.message;
+      },
+      onDeleted: () => { location.href = "/"; },
     });
-    document.querySelector("#del-btn")?.addEventListener("click", async () => {
-      const status = document.querySelector("#del-status");
-      if (!confirm("最后确认：真的要永久注销账号吗？此操作不可撤销。")) return;
-      status.className = "me-status"; status.textContent = "处理中…";
-      try {
-        await api("/me/delete-account", { method: "POST", body: "{}" });
-        location.href = "/";
-      } catch (e) { status.classList.add("err"); status.textContent = e.message; }
-    });
+    deletionInput.closest("form")?.addEventListener("submit", (event) => { event.preventDefault(); });
+    deletionInput.addEventListener("input", () => deletionController.setConfirmation(deletionInput.value));
+    deletionButton.addEventListener("click", () => { void deletionController.submit(); });
 
     // —— 列表加载 ——
     function mountList<T>({ prefix, path, unit, empty, renderItem }: { prefix: string; path: string; unit: string; empty: string; renderItem: (item: T) => string }) {

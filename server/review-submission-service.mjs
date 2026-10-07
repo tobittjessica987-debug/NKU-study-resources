@@ -37,6 +37,7 @@ export class ReviewSubmissionService {
     createId = () => `review-${Date.now()}-${randomBytes(4).toString("hex")}`,
     validateCourseTitle = null,
     validateTeacher = null,
+    assertActiveUser = null,
   } = {}) {
     if (!store || !reviewsPath || !readReviews || !consumeAttempt || !consumeSubmission || !actorHash) {
       throw new Error("ReviewSubmissionService dependencies are required.");
@@ -44,6 +45,7 @@ export class ReviewSubmissionService {
     this.store = store;
     this.validateCourseTitle = validateCourseTitle;
     this.validateTeacher = validateTeacher;
+    this.assertActiveUser = assertActiveUser;
     this.reviewsPath = reviewsPath;
     this.readReviews = readReviews;
     this.consumeAttempt = consumeAttempt;
@@ -64,7 +66,7 @@ export class ReviewSubmissionService {
    * 有帮助反应：同一用户对同一条评价只能有一个有效标记，再次调用传 null 取消。
    * 只支持 up（无帮助已下线），写入 helpfulCount / helpfulBy（内部字段，不进公开 DTO）。
    */
-  async reactHelpful(reviewId, userId, reaction) {
+  async reactHelpful(reviewId, userId, reaction, { authorize = null } = {}) {
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new PublicApiError(401, "登录后才能标记有帮助。", "AUTH_REQUIRED");
     if (reaction !== "up" && reaction !== null) {
       throw new PublicApiError(400, "仅支持「有帮助」反应。", "UNSUPPORTED_REACTION");
@@ -73,6 +75,8 @@ export class ReviewSubmissionService {
     const shouldMark = reaction === "up";
     let outcome = null;
     await this.store.update(this.reviewsPath, (current) => {
+      authorize?.();
+      this.assertActiveUser?.(userId);
       current.reviews = Array.isArray(current.reviews) ? current.reviews : [];
       const review = current.reviews.find((item) => cleanText(item.id, 160) === id);
       if (!review || !isReviewPublicEligible(review)) return current;
@@ -100,7 +104,7 @@ export class ReviewSubmissionService {
     return "课程与教师名称可直接填写，不存在时会自动创建新的评价条目。";
   }
 
-  async submit(input, { clientIp, userAgent, userId = null } = {}) {
+  async submit(input, { clientIp, userAgent, userId = null, authorize = null } = {}) {
     const data = this.readReviews();
     const rules = data.rules || {};
     if (!rules.submissionOpen) {
@@ -118,6 +122,8 @@ export class ReviewSubmissionService {
     }
     let review;
     await this.store.update(this.reviewsPath, (persisted) => {
+      authorize?.();
+      if (Number.isSafeInteger(userId) && userId > 0) this.assertActiveUser?.(userId);
       const now = this.nowIso();
       const current = normalizeReviewsDocument(persisted, { nowIso: now });
       // Settings may have changed while this request awaited the file lock. Validation,

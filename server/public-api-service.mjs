@@ -461,8 +461,8 @@ export class PublicApiService {
     return publicReviewGroupDto(group, { includeReviews: true });
   }
 
-  async reactReviewHelpful(reviewId, reaction, userId) {
-    const result = await this.reviewSubmissionService.reactHelpful(reviewId, userId, reaction);
+  async reactReviewHelpful(reviewId, reaction, userId, options = {}) {
+    const result = await this.reviewSubmissionService.reactHelpful(reviewId, userId, reaction, options);
     if (!result) throw new PublicApiError(404, "评价不存在。", "REVIEW_NOT_FOUND");
     return result;
   }

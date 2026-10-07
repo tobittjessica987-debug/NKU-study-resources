@@ -215,6 +215,7 @@ const reviewSubmissionService = new ReviewSubmissionService({
   consumeAttempt: (ip) => consumeLayeredAttempt("review-attempt", ip, { perIp: 30, global: 1_000 }),
   consumeSubmission: checkReviewRate,
   actorHash: ipHash,
+  assertActiveUser: (userId) => mpAuthService.assertActiveUser(userId),
   nowIso,
   today,
   validateCourseTitle: (courseTitle) => {
@@ -263,6 +264,7 @@ const mpAuthService = new MpAuthService({
 const lawQueryService = createLawQueryService({ db: mpAuthService.db, readReviews, readFeedback, securityLogStore, accountsStore });
 const mpFavoritesService = new MpFavoritesService({
   dbPath: runtime.stateDbPath,
+  assertActiveUser: (userId) => mpAuthService.assertActiveUser(userId),
   readManifest: () => cleanManifestResources(jsonStore.readSync(manifestPath)),
 });
 const learningCompassService = createDefaultLearningCompassService();
@@ -1757,7 +1759,8 @@ async function handleReviewSubmit(req, res) {
   reviewSubmissionService.assertAttempt(ip);
   const ugcUser = requirePhoneVerifiedUgcUser(req, res, ip);
   if (!ugcUser) return;
-  const result = await reviewSubmissionService.submit(await readPublicBody(req), { clientIp: ip, userAgent: req.headers["user-agent"], userId: ugcUser.id });
+  const result = await reviewSubmissionService.submit(await readPublicBody(req), { clientIp: ip, userAgent: req.headers["user-agent"], userId: ugcUser.id,
+    authorize: () => requirePhoneVerifiedUser(mpAuthService, req) });
   Object.assign(req.__userEvent, { userId: ugcUser.id, targetId: result?.reviewId || "",
     result: result?.reviewId ? (result.pending ? "pending" : "ok") : "ignored",
     code: result?.reviewId ? "OK" : "SUBMISSION_NOT_STORED" });

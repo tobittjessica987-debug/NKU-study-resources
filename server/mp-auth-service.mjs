@@ -9,6 +9,7 @@ const DEFAULT_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session";
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const NICKNAME_MAX = 32;
 const AVATAR_MAX = 500;
+const DELETED_NICKNAME_PATTERN = /^已注销用户_[A-Za-z0-9_-]{16}$/;
 
 function positiveSafeInteger(value, label) {
   const number = Number(value);
@@ -76,6 +77,7 @@ export class MpAuthService {
     fetchImpl = globalThis.fetch,
     tokenTtlMs = TOKEN_TTL_MS,
     now = Date.now,
+    isDeletionPending = () => false,
   } = {}) {
     if (!dbPath) throw new Error("MpAuthService requires dbPath.");
     this.dbPath = path.resolve(dbPath);
@@ -85,6 +87,8 @@ export class MpAuthService {
     this.fetchImpl = fetchImpl;
     this.tokenTtlMs = positiveSafeInteger(tokenTtlMs, "tokenTtlMs");
     this.now = now;
+    if (typeof isDeletionPending !== "function") throw new Error("isDeletionPending must be a function.");
+    this.isDeletionPending = isDeletionPending;
     const directory = path.dirname(this.dbPath);
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new Database(this.dbPath);
@@ -125,6 +129,7 @@ export class MpAuthService {
     if (!userColumns.includes("email")) this.db.exec("ALTER TABLE mp_users ADD COLUMN email TEXT NOT NULL DEFAULT ''");
     if (!userColumns.includes("phone")) this.db.exec("ALTER TABLE mp_users ADD COLUMN phone TEXT NOT NULL DEFAULT ''");
     if (!userColumns.includes("phone_verified_at")) this.db.exec("ALTER TABLE mp_users ADD COLUMN phone_verified_at INTEGER");
+    if (!userColumns.includes("deleted_at")) this.db.exec("ALTER TABLE mp_users ADD COLUMN deleted_at INTEGER");
     this.insertUser = this.db.prepare("INSERT INTO mp_users(openid, created_at) VALUES (?, ?)");
     this.selectUserByOpenid = this.db.prepare("SELECT * FROM mp_users WHERE openid = ?");
     this.selectUserById = this.db.prepare("SELECT * FROM mp_users WHERE id = ?");
@@ -187,6 +192,18 @@ export class MpAuthService {
     return Boolean(this.appid && this.secret);
   }
 
+  /** Internal lifecycle boundary. A durable deletion intent disables the account
+   * even if a later cleanup step has not yet written deleted_at. */
+  assertActiveUser(userId) {
+    const account = this.selectUserById.get(Number(userId));
+    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
+    if (account.deleted_at != null || this.isDeletionPending(account.id)) {
+      throw Object.assign(new PublicApiError(401, "该账号已注销或正在注销。", "AUTH_ACCOUNT_DELETED"), { userId: account.id });
+    }
+    if (account.blocked) throw Object.assign(new PublicApiError(403, "该账号已被封禁。", "AUTH_USER_BLOCKED"), { userId: account.id });
+    return account;
+  }
+
   async #exchangeCode(code) {
     const params = new URLSearchParams({
       appid: this.appid,
@@ -232,31 +249,37 @@ export class MpAuthService {
     const { openid } = await this.#exchangeCode(code);
     const timestamp = positiveSafeInteger(now, "now");
     const existingRow = this.selectUserByOpenid.get(openid);
-    if (existingRow?.blocked) {
-      throw Object.assign(new PublicApiError(403, "该账号已被封禁，如有疑问请联系管理员。", "AUTH_USER_BLOCKED"), { userId: existingRow.id });
-    }
+    if (existingRow) this.assertActiveUser(existingRow.id);
     if (!existingRow) {
-      const created = this.db.transaction(() => {
+      return this.db.transaction(() => {
         const result = this.insertUser.run(openid, timestamp);
         const row = this.selectUserById.get(result.lastInsertRowid);
         this.markLogin.run(timestamp, row.id);
-        return row;
-      })();
-      return { ...this.#issueToken(this.selectUserById.get(created.id), timestamp), registered: true };
+        return { ...this.#issueToken(row, timestamp), registered: true };
+      }).immediate();
     }
-    const user = this.db.transaction(() => {
+    return this.db.transaction(() => {
+      this.assertActiveUser(existingRow.id);
       this.markLogin.run(timestamp, existingRow.id);
-      return this.selectUserById.get(existingRow.id);
-    })();
-    return this.#issueToken(user, timestamp);
+      return this.#issueToken(existingRow, timestamp);
+    }).immediate();
   }
 
   #issueToken(user, timestamp) {
-    this.removeExpiredTokens.run(timestamp);
-    const token = randomBytes(32).toString("base64url");
-    this.insertToken.run(tokenHash(token), user.id, timestamp, timestamp, timestamp + this.tokenTtlMs);
+    const result = this.db.transaction(() => {
+      const current = this.assertActiveUser(user.id);
+      // Legacy cleared rows have no reliable deletion marker. Never turn such a
+      // credentialless row into a session, and never infer deletion from a nickname.
+      if (!current.openid && !current.web_password_hash) {
+        throw Object.assign(new PublicApiError(401, "该账号没有可用的登录方式。", "AUTH_ACCOUNT_INACTIVE"), { userId: current.id });
+      }
+      this.removeExpiredTokens.run(timestamp);
+      const token = randomBytes(32).toString("base64url");
+      this.insertToken.run(tokenHash(token), current.id, timestamp, timestamp, timestamp + this.tokenTtlMs);
+      return { token, expires_in: Math.floor(this.tokenTtlMs / 1000), user: publicUser(current) };
+    }).immediate();
     this.#secureDatabaseFiles();
-    return { token, expires_in: Math.floor(this.tokenTtlMs / 1000), user: publicUser(user) };
+    return result;
   }
 
   webRegister({ nickname, password, email = "" }, { now = this.now() } = {}) {
@@ -281,18 +304,18 @@ export class MpAuthService {
 
   /** 网页扫码登录：为扫码确认的既有用户（小程序身份）签发网页会话令牌。 */
   issueSessionForUser(userId, { now = this.now() } = {}) {
-    const row = this.selectUserById.get(Number(userId));
-    if (!row) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
-    if (row.blocked) throw new PublicApiError(403, "该账号已被封禁，如有疑问请联系管理员。", "AUTH_USER_BLOCKED");
     const timestamp = positiveSafeInteger(now, "now");
-    this.markLogin.run(timestamp, row.id);
-    return this.#issueToken(this.selectUserById.get(row.id), timestamp);
+    return this.db.transaction(() => {
+      const row = this.assertActiveUser(userId);
+      this.markLogin.run(timestamp, row.id);
+      return this.#issueToken(row, timestamp);
+    }).immediate();
   }
 
   /** 供微信支付等内部流程取用户 openid；不进入任何公共 DTO。 */
   getOpenid(userId) {
-    const row = this.selectUserById.get(Number(userId));
-    return row?.openid || null;
+    const row = this.assertActiveUser(userId);
+    return row.openid || null;
   }
 
   webLogin({ nickname, password }, { now = this.now() } = {}) {
@@ -305,20 +328,20 @@ export class MpAuthService {
     if (!verifyWebPassword(String(password ?? ""), row.web_password_hash)) {
       throw Object.assign(new PublicApiError(401, "昵称或密码不正确。", "AUTH_INVALID_CREDENTIALS"), { userId: row?.id });
     }
-    if (row.blocked) {
-      throw Object.assign(new PublicApiError(403, "该账号已被封禁，如有疑问请联系管理员。", "AUTH_USER_BLOCKED"), { userId: row.id });
-    }
+    this.assertActiveUser(row.id);
     const timestamp = positiveSafeInteger(now, "now");
-    this.markLogin.run(timestamp, row.id);
-    return this.#issueToken(this.selectUserById.get(row.id), timestamp);
+    return this.db.transaction(() => {
+      this.assertActiveUser(row.id);
+      this.markLogin.run(timestamp, row.id);
+      return this.#issueToken(row, timestamp);
+    }).immediate();
   }
 
   /**
    * 修改网页密码：必须先验证当前密码，避免持有会话者无凭据接管账号。
    */
   changeWebPassword(userId, { currentPassword, newPassword } = {}) {
-    const account = this.selectUserById.get(Number(userId));
-    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
+    const account = this.assertActiveUser(userId);
     if (!account.web_password_hash) {
       throw new PublicApiError(400, "该账号尚未设置网页密码，请先在“设置网页登录密码”中创建。", "WEB_PASSWORD_NOT_SET");
     }
@@ -326,59 +349,85 @@ export class MpAuthService {
       throw new PublicApiError(401, "当前密码不正确。", "AUTH_INVALID_CREDENTIALS");
     }
     const secret = validateWebPassword(newPassword);
-    this.updateWebPassword.run(hashWebPassword(secret), account.id);
+    const hash = hashWebPassword(secret);
+    this.db.transaction(() => {
+      this.assertActiveUser(account.id);
+      this.updateWebPassword.run(hash, account.id);
+    }).immediate();
     this.#secureDatabaseFiles();
     return true;
   }
 
-  deleteAccount(userId) {
-    const account = this.selectUserById.get(Number(userId));
-    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
-    // 删除所有会话 token
-    this.db.prepare("DELETE FROM mp_auth_tokens WHERE user_id = ?").run(account.id);
-    // 清除绑定信息（保留评价/反馈内容，解除关联）
-    this.db.prepare("UPDATE mp_users SET openid = NULL, web_password_hash = NULL, nickname = nickname || '_已注销', avatar_url = '', email = '' WHERE id = ?").run(account.id);
+  /** The coordinator must persist its deletion intent before invoking cleanup.
+   * All identity state and same-database favorites commit or roll back together. */
+  deleteAccount(userId, { now = this.now() } = {}) {
+    const timestamp = positiveSafeInteger(now, "now");
+    this.db.transaction(() => {
+      const account = this.selectUserById.get(Number(userId));
+      if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
+      let deletedNickname = account.deleted_at != null && DELETED_NICKNAME_PATTERN.test(account.nickname) ? account.nickname : null;
+      if (!deletedNickname) {
+        // Retain legacy unique nickname indexes while removing the original name.
+        // A committed placeholder is reused by subsequent cleanup/recovery calls.
+        do {
+          deletedNickname = `已注销用户_${randomBytes(12).toString("base64url")}`;
+        } while (this.db.prepare("SELECT 1 FROM mp_users WHERE nickname = ? COLLATE NOCASE AND id <> ?").get(deletedNickname, account.id));
+      }
+      if (account.deleted_at == null || account.openid != null || account.web_password_hash != null
+        || account.phone || account.phone_verified_at != null || account.nickname !== deletedNickname || account.avatar_url || account.email) {
+        this.db.prepare("UPDATE mp_users SET deleted_at = COALESCE(deleted_at, ?), openid = NULL, web_password_hash = NULL, phone = '', phone_verified_at = NULL, nickname = ?, avatar_url = '', email = '' WHERE id = ?").run(timestamp, deletedNickname, account.id);
+      }
+      this.db.prepare("DELETE FROM mp_auth_tokens WHERE user_id = ?").run(account.id);
+      if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'mp_favorites'").get()) {
+        this.db.prepare("DELETE FROM mp_favorites WHERE user_id = ?").run(account.id);
+      }
+    }).immediate();
     this.#secureDatabaseFiles();
     return true;
   }
 
   setWebPassword(userId, password) {
-    const account = this.selectUserById.get(Number(userId));
-    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
+    const account = this.assertActiveUser(userId);
     const secret = validateWebPassword(password);
-    this.updateWebPassword.run(hashWebPassword(secret), account.id);
+    const hash = hashWebPassword(secret);
+    this.db.transaction(() => {
+      this.assertActiveUser(account.id);
+      this.updateWebPassword.run(hash, account.id);
+    }).immediate();
     this.#secureDatabaseFiles();
     return true;
   }
 
   /** 手机号实名验证（公安评估）：记录手机号与验证时间，供 UGC 门禁与依法调取。 */
   setVerifiedPhone(userId, phone, { now = this.now() } = {}) {
-    const account = this.selectUserById.get(Number(userId));
-    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
-    if (account.blocked) throw Object.assign(new PublicApiError(403, "该账号已被封禁。", "AUTH_USER_BLOCKED"), { userId: account.id });
     if (typeof phone !== "string" || !/^\+?[0-9]{7,15}$/.test(phone)) throw new PublicApiError(502, "手机号验证结果无效。", "PHONE_VERIFY_FAILED");
-    this.db.prepare("UPDATE mp_users SET phone = ?, phone_verified_at = ? WHERE id = ?").run(String(phone).slice(0, 20), Number(now), account.id);
-    return this.selectUserById.get(account.id);
+    return this.db.transaction(() => {
+      const account = this.assertActiveUser(userId);
+      this.db.prepare("UPDATE mp_users SET phone = ?, phone_verified_at = ? WHERE id = ?").run(String(phone).slice(0, 20), Number(now), account.id);
+      return this.selectUserById.get(account.id);
+    }).immediate();
   }
 
   isPhoneVerified(userId) {
     const account = this.selectUserById.get(Number(userId));
-    return Boolean(account?.phone_verified_at);
+    return Boolean(account && !account.blocked && account.deleted_at == null && !this.isDeletionPending(account.id) && account.phone_verified_at);
   }
 
   findByPhone(phone) {
-    return this.selectByPhone.get(String(phone).slice(0, 20)) || null;
+    return this.selectByPhone.all(String(phone).slice(0, 20)).find((account) => !account.blocked && account.deleted_at == null && !this.isDeletionPending(account.id)) || null;
   }
 
   bindOpenidToUser(userId, openid) {
-    const account = this.selectUserById.get(Number(userId));
-    if (!account) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
-    if (account.openid) throw new PublicApiError(409, "该账号已绑定微信，无法重复绑定。", "ALREADY_BOUND");
-    const existing = this.selectUserByOpenid.get(openid);
-    if (existing) throw new PublicApiError(409, "该微信已绑定其他账号。", "OPENID_TAKEN");
-    this.bindOpenid.run(openid, account.id);
+    const result = this.db.transaction(() => {
+      const account = this.assertActiveUser(userId);
+      if (account.openid) throw new PublicApiError(409, "该账号已绑定微信，无法重复绑定。", "ALREADY_BOUND");
+      const existing = this.selectUserByOpenid.get(openid);
+      if (existing) throw new PublicApiError(409, "该微信已绑定其他账号。", "OPENID_TAKEN");
+      this.bindOpenid.run(openid, account.id);
+      return this.selectUserById.get(account.id);
+    }).immediate();
     this.#secureDatabaseFiles();
-    return this.selectUserById.get(account.id);
+    return result;
   }
 
   verifyToken(authorizationHeader, { now = this.now() } = {}) {
@@ -389,7 +438,7 @@ export class MpAuthService {
     const row = this.selectToken.get(tokenHash(match[1]));
     if (!row || row.expires_at <= timestamp) return null;
     const user = this.selectUserById.get(row.user_id);
-    if (!user || user.blocked) return null;
+    if (!user || user.blocked || user.deleted_at != null || this.isDeletionPending(user.id)) return null;
     this.touchToken.run(timestamp, row.token_hash);
     return user;
   }
@@ -408,6 +457,7 @@ export class MpAuthService {
     if (row.expires_at <= timestamp) return { active: false, reason: "expired", expires_at: row.expires_at };
     const user = this.selectUserById.get(row.user_id);
     if (!user) return { active: false, reason: "deleted", expires_at: row.expires_at };
+    if (user.deleted_at != null || this.isDeletionPending(user.id)) return { active: false, reason: "deleted", user_id: user.id, expires_at: row.expires_at };
     return {
       active: user.blocked !== 1,
       ...(user.blocked === 1 ? { reason: "blocked" } : {}),
@@ -423,7 +473,8 @@ export class MpAuthService {
     const ids = [...new Set((Array.isArray(userIds) ? userIds : []).map((value) => Number(value)).filter((value) => Number.isSafeInteger(value) && value > 0))].slice(0, 100);
     return ids.map((id) => {
       const user = this.selectUserById.get(id);
-      return { user_id: id, exists: Boolean(user), blocked: user ? user.blocked === 1 : false };
+      const activeAccount = Boolean(user && user.deleted_at == null && !this.isDeletionPending(user.id));
+      return { user_id: id, exists: activeAccount, blocked: activeAccount ? user.blocked === 1 : false };
     });
   }
 
@@ -447,11 +498,15 @@ export class MpAuthService {
   }
 
   updateProfile(user, { nickname, avatarUrl } = {}) {
-    const nextNickname = nickname === undefined ? user.nickname : cleanNickname(nickname);
-    const nextAvatar = avatarUrl === undefined ? user.avatar_url : cleanAvatar(avatarUrl);
-    this.updateProfileStmt.run(nextNickname, nextAvatar, user.id);
+    const result = this.db.transaction(() => {
+      const account = this.assertActiveUser(user.id);
+      const nextNickname = nickname === undefined ? account.nickname : cleanNickname(nickname);
+      const nextAvatar = avatarUrl === undefined ? account.avatar_url : cleanAvatar(avatarUrl);
+      this.updateProfileStmt.run(nextNickname, nextAvatar, account.id);
+      return publicUser(this.selectUserById.get(account.id));
+    }).immediate();
     this.#secureDatabaseFiles();
-    return publicUser(this.selectUserById.get(user.id));
+    return result;
   }
 
   revoke(authorizationHeader) {

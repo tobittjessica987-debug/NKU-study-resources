@@ -10,12 +10,14 @@ function positiveSafeInteger(value, label) {
 }
 
 export class MpFavoritesService {
-  constructor({ dbPath, readManifest, now = Date.now } = {}) {
+  constructor({ dbPath, readManifest, now = Date.now, assertActiveUser = null } = {}) {
     if (!dbPath) throw new Error("MpFavoritesService requires dbPath.");
     if (typeof readManifest !== "function") throw new Error("MpFavoritesService requires readManifest.");
     this.dbPath = path.resolve(dbPath);
     this.readManifest = readManifest;
     this.now = now;
+    if (assertActiveUser !== null && typeof assertActiveUser !== "function") throw new Error("assertActiveUser must be a function.");
+    this.assertActiveUser = assertActiveUser;
     const directory = path.dirname(this.dbPath);
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new Database(this.dbPath);
@@ -61,6 +63,17 @@ export class MpFavoritesService {
     return JSON.stringify((manifest.courses || []).map((course) => this.#canonicalId(course)).filter(Boolean));
   }
 
+  #requireActiveUser(userId) {
+    if (this.assertActiveUser) return this.assertActiveUser(userId);
+    // Standalone favorites fixtures have no account table. In the shared app DB,
+    // always inspect durable account state instead of trusting a cached user object.
+    if (!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'mp_users'").get()) return;
+    const row = this.db.prepare("SELECT * FROM mp_users WHERE id = ?").get(Number(userId));
+    if (!row) throw new PublicApiError(404, "账号不存在。", "USER_NOT_FOUND");
+    if (row.deleted_at != null) throw new PublicApiError(401, "该账号已注销。", "AUTH_ACCOUNT_DELETED");
+    if (row.blocked) throw new PublicApiError(403, "该账号已被封禁。", "AUTH_USER_BLOCKED");
+  }
+
   add(user, courseId, { now = this.now() } = {}) {
     const manifest = this.readManifest() || {};
     const course = this.#resolveCourse(courseId, manifest);
@@ -69,23 +82,33 @@ export class MpFavoritesService {
       throw new PublicApiError(404, "课程不存在。", "COURSE_NOT_FOUND");
     }
     const id = this.#canonicalId(course);
-    const inserted = this.insertFavorite.run(user.id, id, positiveSafeInteger(now, "now")).changes > 0;
-    return { favorited: true, created: inserted, total: Number(this.countFavorites.get(user.id).count) };
+    return this.db.transaction(() => {
+      this.#requireActiveUser(user.id);
+      const inserted = this.insertFavorite.run(user.id, id, positiveSafeInteger(now, "now")).changes > 0;
+      return { favorited: true, created: inserted, total: Number(this.countFavorites.get(user.id).count) };
+    }).immediate();
   }
 
   remove(user, courseId) {
     const manifest = this.readManifest() || {};
     const course = this.#resolveCourse(courseId, manifest);
     const id = course ? this.#canonicalId(course) : String(courseId ?? "");
-    const removed = this.removeFavorite.run(user.id, id).changes > 0 || (!course && this.removeFavorite.run(user.id, String(courseId ?? "")).changes > 0);
-    return { favorited: false, removed, total: Number(this.countFavorites.get(user.id).count) };
+    return this.db.transaction(() => {
+      this.#requireActiveUser(user.id);
+      const removed = this.removeFavorite.run(user.id, id).changes > 0 || (!course && this.removeFavorite.run(user.id, String(courseId ?? "")).changes > 0);
+      return { favorited: false, removed, total: Number(this.countFavorites.get(user.id).count) };
+    }).immediate();
   }
 
   list(user, { page = 1, pageSize = 20 } = {}) {
     const safePage = Math.max(1, Number(page) || 1);
     const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
-    this.removeMissingCourses.run(user.id, this.#courseIds());
-    const rows = this.listFavorites.all(user.id);
+    const courseIds = this.#courseIds();
+    const rows = this.db.transaction(() => {
+      this.#requireActiveUser(user.id);
+      this.removeMissingCourses.run(user.id, courseIds);
+      return this.listFavorites.all(user.id);
+    }).immediate();
     const manifest = this.readManifest() || {};
     const byId = new Map((manifest.courses || []).map((course) => [String(course.uid || course.id), course]));
     const items = rows

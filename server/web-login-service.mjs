@@ -53,5 +53,17 @@ export function createWebLoginService({ now = () => Date.now(), ttlMs = DEFAULT_
       if (ticket) ticket.status = "used";
       return ticket;
     },
+    /** Confirmed QR and manual-code tickets share this lifecycle. The account
+     * service must still reject deleted users when a ticket is exchanged. */
+    revokeForUser(userId) {
+      let revoked = 0;
+      for (const [id, ticket] of tickets) {
+        if (ticket.userId === Number(userId)) {
+          tickets.delete(id);
+          revoked++;
+        }
+      }
+      return revoked;
+    },
   };
 }

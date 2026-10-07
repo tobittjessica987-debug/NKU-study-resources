@@ -199,8 +199,10 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
           throw new PublicApiError(503, "头像上传暂未开放。", "AVATAR_UPLOAD_UNAVAILABLE");
         }
         const buffer = await readAvatarUpload(req);
+        mpAuthService.requireUser(authorizationOf(req));
         try {
           const result = await avatarService.upload({ userId: user.id, buffer });
+          mpAuthService.requireUser(authorizationOf(req));
           data = { avatar_url: result.avatar_url };
         } catch (error) {
           if (error?.code) {
@@ -217,6 +219,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         } catch {
           throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
         }
+        mpAuthService.requireUser(authorizationOf(req));
         // 头像归属校验：变更头像时仅允许绑定本站 avatars 资源且登记为本人已过审
         const nextAvatar = body?.avatar_url;
         let boundAvatarId = null;
@@ -289,6 +292,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         const body = await readJsonBody(req);
         const ticketId = String(body?.ticket || "");
         if (!/^[A-Za-z0-9_-]{10,64}$/.test(ticketId)) throw new PublicApiError(400, "登录码无效。", "WEB_LOGIN_TICKET_INVALID");
+        mpAuthService.requireUser(authorizationOf(req));
         if (!webLoginTickets.confirm(ticketId, user.id)) throw new PublicApiError(404, "登录码不存在或已使用。", "WEB_LOGIN_TICKET_INVALID");
         data = { confirmed: true };
       } else if (req.method === "GET" && url.pathname === "/api/v1/auth/web-login/status") {
@@ -319,15 +323,17 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
           throw new PublicApiError(403, "该账号已被封禁，无法自行注销。请联系管理员处理。", "AUTH_USER_BLOCKED");
         }
         mpAuthService.deleteAccount(user.id);
-        mpAuthService.revoke(authorizationOf(req));
+        webLoginTickets?.revokeForUser?.(user.id);
         setCookies.push(clearWebSessionCookie());
-        if (mpFavoritesService) mpFavoritesService.deleteAllForUser(user.id);
-        data = { deleted: true, note: "账号绑定关系已删除，已发布内容保留。" };
+        // Tokens and same-database favorites are removed by the account transaction.
+        // Content lifecycle is a separate S5 policy/replay step; do not claim it ran here.
+        data = { deleted: true, note: "账号已停用，登录凭证与收藏已清理。" };
       } else if (req.method === "POST" && url.pathname === "/api/v1/me/web-password") {
         if (!mpAuthService) throw new PublicApiError(503, "暂未开放。", "MP_AUTH_NOT_CONFIGURED");
         const user = mpAuthService.requireUser(authorizationOf(req));
         let body;
         try { body = await readBody(req); } catch { throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON"); }
+        mpAuthService.requireUser(authorizationOf(req));
         mpAuthService.setWebPassword(user.id, body.password);
         data = { ok: true };
       } else if (req.method === "POST" && url.pathname === "/api/v1/me/web-password/change") {
@@ -335,6 +341,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         const user = mpAuthService.requireUser(authorizationOf(req));
         let body;
         try { body = await readBody(req); } catch { throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON"); }
+        mpAuthService.requireUser(authorizationOf(req));
         mpAuthService.changeWebPassword(user.id, { currentPassword: body.current_password, newPassword: body.new_password });
         data = { ok: true };
       } else if (req.method === "GET" && url.pathname === "/api/v1/me/favorites") {
@@ -354,6 +361,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         } catch {
           throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
         }
+        mpAuthService.requireUser(authorizationOf(req));
         data = mpFavoritesService.add(user, body.course_id);
       } else {
         let match = url.pathname.match(/^\/api\/v1\/guides\/([^/]+)\/variants\/([^/]+)$/);
@@ -388,7 +396,10 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
                   } catch {
                     throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
                   }
-                  data = await service.reactReviewHelpful(decodePathPart(match[1]), body?.reaction ?? null, user.id);
+                  mpAuthService.requireUser(authorizationOf(req));
+                  data = await service.reactReviewHelpful(decodePathPart(match[1]), body?.reaction ?? null, user.id, {
+                    authorize: () => mpAuthService.requireUser(authorizationOf(req)),
+                  });
                 } else if (req.method === "POST" && url.pathname === "/api/v1/guide-assistant/answers") {
                 if (!mpAuthService || !service.guideAssistantAnswer) throw new PublicApiError(503, "问答服务暂未开放。", "AI_UNAVAILABLE");
                 const user = mpAuthService.requireUser(authorizationOf(req));
@@ -398,7 +409,9 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
                 } catch {
                   throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
                 }
+                mpAuthService.requireUser(authorizationOf(req));
                 data = await service.guideAssistantAnswer(user.id, body);
+                mpAuthService.requireUser(authorizationOf(req));
               } else if (req.method === "POST" && url.pathname === "/api/v1/reviews") {
                 const ip = clientIp(req);
                 const ugcUser = requirePhoneVerifiedUser(mpAuthService, req);
@@ -409,7 +422,9 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
                 } catch {
                   throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
                 }
+                requirePhoneVerifiedUser(mpAuthService, req);
                 data = await service.submitReview(body, { clientIp: ip, userAgent: req.headers["user-agent"], userId: ugcUser.id, notify,
+                  authorize: () => requirePhoneVerifiedUser(mpAuthService, req),
                   onSubmitted(result) {
                     eventTargetId = result.reviewId || "";
                     eventResult = eventTargetId ? (result.pending ? "pending" : "ok") : "ignored";

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-07",
+  "stage": "S5 common foundation",
+  "status": "PARTIALLY_VERIFIED_LOCAL_NOT_DEPLOYABLE_AS_COMPLETE_S5",
+  "baseCommit": "1b9b06986595b6467be8a352b6f18df3bf21aa8f",
+  "branch": "codex/s5-account-lifecycle-20261007",
+  "environment": {
+    "node": "v22.23.2",
+    "npm": "10.9.8",
+    "platform": "darwin",
+    "TMPDIR": "/private/tmp",
+    "data": "synthetic only"
+  },
+  "validation": [
+    {
+      "command": "TMPDIR=/private/tmp npm test",
+      "exitCode": 0,
+      "tests": 493,
+      "pass": 493,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0,
+      "evidence": "full-suite.tap",
+      "boundary": "Complete suite before final success-message wording; no later runtime source change except this wording"
+    },
+    {
+      "command": "node --test test/account-deletion-controller.test.mjs",
+      "exitCode": 0,
+      "tests": 7,
+      "pass": 7,
+      "evidence": "controller-final.tap",
+      "boundary": "After final success-message wording"
+    },
+    {
+      "command": "npm run check:api-docs",
+      "exitCode": 0,
+      "routes": 131,
+      "evidence": "api-docs.log"
+    },
+    {
+      "command": "npm run check:fixtures",
+      "exitCode": 0,
+      "evidence": "fixture-check.log"
+    },
+    {
+      "command": "npm run build:fixtures",
+      "exitCode": 0,
+      "pages": 14,
+      "evidence": "fixture-build.log",
+      "boundary": "After final success-message wording"
+    }
+  ],
+  "initialFailure": {
+    "evidence": "http-initial-failure.tap",
+    "reason": "Test expected NULL phone; schema stores empty string. Expectation corrected, old phone removed.",
+    "correctedEvidence": "http-corrected.tap",
+    "laterExpandedCasesCoveredBy": "full-suite.tap"
+  },
+  "independentReview": {
+    "reviewer": "s5_data_policy_map_xhigh (did not implement backend)",
+    "localSharedIdentityBlockerFound": false,
+    "knownUnresolvedRace": "Review may commit after deletion if authorization passed before file rename. Full coordinator must drain/serialize pending writes before completion.",
+    "raceEvidence": "Reviewer synthetic fault hook beforeRename, reported in current task; no saved automated regression yet"
+  },
+  "decisions": {
+    "D-01": "awaiting user answer; not inferred from S3 historical public-content decision"
+  },
+  "unimplemented": [
+    "durable deletion intent/coordinator",
+    "content/JSON associations/reactions/contacts cleanup",
+    "post-updater pre-rename race closure",
+    "avatar object/registry/CDN cleanup",
+    "private complaint/payment data lifecycle",
+    "ledger wiring to backup and restore",
+    "post-backup deletion replay",
+    "lineage/account-instance/ID rollback guards",
+    "default/stored privacy notice reconciliation"
+  ],
+  "unverified": [
+    "full repository typecheck (QA-21 remains open)",
+    "real browser deletion flow",
+    "Linux deployment",
+    "production avatar/backup services"
+  ],
+  "productionDataRead": false,
+  "productionActions": false,
+  "pushed": false,
+  "prChanged": false,
+  "ledgerReadOnlyBoundary": {
+    "externalFreshnessVerified": false,
+    "replayVerified": false,
+    "restoredDataVerified": false,
+    "quarantineReleased": false
+  },
+  "sourceSha256": {
+    "server/admin-server.mjs": "50406341bfcdd28aea632a86d4d48e232e63e2a473f692ebe9f91896818e9a89",
+    "server/deletion-ledger.mjs": "9a202ab5afa1ce0ec564547befbd251e8a5c17a759ad268a3c2b4a6ce8d3e1ae",
+    "server/mp-auth-service.mjs": "43d5b567b7115553bed96324b5ad1ce715dd593ea7df7b36ff658e701f5c0654",
+    "server/mp-favorites-service.mjs": "6b3445ac4b409ea5a12feffe7000e05609c0cae94b40b9652a474de078a099de",
+    "server/public-api-router.mjs": "eda938ffb21a200eef3e34eda8f48d8c72d9cdb65bf6ae8efadbdcb354196ad1",
+    "server/public-api-service.mjs": "8731e5a39dc1db93d16c329c1e5da2cd8c605794b83ffc260f165bf4bb13a5ae",
+    "server/restore-reconciliation.mjs": "387eb032ae5177074f49832d5dec831c1d4e9277c79d7f8152746ce84ce26b08",
+    "server/review-submission-service.mjs": "718c0a6108a86943eccc60f46ead2a656d265c3b87a1f36a7dc3a07b29513246",
+    "server/web-login-service.mjs": "3742a646e3416323243e62958b6501876027519fa9a69b4ea16f9ecef87992d4",
+    "src/lib/account-deletion-controller.js": "619045a43195ba4021039fa0f796bfff4021cbdc15eaf8e80ee0f4538addfbea",
+    "src/pages/me.astro": "e84010ed24e762f98b609f71260457001e5e791537994f77af03a5efb4a00dc0",
+    "test/account-deletion-controller.test.mjs": "37c63a83b68bc9e7f24fb866b3d67c4a551c3edc2b5636c83e42beac6f82b9c0",
+    "test/s5-account-lifecycle.test.mjs": "b05a20f992451a9e8b95ff9489cfcf7e420ccf0dc176ec879fbf6ac2e8418e61",
+    "test/s5-account-runtime.integration.test.mjs": "8f52e09b489f68abfe5b021bb780747d39cc471925a927501a55c1b32fd590f0",
+    "test/s5-deletion-ledger.test.mjs": "ab4818be9cc2904d3e8f6856efe066e1390d1b31f1aff1d2acdd774d33fb72c4"
+  },
+  "evidenceSha256": {
+    "full-suite.tap": "fcaf4b7a238e8ab05958d51b1a957855b8e832af8deba788722beee69391ba2c",
+    "controller-final.tap": "889ec385e5957bbec0a35e0c1f6ba145d460e80b5922b8fd2e38e586d122debf",
+    "fixture-build.log": "4d2dd67f170fbe5289f6f417fc54f8213b6e4e14e30fd01d4bcbadce8b1c3d47",
+    "api-docs.log": "e8c32076a82c3cb118e35d82f5bdaef64b8dc319916e9920e37060d348db7990",
+    "fixture-check.log": "ef818d1c731feb9e27e888d0a82cd794023241974898ddf921bf0c38f6d872d0",
+    "http-initial-failure.tap": "b06287ce8a55d80f31125052dd4e2a015c73be97194f5ab98f96422191392e0c",
+    "http-corrected.tap": "35cec2c2dd4d55d25caafdffa3e8f04194b28f5e076d8787c6aa379d55535914"
+  }
+}

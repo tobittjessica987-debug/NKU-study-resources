@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "stage": "S5",
+  "date": "2026-10-07",
+  "branch": "codex/s5-account-lifecycle-20261007",
+  "baseCommit": "1b9b06986595b6467be8a352b6f18df3bf21aa8f",
+  "status": "in_progress_common_foundation_verified_policy_decision_required",
+  "authorization": "C-16",
+  "policyDecision": {
+    "id": "D-01",
+    "status": "awaiting_user_answer",
+    "question": "Retain already-public reviews/ordinary feedback without account identity, or withdraw this user's business content?",
+    "inferredFromS3": false
+  },
+  "subagents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "xhigh",
+    "tracks": [
+      "account lifecycle",
+      "deletion ledger and read-only restore prerequisites",
+      "deletion UI and data inventory"
+    ],
+    "root": "route integration, HTTP races, regression and evidence"
+  },
+  "completed": [
+    "durable deleted_at and active-account guards",
+    "transactional identity/token/favorites cleanup",
+    "confirmed-ticket revocation and no deleted-account session reissue",
+    "legacy schema and unique nickname compatibility",
+    "body and queued JSON entry authorization rechecks",
+    "explicit success-only deletion UI",
+    "private deletion ledger and read-only head/prefix validation (not wired into runtime)"
+  ],
+  "validation": {
+    "tests": 493,
+    "failures": 0,
+    "skips": 0,
+    "apiRoutes": 131,
+    "fixturePages": 14,
+    "typecheckRerun": false,
+    "productionDataRead": false,
+    "productionActions": false
+  },
+  "remaining": [
+    "D-01 plus private complaint/payment/retention classification",
+    "durable deletion coordinator and intent admission",
+    "JSON associations/reactions/content policy/drafts/publication/cache",
+    "known post-updater pre-rename write window",
+    "avatar registration/object/CDN cleanup",
+    "independent current ledger integration and replay of post-backup deletions",
+    "lineage/account instance/sequence rollback controls",
+    "default and stored privacy copy plus browser and deployment acceptance"
+  ],
+  "next": [
+    "User chooses D-01",
+    "Record full data action table and explicit exceptions",
+    "Implement coordinator/content and restore in parallel with UI/copy",
+    "Independent failures/restart/backup-after-deletion end-to-end acceptance",
+    "Create a complete fixed candidate for later combined deployment"
+  ],
+  "evidence": "../evidence/S5-foundation-20261007/summary.json"
+}
