@@ -1,0 +1,366 @@
+{
+  "status": "acceptance_passed",
+  "generatedAt": "2026-10-08T03:45:57.462240+00:00",
+  "candidateCommit": "62613ef01cfe22eaf9771ffad29ff8ea9098ff0d",
+  "scope": "Local Docker Linux arm64 container evidence only",
+  "taskRoot": "<LINUX_WORK>",
+  "image": {
+    "id": "sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9",
+    "repoDigests": [
+      "node@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
+    ],
+    "os": "linux",
+    "architecture": "arm64",
+    "tag": "node:22.23.2-bookworm-slim"
+  },
+  "node": "v22.23.2",
+  "npm": "10.9.8",
+  "os": "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"12\"\nVERSION=\"12 (bookworm)\"\nVERSION_CODENAME=bookworm\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+  "arch": "arm64",
+  "platform": "linux",
+  "runtime": {
+    "node": "v22.23.2",
+    "npm": "10.9.8",
+    "platform": "linux",
+    "architecture": "arm64",
+    "kernel": "7.0.12-linuxkit",
+    "osRelease": "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"12\"\nVERSION=\"12 (bookworm)\"\nVERSION_CODENAME=bookworm\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+    "uid": 501,
+    "gid": 20,
+    "glibcRuntime": "2.36",
+    "npmAuditConfiguration": "true",
+    "TMPDIR": "/tmp",
+    "scope": "Local Docker Linux arm64 container; no production verification"
+  },
+  "pullAttempts": [
+    {
+      "stage": "bookworm-initial",
+      "image": "node:22.23.2-bookworm",
+      "status": "failed",
+      "exitCode": 1,
+      "log": "<LINUX_WORK>/logs/00-image-pull.log",
+      "cancellation": null
+    },
+    {
+      "stage": "bookworm-retry",
+      "image": "node:22.23.2-bookworm",
+      "status": "cancelled",
+      "exitCode": 143,
+      "log": "<LINUX_WORK>/logs/00b-image-pull.log",
+      "cancellation": {
+        "reason": "Parent changed plan to smaller official same-Node/Debian slim image to reduce download time",
+        "requestedAt": "2026-10-08T03:18:26.161731+00:00",
+        "matchingOwnPullPids": [
+          30583
+        ],
+        "signal": "SIGTERM",
+        "otherContainersDaemonCacheModified": false,
+        "status": "own-pull-cli-cancelled"
+      }
+    },
+    {
+      "stage": "bookworm-slim",
+      "image": "node:22.23.2-bookworm-slim",
+      "status": "succeeded",
+      "exitCode": 0,
+      "log": "<LINUX_WORK>/logs/00c-image-pull-slim.log",
+      "cancellation": null
+    }
+  ],
+  "unexecutedApprovalTransportFailure": {
+    "kind": "automatic_approval_transport_disconnected",
+    "pullExecuted": false,
+    "unsafeActionRejection": false,
+    "normalReviewRetrySucceeded": true
+  },
+  "npmCi": {
+    "attempts": [
+      {
+        "attempt": "initial",
+        "exitCode": 1,
+        "log": "<LINUX_WORK>/logs/01-npm-ci.log",
+        "lockfile": {
+          "attempt": "initial",
+          "beforeSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+          "afterSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+          "equal": true,
+          "npmCiExitCode": 1
+        },
+        "maxSocketsOverride": null
+      },
+      {
+        "attempt": "retry",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/01b-npm-ci.log",
+        "lockfile": {
+          "attempt": "retry",
+          "beforeSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+          "afterSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+          "equal": true,
+          "npmCiExitCode": 0
+        },
+        "maxSocketsOverride": 4
+      }
+    ],
+    "status": "passed",
+    "exitCode": 0,
+    "log": "<LINUX_WORK>/logs/01b-npm-ci.log",
+    "audit": {
+      "defaultNpmCiAuditConfiguration": "true",
+      "standaloneNpmAuditExecuted": false,
+      "npmCiReportedAuditCompleted": true,
+      "auditedPackages": 365,
+      "reportedVulnerabilities": 0,
+      "reportedSeverityText": null,
+      "installSuccessDoesNotMeanZeroVulnerabilities": true
+    },
+    "lockfile": {
+      "beforeSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+      "afterNpmCi": {
+        "attempt": "retry",
+        "beforeSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+        "afterSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+        "equal": true,
+        "npmCiExitCode": 0
+      },
+      "finalSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+      "initialAndFinalEqual": true,
+      "lockfileModifiedByThisTask": false
+    }
+  },
+  "initialAcceptance": {
+    "status": "failed",
+    "driverExitCode": 1,
+    "testCounts": {
+      "tests": 573,
+      "pass": 567,
+      "fail": 6,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "failedChildTests": 4,
+    "failedParentTests": 2,
+    "failureDiagnosis": "UID 501 had no passwd entry; HOME-cleared test child processes caused uv_os_homedir ENOENT in SDK config lookup; environment-only correction",
+    "checks": [
+      {
+        "id": "02-npm-test",
+        "exitCode": 1,
+        "log": "<LINUX_WORK>/logs/02-npm-test.log"
+      },
+      {
+        "id": "03-astro-check",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/03-astro-check.log"
+      },
+      {
+        "id": "04-api-docs",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/04-api-docs.log"
+      },
+      {
+        "id": "05-fixtures",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/05-fixtures.log"
+      },
+      {
+        "id": "06-fixture-content",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/06-fixture-content.log"
+      },
+      {
+        "id": "07-fixture-encoding",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/07-fixture-encoding.log"
+      },
+      {
+        "id": "08-public-api-smoke",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/08-public-api-smoke.log"
+      },
+      {
+        "id": "09-fixture-build",
+        "exitCode": 0,
+        "log": "<LINUX_WORK>/logs/09-fixture-build.log"
+      }
+    ],
+    "sourceVerification": {
+      "originalFiles": 424,
+      "matchingOriginalFiles": 424,
+      "changed": []
+    }
+  },
+  "environmentCorrection": {
+    "type": "container-account-registration-only",
+    "imagePasswdCopied": true,
+    "hostPasswdRead": false,
+    "originalImageHadUid501": false,
+    "addedSyntheticEntry": "nkustudy-ci:x:501:20:Synthetic isolated acceptance account:/work/home:/usr/sbin/nologin",
+    "home": "/work/home",
+    "user": "501:20",
+    "passwdBindReadOnly": true,
+    "originalPasswdSha256": "bad4a17cc56d0e63db7b8d9b41b3ec2e96cde8a4eb0621858121af45093c5d82",
+    "syntheticPasswdSha256": "4c50275699fe4f8bf9a135c1b9639d2cc9a71ac2e5e87fe33cbdedbe3ba12e7e",
+    "sourceChanged": false,
+    "systemPackagesInstalled": false
+  },
+  "homeProbe": {
+    "uid": 501,
+    "gid": 20,
+    "HOME": null,
+    "osHomedir": "/work/home",
+    "homeExists": true,
+    "scope": "Synthetic container account only"
+  },
+  "completeAcceptanceRerun": true,
+  "checks": [
+    {
+      "id": "02-npm-test",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "tests": 573,
+        "suites": 0,
+        "pass": 573,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "<LINUX_WORK>/logs/02-npm-test-retry.log",
+      "elapsedSeconds": 7.383
+    },
+    {
+      "id": "03-astro-check",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "files": 202,
+        "errors": 0,
+        "warnings": 0,
+        "hints": 37
+      },
+      "log": "<LINUX_WORK>/logs/03-astro-check-retry.log",
+      "elapsedSeconds": 12.068
+    },
+    {
+      "id": "04-api-docs",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "routes": 131
+      },
+      "log": "<LINUX_WORK>/logs/04-api-docs-retry.log",
+      "elapsedSeconds": 0.066
+    },
+    {
+      "id": "05-fixtures",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "courses": 1,
+        "files": 0
+      },
+      "log": "<LINUX_WORK>/logs/05-fixtures-retry.log",
+      "elapsedSeconds": 0.063
+    },
+    {
+      "id": "06-fixture-content",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "courses": 1,
+        "files": 0
+      },
+      "log": "<LINUX_WORK>/logs/06-fixture-content-retry.log",
+      "elapsedSeconds": 0.061
+    },
+    {
+      "id": "07-fixture-encoding",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "jsonFiles": 9
+      },
+      "log": "<LINUX_WORK>/logs/07-fixture-encoding-retry.log",
+      "elapsedSeconds": 0.069
+    },
+    {
+      "id": "08-public-api-smoke",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "health": "ok",
+        "courses": 1,
+        "search": 19,
+        "guides": 18,
+        "variants": 29,
+        "snapshotVersion": "c3w1IAmwrjRrhxvwjzMYjyr5",
+        "sourceVersion": "6a8ddab4f413ad00c6d94a85",
+        "etag": 304,
+        "publicAdmin": 404,
+        "disabledAuth": 503
+      },
+      "log": "<LINUX_WORK>/logs/08-public-api-smoke-retry.log",
+      "elapsedSeconds": 0.488
+    },
+    {
+      "id": "09-fixture-build",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "counts": {
+        "pages": 14
+      },
+      "log": "<LINUX_WORK>/logs/09-fixture-build-retry.log",
+      "elapsedSeconds": 1.206
+    }
+  ],
+  "source": {
+    "originalFiles": 424,
+    "matchingOriginalFiles": 424,
+    "missing": [],
+    "modified": [],
+    "allOriginalSourceFilesUnchanged": true
+  },
+  "sourceArchiveSha256": "a41f793f1b18627bccdadfee66e3f03fa4c4713754b0e4b851cc8ba4a9b38937",
+  "browser": false,
+  "production": false,
+  "R2": false,
+  "realNotifications": false,
+  "network": {
+    "externalNetworkStages": [
+      "official-image-pull",
+      "npm-ci"
+    ],
+    "acceptanceNetwork": "none",
+    "publishedPorts": [],
+    "loopbackUsedOnlyInsideEphemeralContainers": true
+  },
+  "containerPolicy": {
+    "bindMount": "<LINUX_WORK>:/work",
+    "user": "501:20",
+    "npmCiNetwork": "bridge",
+    "acceptanceNetwork": "none",
+    "publishedPorts": [],
+    "TMPDIR": "/tmp",
+    "hostSourceOrProductionMounts": [],
+    "containerLifetime": "--rm",
+    "readonlyRootFilesystem": true
+  },
+  "systemPackagesInstalled": false,
+  "dependenciesUpgraded": false,
+  "repositoryModifiedByThisTask": false,
+  "evidencePathMapping": {
+    "<LINUX_WORK>/logs/": "./",
+    "<LINUX_WORK>/": "./",
+    "note": "Copied raw log files are siblings of this summary; task-local absolute paths are placeholders."
+  }
+}

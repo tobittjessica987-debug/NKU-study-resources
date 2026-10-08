@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-08",
+  "scope": "LOCAL_DOCUMENTATION_AND_VALIDATION_CLOSEOUT",
+  "authorization": [
+    "C-20",
+    "C-21"
+  ],
+  "branch": "codex/s6-delivery-20261007",
+  "codeBaseline": "62613ef01cfe22eaf9771ffad29ff8ea9098ff0d",
+  "codeBaselineTree": "688c730d52980f40008e2fe3a88a15af50d9bc27",
+  "subagents": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "xhigh",
+    "tracks": [
+      "Operating facts and repository documentation",
+      "Linux feasibility and isolated rerun",
+      "Private report facts and independent source/privacy review"
+    ],
+    "mainWindow": "Report editing, six-page visual and structural QA, integration, evidence and immutable candidate packaging"
+  },
+  "changes": {
+    "runtimeCodeModified": false,
+    "documentation": [
+      "docs/SECURITY_COMPLIANCE_SOP.md",
+      "docs/compliance/SECURITY_ASSESSMENT_READINESS.md",
+      "docs/compliance/S4_CONTROLLED_DELIVERY.md",
+      "docs/compliance/S6_ACCEPTANCE.md"
+    ],
+    "operatingFactsRecorded": [
+      "Main site only",
+      "Existing contact and shared developer/administrator operating roles",
+      "Existing website feedback and internal Feishu collaboration",
+      "Server maintenance role confirmed; backup responsibility and passphrase custody still unconfirmed",
+      "No agreed unified retention period for reviews, ordinary feedback and private complaints"
+    ],
+    "noRepeatedRequestsForPhoneNamesOrRoster": true,
+    "existing400DayEngineeringConfigurationChanged": false
+  },
+  "sourceVerification": {
+    "previousDigestManifest": "../S6-local-20261007/source-sha256.json",
+    "filesMatched": 215,
+    "missing": 0,
+    "changed": 0,
+    "independentReviewPassed": true
+  },
+  "historicalMacEvidence": {
+    "date": "2026-10-07",
+    "path": "../S6-local-20261007/summary.json",
+    "testsPassed": 573,
+    "errors": 0,
+    "warnings": 0,
+    "hints": 37,
+    "routes": 131,
+    "fixturePages": 14,
+    "publicApiSmokePassed": true,
+    "rerunThisCloseoutOnMac": false
+  },
+  "privateReport": {
+    "version": "v0.2",
+    "sha256": "9e4985de7fdaf269f9c385e4656f23914abfec335612453bea15714dddd06a4f",
+    "mainSections": 7,
+    "evidenceItems": 11,
+    "renderedPages": 6,
+    "allPagesVisuallyInspected": true,
+    "structureReviewPassed": true,
+    "originalPdfEdited": false,
+    "privateSourceAndPreviousDraftPreserved": true,
+    "reportAndInterviewIncludedInGitOrCandidate": false
+  },
+  "privacy": {
+    "newPrivateIdentityFieldsAddedToRepository": false,
+    "knownCreditCodeMatchesInTrackedSource": 0,
+    "checkScope": "Newly added private identity fields, credit-code absence, and exclusion of private interview/report files; not a complete de-identification of historical source."
+  },
+  "boundaries": {
+    "browser": "deferred_by_user",
+    "s5PageAndLogin": "user_confirmed_passed",
+    "s5FinalManualDeletion": "not_executed",
+    "productionAccessed": false,
+    "productionDeployed": false,
+    "notificationTestsSent": false,
+    "realNotifications": "user_deferred",
+    "privateBackupR2": "not_enabled_not_accessed",
+    "permissionsChanged": false,
+    "pushed": false,
+    "prUpdated": false,
+    "merged": false
+  },
+  "remaining": [
+    "Production target configuration, migration preview and deployment with current candidate",
+    "S5 final deletion and S6 browser acceptance",
+    "Necessary real WeChat/avatar/cache checks",
+    "S4 downloaded file and private delivery evidence",
+    "Backup custody, authoritative latest deletion ledger and isolated recovery",
+    "Category retention decisions and actual operating records where applicable",
+    "Final report reconciliation against deployed facts and signing"
+  ],
+  "overallSecurityAssessmentPassed": false,
+  "linuxValidation": {
+    "status": "acceptance_passed",
+    "evidence": "linux/summary.json",
+    "codeBaseline": "62613ef01cfe22eaf9771ffad29ff8ea9098ff0d",
+    "displaySummary": "Linux/arm64、Node v22.23.2：573/573测试、类型0错误/0警告/37提示、131路由、14页合成构建及公开API冒烟通过",
+    "platform": "linux",
+    "architecture": "arm64",
+    "node": "v22.23.2",
+    "npm": "10.9.8",
+    "image": {
+      "id": "sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9",
+      "repoDigests": [
+        "node@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9"
+      ],
+      "os": "linux",
+      "architecture": "arm64",
+      "tag": "node:22.23.2-bookworm-slim"
+    },
+    "npmCiExitCode": 0,
+    "tests": {
+      "tests": 573,
+      "suites": 0,
+      "pass": 573,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "typecheck": {
+      "files": 202,
+      "errors": 0,
+      "warnings": 0,
+      "hints": 37
+    },
+    "routes": 131,
+    "fixturePages": 14,
+    "allEightChecksPassed": true,
+    "originalSourceFilesMatched": 424,
+    "originalSourceFiles": 424,
+    "lockfileUnchanged": true,
+    "audit": {
+      "defaultNpmCiAuditConfiguration": "true",
+      "standaloneNpmAuditExecuted": false,
+      "npmCiReportedAuditCompleted": true,
+      "auditedPackages": 365,
+      "reportedVulnerabilities": 0,
+      "reportedSeverityText": null,
+      "installSuccessDoesNotMeanZeroVulnerabilities": true
+    },
+    "productionTargetAcceptance": false
+  },
+  "documentationQa": {
+    "gitDiffWhitespaceCheckPassed": true,
+    "localDocumentLinksChecked": 73,
+    "missingLocalDocumentLinks": 0,
+    "independentFactsAndPrivacyReviewPassed": true
+  },
+  "status": "documentation_reconciled_acceptance_passed_production_and_browser_pending"
+}

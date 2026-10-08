@@ -1,0 +1,14 @@
+{
+  "node": "v22.23.2",
+  "npm": "10.9.8",
+  "platform": "linux",
+  "architecture": "arm64",
+  "kernel": "7.0.12-linuxkit",
+  "osRelease": "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"12\"\nVERSION=\"12 (bookworm)\"\nVERSION_CODENAME=bookworm\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+  "uid": 501,
+  "gid": 20,
+  "glibcRuntime": "2.36",
+  "npmAuditConfiguration": "true",
+  "TMPDIR": "/tmp",
+  "scope": "Local Docker Linux arm64 container; no production verification"
+}

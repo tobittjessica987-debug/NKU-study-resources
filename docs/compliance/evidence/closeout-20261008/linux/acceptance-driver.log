@@ -1,0 +1,16 @@
+2026-10-08T03:36:33.026Z START 02-npm-test: npm test
+2026-10-08T03:36:40.970Z END 02-npm-test: exit=1 signal=none
+2026-10-08T03:36:40.971Z START 03-astro-check: npm run check
+2026-10-08T03:36:53.171Z END 03-astro-check: exit=0 signal=none
+2026-10-08T03:36:53.172Z START 04-api-docs: npm run check:api-docs
+2026-10-08T03:36:53.257Z END 04-api-docs: exit=0 signal=none
+2026-10-08T03:36:53.258Z START 05-fixtures: npm run check:fixtures
+2026-10-08T03:36:53.338Z END 05-fixtures: exit=0 signal=none
+2026-10-08T03:36:53.339Z START 06-fixture-content: npm run check:content
+2026-10-08T03:36:53.423Z END 06-fixture-content: exit=0 signal=none
+2026-10-08T03:36:53.424Z START 07-fixture-encoding: npm run audit:encoding
+2026-10-08T03:36:53.494Z END 07-fixture-encoding: exit=0 signal=none
+2026-10-08T03:36:53.495Z START 08-public-api-smoke: npm run smoke:public-api
+2026-10-08T03:36:53.995Z END 08-public-api-smoke: exit=0 signal=none
+2026-10-08T03:36:53.996Z START 09-fixture-build: npm run build:fixtures
+2026-10-08T03:36:55.597Z END 09-fixture-build: exit=0 signal=none

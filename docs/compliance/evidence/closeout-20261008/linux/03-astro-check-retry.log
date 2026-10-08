@@ -1,0 +1,175 @@
+
+> nkustudy@0.1.0 check
+> astro check
+
+03:41:26 [vite] Re-optimizing dependencies because vite config has changed
+03:41:26 [types] Generated 128ms
+03:41:26 [check] Getting diagnostics for Astro files in /work/src...
+docs/compliance/evidence/S5-browser-20261007/nkustudy-s5-browser.mjs:7:7 - warning ts(6133): 'require' is declared but its value is never read.
+
+7 const require=createRequire(root+'/package.json'), Database=require('better-sqlite3');
+        ~~~~~~~
+
+docs/compliance/evidence/S5-browser-20261007/nkustudy-s5-manual-fixtures.mjs:4:7 - warning ts(6133): 'require' is declared but its value is never read.
+
+4 const require=createRequire('<REPO>/package.json'),Database=require('better-sqlite3');
+        ~~~~~~~
+
+public/qrcode-generator.js:1781:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1781     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1759:9 - warning ts(6133): '_data' is declared but its value is never read.
+
+1759     var _data = data;
+             ~~~~~
+public/qrcode-generator.js:1739:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1739     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1730:9 - warning ts(6133): '_data' is declared but its value is never read.
+
+1730     var _data = data;
+             ~~~~~
+public/qrcode-generator.js:1675:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1675     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:1618:32 - warning ts(6133): 'buffer' is declared but its value is never read.
+
+1618     _this.getLength = function(buffer) {
+                                    ~~~~~~
+public/qrcode-generator.js:949:25 - warning ts(6133): 'i' is declared but its value is never read.
+
+949         return function(i, j) { return j % 3 == 0; };
+                            ~
+public/qrcode-generator.js:947:28 - warning ts(6133): 'j' is declared but its value is never read.
+
+947         return function(i, j) { return i % 2 == 0; };
+                               ~
+public/qrcode-generator.js:29:7 - warning ts(80002): This constructor function may be converted to a class declaration.
+
+29   var qrcode = function(typeNumber, errorCorrectionLevel) {
+         ~~~~~~
+
+scripts/build-learning-compass-snapshot.mjs:120:11 - warning ts(6133): 'chunksById' is declared but its value is never read.
+
+120     const chunksById = new Map((guide.chunks || []).map((chunk) => [chunk.chunk_id, chunk]));
+              ~~~~~~~~~~
+
+scripts/upload-guide-sources.mjs:13:10 - warning ts(6133): 'createReadStream' is declared but its value is never read.
+
+13 import { createReadStream, existsSync, readFileSync } from "node:fs";
+            ~~~~~~~~~~~~~~~~
+
+server/admin-server.mjs:1349:10 - warning ts(6133): 'readPrivacy' is declared but its value is never read.
+
+1349 function readPrivacy() {
+              ~~~~~~~~~~~
+server/admin-server.mjs:1121:10 - warning ts(6133): 'objectKey' is declared but its value is never read.
+
+1121 function objectKey(...parts) {
+              ~~~~~~~~~
+server/admin-server.mjs:1051:48 - warning ts(6133): 'ip' is declared but its value is never read.
+
+1051 function requirePhoneVerifiedUgcUser(req, res, ip) {
+                                                    ~~
+server/admin-server.mjs:68:37 - warning ts(6133): 'maskPhone' is declared but its value is never read.
+
+68 import { createWechatPhoneVerifier, maskPhone } from "./wechat-phone.mjs";
+                                       ~~~~~~~~~
+server/admin-server.mjs:22:28 - warning ts(6133): 'ManifestConflictError' is declared but its value is never read.
+
+22 import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+                              ~~~~~~~~~~~~~~~~~~~~~
+server/admin-server.mjs:22:10 - warning ts(6133): 'manifestRevision' is declared but its value is never read.
+
+22 import { manifestRevision, ManifestConflictError, ManifestService } from "./manifest-service.mjs";
+            ~~~~~~~~~~~~~~~~
+
+server/r2-sync-merge.mjs:3:10 - warning ts(6133): 'cloneFile' is declared but its value is never read.
+
+3 function cloneFile(file, existing) {
+           ~~~~~~~~~
+
+src/pages/admin.astro:3987:27 - warning ts(6133): 'value' is declared but its value is never read.
+
+3987             ${series.map((value, index) => `<circle data-index="${index}" cx="${pointXs[index].toFixed(1)}" cy="${points[index].split(",")[1]}" r="2.5" fill="currentColor" />`).join("")}
+                               ~~~~~
+src/pages/admin.astro:3542:13 - warning ts(6385): 'returnValue' is deprecated.
+
+3542       event.returnValue = "";
+                 ~~~~~~~~~~~
+src/pages/admin.astro:2926:26 - warning ts(6387): The signature '(commandId: string, showUI?: boolean | undefined, value?: string | undefined): boolean' of 'document.execCommand' is deprecated.
+
+2926                 document.execCommand("insertHTML", false, `
+                              ~~~~~~~~~~~
+src/pages/admin.astro:1579:14 - warning ts(6133): 'sortSections' is declared but its value is never read.
+
+1579     function sortSections(course: AdminTypes.AdminCourse) {
+                  ~~~~~~~~~~~~
+src/pages/admin.astro:1361:11 - warning ts(6133): 'makeId' is declared but its value is never read.
+
+1361     const makeId = (title: string) => title
+               ~~~~~~
+
+src/pages/donate.astro:116:18 - warning ts(6133): 'checkPayEnabled' is declared but its value is never read.
+
+116   async function checkPayEnabled() {
+                     ~~~~~~~~~~~~~~~
+
+src/pages/report.astro:91:13 - warning ts(6385): 'returnValue' is deprecated.
+
+91       event.returnValue = "";
+               ~~~~~~~~~~~
+
+test/donate.test.mjs:170:9 - warning ts(6133): 'realPrepay' is declared but its value is never read.
+
+170   const realPrepay = jsapiPrepay;
+            ~~~~~~~~~~
+test/donate.test.mjs:165:28 - warning ts(6133): 'url' is declared but its value is never read.
+
+165   const fetchStub = async (url, options) => {
+                               ~~~
+test/donate.test.mjs:93:9 - warning ts(6198): All destructured elements are unused.
+
+93   const { publicExponent, modulus } = { };
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test/donate.test.mjs:75:23 - warning ts(6133): 'h' is declared but its value is never read.
+
+75     r.writeHead = (s, h) => { r.status = s; };
+                         ~
+test/donate.test.mjs:72:24 - warning ts(6133): 'pathname' is declared but its value is never read.
+
+72   const req = (method, pathname, headers = {}) => ({ method, headers });
+                          ~~~~~~~~
+
+test/law-response-audit.test.mjs:179:39 - warning ts(6133): 'req' is declared but its value is never read.
+
+179     const server = http.createServer((req, res) => {
+                                          ~~~
+
+test/public-api-router.test.mjs:60:107 - warning ts(6133): 'h' is declared but its value is never read.
+
+60     const res2 = { headers: {}, writableEnded: false, destroyed: false, status: 0, body: "", writeHead(s, h) { this.status = s; }, end(b) { this.body = b; this.writableEnded = true; } };
+                                                                                                             ~
+
+test/qwen-provider-mapping.test.mjs:5:10 - warning ts(80006): This may be converted to an async function.
+
+5 function withFetchStub(stub, fn) {
+           ~~~~~~~~~~~~~
+
+test/review-reaction.test.mjs:15:18 - warning ts(6133): 'path' is declared but its value is never read.
+
+15     async update(path, mutator) {
+                    ~~~~
+
+test/s3-moderation.integration.test.mjs:180:11 - warning ts(6133): 'original' is declared but its value is never read.
+
+180     const original=structuredClone(current.data); const row=current.data.items.find(item=>item.id===a); row.hidden=true; row.handled_by='forged-actor';
+              ~~~~~~~~
+
+Result (202 files):
+- 0 errors
+- 0 warnings
+- 37 hints

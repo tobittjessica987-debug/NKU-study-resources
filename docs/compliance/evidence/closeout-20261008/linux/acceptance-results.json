@@ -1,0 +1,135 @@
+[
+  {
+    "id": "02-npm-test",
+    "command": [
+      "npm",
+      "test"
+    ],
+    "environmentOverrides": {},
+    "startedAt": "2026-10-08T03:36:33.026Z",
+    "endedAt": "2026-10-08T03:36:40.970Z",
+    "elapsedSeconds": 7.944,
+    "exitCode": 1,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/02-npm-test.log"
+  },
+  {
+    "id": "03-astro-check",
+    "command": [
+      "npm",
+      "run",
+      "check"
+    ],
+    "environmentOverrides": {
+      "NODE_OPTIONS": "--max-old-space-size=8192"
+    },
+    "startedAt": "2026-10-08T03:36:40.971Z",
+    "endedAt": "2026-10-08T03:36:53.171Z",
+    "elapsedSeconds": 12.2,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/03-astro-check.log"
+  },
+  {
+    "id": "04-api-docs",
+    "command": [
+      "npm",
+      "run",
+      "check:api-docs"
+    ],
+    "environmentOverrides": {},
+    "startedAt": "2026-10-08T03:36:53.172Z",
+    "endedAt": "2026-10-08T03:36:53.257Z",
+    "elapsedSeconds": 0.085,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/04-api-docs.log"
+  },
+  {
+    "id": "05-fixtures",
+    "command": [
+      "npm",
+      "run",
+      "check:fixtures"
+    ],
+    "environmentOverrides": {},
+    "startedAt": "2026-10-08T03:36:53.258Z",
+    "endedAt": "2026-10-08T03:36:53.338Z",
+    "elapsedSeconds": 0.08,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/05-fixtures.log"
+  },
+  {
+    "id": "06-fixture-content",
+    "command": [
+      "npm",
+      "run",
+      "check:content"
+    ],
+    "environmentOverrides": {
+      "DATA_DIR": "/work/fixture-data"
+    },
+    "startedAt": "2026-10-08T03:36:53.339Z",
+    "endedAt": "2026-10-08T03:36:53.423Z",
+    "elapsedSeconds": 0.084,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/06-fixture-content.log"
+  },
+  {
+    "id": "07-fixture-encoding",
+    "command": [
+      "npm",
+      "run",
+      "audit:encoding"
+    ],
+    "environmentOverrides": {
+      "DATA_DIR": "/work/fixture-data"
+    },
+    "startedAt": "2026-10-08T03:36:53.424Z",
+    "endedAt": "2026-10-08T03:36:53.494Z",
+    "elapsedSeconds": 0.07,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/07-fixture-encoding.log"
+  },
+  {
+    "id": "08-public-api-smoke",
+    "command": [
+      "npm",
+      "run",
+      "smoke:public-api"
+    ],
+    "environmentOverrides": {},
+    "startedAt": "2026-10-08T03:36:53.495Z",
+    "endedAt": "2026-10-08T03:36:53.995Z",
+    "elapsedSeconds": 0.5,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/08-public-api-smoke.log"
+  },
+  {
+    "id": "09-fixture-build",
+    "command": [
+      "npm",
+      "run",
+      "build:fixtures"
+    ],
+    "environmentOverrides": {},
+    "startedAt": "2026-10-08T03:36:53.996Z",
+    "endedAt": "2026-10-08T03:36:55.597Z",
+    "elapsedSeconds": 1.601,
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "log": "/work/logs/09-fixture-build.log"
+  }
+]

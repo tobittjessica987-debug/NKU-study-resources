@@ -1,0 +1,14 @@
+{
+  "type": "container-account-registration-only",
+  "imagePasswdCopied": true,
+  "hostPasswdRead": false,
+  "originalImageHadUid501": false,
+  "addedSyntheticEntry": "nkustudy-ci:x:501:20:Synthetic isolated acceptance account:/work/home:/usr/sbin/nologin",
+  "home": "/work/home",
+  "user": "501:20",
+  "passwdBindReadOnly": true,
+  "originalPasswdSha256": "bad4a17cc56d0e63db7b8d9b41b3ec2e96cde8a4eb0621858121af45093c5d82",
+  "syntheticPasswdSha256": "4c50275699fe4f8bf9a135c1b9639d2cc9a71ac2e5e87fe33cbdedbe3ba12e7e",
+  "sourceChanged": false,
+  "systemPackagesInstalled": false
+}

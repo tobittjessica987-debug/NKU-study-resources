@@ -1,0 +1,22 @@
+22.23.2-bookworm: Pulling from library/node
+d2dd0384e0f2: Download complete
+18fbe201e43c: Pulling fs layer
+4d3ba406c16b: Pulling fs layer
+450fe15cad1e: Pulling fs layer
+e528fa46febd: Pulling fs layer
+328a0fa474a1: Pulling fs layer
+f85899adb405: Pulling fs layer
+ab16b5d1870e: Pulling fs layer
+a9e5229b833f: Pulling fs layer
+18fbe201e43c: Download complete
+bfe6042eeeb9: Download complete
+e528fa46febd: Download complete
+ab16b5d1870e: Download complete
+f85899adb405: Download complete
+a9e5229b833f: Download complete
+450fe15cad1e: Download complete
+328a0fa474a1: Download complete
+450fe15cad1e: Pull complete
+e528fa46febd: Pull complete
+328a0fa474a1: Pull complete
+short read: expected 203421216 bytes but got 184737832: unexpected EOF

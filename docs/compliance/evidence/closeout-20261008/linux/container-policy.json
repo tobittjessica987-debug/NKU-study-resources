@@ -1,0 +1,11 @@
+{
+  "bindMount": "<LINUX_WORK>:/work",
+  "user": "501:20",
+  "npmCiNetwork": "bridge",
+  "acceptanceNetwork": "none",
+  "publishedPorts": [],
+  "TMPDIR": "/tmp",
+  "hostSourceOrProductionMounts": [],
+  "containerLifetime": "--rm",
+  "readonlyRootFilesystem": true
+}

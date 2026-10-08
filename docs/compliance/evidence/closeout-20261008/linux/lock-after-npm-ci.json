@@ -1,0 +1,7 @@
+{
+  "attempt": "retry",
+  "beforeSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+  "afterSha256": "bc5c09526945ff72afe16ec02b1cd040dc6caec57311b5a621342a0cf593739f",
+  "equal": true,
+  "npmCiExitCode": 0
+}
