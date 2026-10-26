@@ -171,6 +171,18 @@ export function createLearningCompassService(snapshot) {
           source_file_id: chunk.source_file_id,
           location: chunk.location,
           text: chunk.text,
+          applicable_scope: guide.applicable_scope,
+          time_status: guide.time_status,
+          ...(() => {
+            const variants = (guide.variant_details || []).filter((variant) =>
+              variant.source_file_id === chunk.source_file_id
+              || (variant.sections || []).some((section) => (section.source_ids || []).includes(chunk.source_file_id)));
+            return {
+              variant_id: variants.length === 1 ? variants[0].id : "",
+              variant_title: variants.length === 1 ? variants[0].title : "",
+              variant_ambiguous: variants.length > 1,
+            };
+          })(),
         })),
       );
     },

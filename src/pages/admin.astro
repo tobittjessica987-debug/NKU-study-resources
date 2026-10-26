@@ -2325,9 +2325,7 @@ async function loadAiAdmin() {
   aiAdminState.loaded = true;
 }
 
-async function saveAiAdmin() {
-  const status = requireAdminElement("#ai-status", HTMLElement);
-  status.textContent = "保存中...";
+function collectAiSettingsWrite(): AdminTypes.AiSettingsWrite {
   const apiKeyInput = requireAdminElement("#ai-api-key", HTMLInputElement).value.trim();
   const body: AdminTypes.AiSettingsWrite = {
     settings: {
@@ -2342,6 +2340,13 @@ async function saveAiAdmin() {
   };
   if (apiKeyInput) body.api_key = apiKeyInput;
   if (aiAdminState.clearKey) body.clear_api_key = true;
+  return body;
+}
+
+async function saveAiAdmin() {
+  const status = requireAdminElement("#ai-status", HTMLElement);
+  status.textContent = "保存中...";
+  const body = collectAiSettingsWrite();
   try {
     await api("/ai-settings", { method: "POST", body: JSON.stringify(body) });
     await loadAiAdmin();
@@ -2355,9 +2360,7 @@ async function saveAiAdmin() {
 async function testAiAdmin() {
   const status = requireAdminElement("#ai-status", HTMLElement);
   status.textContent = "测试中（最多 15 秒）...";
-  const apiKeyInput = requireAdminElement("#ai-api-key", HTMLInputElement).value.trim();
-  const body: { api_key?: string } = {};
-  if (apiKeyInput) body.api_key = apiKeyInput;
+  const body = collectAiSettingsWrite();
   if (aiAdminState.clearKey) {
     status.textContent = "已选择清除密钥，请先保存再测试。";
     return;

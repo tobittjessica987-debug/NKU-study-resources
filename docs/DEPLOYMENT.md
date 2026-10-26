@@ -1,5 +1,25 @@
 # Deployment safety
 
+<a id="ai-rollback-guard"></a>
+
+## 2026-10-25 AI修复候选与旧r3回退边界（本地，未部署）
+
+本候选基于逐文件校验的r3源码和e97a2f4交付增量；修复AI正文读取链、输入/上下文/适用范围和供应商凭据绑定。不变更数据库schema、社区基数、S3/S5或生产数据；发布前仍需核对当前运行文件的before哈希。原工作区与运行目录未被修改。
+
+旧r3不支持微信地址，会改写为DashScope并保留Key。**不得保存微信配置后仅切回旧release并恢复AI问答。** 新代码不会追溯修复旧二进制。支持的默认回退保持普通指南可用、AI关闭，直到回到兼容版本或完成独立核准的配置恢复。
+
+1. 先冻结AI管理配置写入并停止新AI请求，确认或等待在途调用退出；依现有维护流程保存当时一致备份和当前AI配置，秘密只进入受限/加密保管，不进交接包。
+2. 在当前有效配置中持久设置`settings.enabled:false`。不能仅清空Key：旧r3会回填环境种子。确认实际service使用的DATA_DIR与配置文件，不猜路径、不读取并回显秘密。
+3. 使用本候选的只读预检：`node scripts/check-ai-rollback.mjs --settings /var/lib/nkustudy/json/ai-provider-settings.json`。路径必须来自有效配置核验。只有私有普通文件、version1且enabled严格为false才PASS；该PASS仅证明AI关闭前提，不证明数据恢复或应用切换成功。
+4. 保持配置写入冻结，按已核对的精确systemd drop-in切换到已核准r3基线；先核对全部有效drop-in顺序和备份，禁止`zzzzzz-*.conf`等通配删除，也不能靠增加z字符猜哪个配置会生效。
+5. 启动前后重新执行相同关闭预检并核对实际进程cwd、health、guides、无凭据401及已授权测试身份的AI不可用结果；不为验证自动创建管理账号或调用真实模型。保持AI关闭。恢复AI需另行核准匹配的地址/模型/凭据并完成端到端验证。
+
+如需回退后立即保持AI可用，必须另交匹配旧版provider的完整配置与测试证据，不能复用微信Key到DashScope。本轮不执行任何回退、配置写入或凭据轮换。
+
+管理页“测试连接”现提交当前完整表单，并与保存共用地址/Key约束；部署时须通过现有受控静态发布流程更新管理页资产。只切换Node而保留旧管理页，会继续提交旧版测试表单；不要把本地夹具构建输出覆盖生产内容。
+
+现有部分全量测试/fixture构建脚本含递归清理，按本轮项目删除边界未执行。相关AI/请求读取/配置测试采用内存、回环HTTP及精确已知临时文件清理；全量候选与生产端到端/手机/50题验收另行记录，不以专项通过替代。
+
 This repository is a source candidate, not authorization to deploy. Production data and secrets remain outside every release. Website administration is the only content-management surface; future `/api/v1` routes are public/user-facing only.
 
 <a id="community-support-rollout"></a>

@@ -5,30 +5,18 @@
  * 环境变量 DASHSCOPE_API_KEY / QWEN_API_KEY（初始种子）。
  * Base URL 必须命中允许清单（阿里云或微信 chatapi 的 HTTPS 地址），防止把密钥发往任意主机。
  */
-const DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-const WECHAT_OPENAI_BASE_URL = "https://chatapi.weixin.qq.com/openai/v1";
+import { DEFAULT_AI_BASE_URL, normalizeAiBaseUrl } from "./ai-provider-config.mjs";
+const DEFAULT_BASE_URL = DEFAULT_AI_BASE_URL;
 const DEFAULT_MODEL = "qwen-plus";
 const DEFAULT_MAX_TOKENS = 1200;
 
 export function validateQwenEndpoint(baseUrl) {
-  const normalized = String(baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, "");
-  let parsed;
-  try {
-    parsed = new URL(normalized);
-  } catch {
-    throw new Error("QWEN_BASE_URL is not a valid URL.");
-  }
-  const hostname = parsed.hostname.toLowerCase();
-  const isAliyun = hostname === "aliyuncs.com" || hostname.endsWith(".aliyuncs.com");
-  const isWechatOpenAi = normalized === WECHAT_OPENAI_BASE_URL;
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password || !(isAliyun || isWechatOpenAi)) {
-    throw new Error("QWEN_BASE_URL must be an HTTPS aliyuncs.com or chatapi.weixin.qq.com/openai/v1 endpoint.");
-  }
-  return `${normalized}/chat/completions`;
+  return `${normalizeAiBaseUrl(baseUrl)}/chat/completions`;
 }
 
 function createQwenClient({ apiKey, baseUrl, model, maxTokens }) {
   const endpoint = validateQwenEndpoint(baseUrl);
+  if (typeof apiKey !== "string" || !apiKey.trim() || /[\r\n]/.test(apiKey)) throw new Error("AI API Key is invalid.");
   const normalizedModel = String(model || DEFAULT_MODEL).trim();
   const normalizedMaxTokens = Number(maxTokens) || DEFAULT_MAX_TOKENS;
   return async function qwenClient(messages, { timeoutMs = 20_000 } = {}) {
@@ -37,6 +25,7 @@ function createQwenClient({ apiKey, baseUrl, model, maxTokens }) {
     try {
       const response = await fetch(endpoint, {
         method: "POST",
+        redirect: "error",
         headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: normalizedModel,
