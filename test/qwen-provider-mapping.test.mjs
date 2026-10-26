@@ -89,3 +89,69 @@ test("wechat chatapi openai-compatible endpoint is allowed; other hosts stay rej
   assert.equal(seen[0].url, "https://chatapi.weixin.qq.com/openai/v1/chat/completions");
   assert.equal(seen[0].auth, "Bearer wechat-key");
 });
+
+test("WeChat GLM-5.2 disables template thinking through settings and environment entrypoints", async () => {
+  const messages = [{ role: "user", content: "成绩复核什么时候申请？" }];
+  const seen = [];
+  await withFetchStub(async (url, init) => {
+    seen.push({ url: String(url), init, body: JSON.parse(init.body) });
+    return { ok: true, json: async () => ({ choices: [{ message: { content: "答复" } }] }) };
+  }, async () => {
+    // Canonical URL aliases and trimmed model values use the same wire request.
+    const baseUrl = " https://CHATAPI.WEIXIN.QQ.COM:443/openai/v1/ ";
+    const runtimeProvider = createQwenProviderFromSettings(() => ({
+      enabled: true, api_key: "fake-wechat-key", base_url: baseUrl,
+      model: " GLM-5.2 ", max_tokens: 4096,
+    }));
+    const envProvider = createQwenProviderFromEnv({
+      QWEN_API_KEY: "fake-wechat-key", QWEN_BASE_URL: baseUrl,
+      QWEN_MODEL: " GLM-5.2 ", QWEN_MAX_TOKENS: "4096",
+    });
+    for (const provider of [runtimeProvider, envProvider]) {
+      assert.equal(await provider(messages, { timeoutMs: 1000 }), "答复");
+    }
+  });
+  assert.equal(seen.length, 2);
+  for (const call of seen) {
+    assert.equal(call.url, "https://chatapi.weixin.qq.com/openai/v1/chat/completions");
+    assert.equal(call.init.redirect, "error");
+    assert.equal(call.init.headers.authorization, "Bearer fake-wechat-key");
+    assert.deepEqual(call.body, {
+      model: "GLM-5.2", messages, max_tokens: 4096, stream: false,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+  }
+});
+
+test("the template override never leaks into other models, endpoints or defaults", async () => {
+  const messages = [{ role: "user", content: "hi" }];
+  const runtime = { enabled: true, api_key: "fake-key", max_tokens: 1200 };
+  const cases = [
+    { base_url: "https://chatapi.weixin.qq.com/openai/v1", model: "GLM-5.2", override: true },
+    { base_url: "https://chatapi.weixin.qq.com/openai/v1", model: "GLM-5.1" },
+    { base_url: "https://chatapi.weixin.qq.com/openai/v1", model: "DeepSeek-V4-Flash" },
+    { base_url: "https://chatapi.weixin.qq.com/openai/v1", model: "GLM-5.2-preview" },
+    { base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "GLM-5.2" },
+    { base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", model: "qwen-plus" },
+  ];
+  const seen = [];
+  await withFetchStub(async (_url, init) => {
+    seen.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ choices: [{ message: { content: "ok" } }] }) };
+  }, async () => {
+    const provider = createQwenProviderFromSettings(() => runtime);
+    for (const item of cases) {
+      runtime.base_url = item.base_url;
+      runtime.model = item.model;
+      await provider(messages);
+    }
+    await createQwenProviderFromEnv({ DASHSCOPE_API_KEY: "fake-key" })(messages);
+  });
+  for (let index = 0; index < cases.length; index += 1) {
+    assert.deepEqual(seen[index], {
+      model: cases[index].model, messages, max_tokens: 1200, stream: false,
+      ...(cases[index].override ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+    });
+  }
+  assert.deepEqual(seen.at(-1), { model: "qwen-plus", messages, max_tokens: 1200, stream: false });
+});

@@ -19,6 +19,11 @@ function createQwenClient({ apiKey, baseUrl, model, maxTokens }) {
   if (typeof apiKey !== "string" || !apiKey.trim() || /[\r\n]/.test(apiKey)) throw new Error("AI API Key is invalid.");
   const normalizedModel = String(model || DEFAULT_MODEL).trim();
   const normalizedMaxTokens = Number(maxTokens) || DEFAULT_MAX_TOKENS;
+  // This gateway serves GLM-5.2 through a chat template; the native BigModel
+  // `thinking` field is ignored. Disable template reasoning for bounded RAG
+  // responses only on the verified endpoint/model pair, preserving all others.
+  const disableTemplateThinking = endpoint === "https://chatapi.weixin.qq.com/openai/v1/chat/completions"
+    && normalizedModel === "GLM-5.2";
   return async function qwenClient(messages, { timeoutMs = 20_000 } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -32,6 +37,7 @@ function createQwenClient({ apiKey, baseUrl, model, maxTokens }) {
           messages,
           max_tokens: normalizedMaxTokens,
           stream: false,
+          ...(disableTemplateThinking ? { chat_template_kwargs: { enable_thinking: false } } : {}),
         }),
         signal: controller.signal,
       });

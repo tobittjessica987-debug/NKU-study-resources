@@ -509,6 +509,9 @@ curl -sS https://nkustudy.top/api/v1/home
 - 请求体按UTF-8字节独立限制为64KiB，公开读取helper向底层解析器传递该限制并保持严格文本校验；超限返回JSON `413 AI_BODY_TOO_LARGE`而不直接重置连接。每字段字符上限不取消整体字节上限；其他路由仍使用各自原限制。
 - 服务端顺序：Token验证 → 受限正文读取 → 再核身份 → 同用户单进程并发单飞 → 输入校验 → 限流 → 适用范围检索及冲突/无依据/引用缺失拒答 → 调用已配置provider → 文字拒答规范化 → 再核身份并返回。
 - 限流默认每用户每日20次、分钟3次、全局每日2000次（SQLite持久化窗口）；实际取值以管理配置为准。本候选不改变线上额度。
+- 检索过滤生成的通用双字词，并优先明确指南标题；标点或明确附加连接词（以及、并且、同时、另外、还有）分隔且各子句可唯一识别主题时，按主题分享原有6块依据预算，保留完整原文。不会降低最低依据门槛，不声称任意多主题语句都能正确分类。
+- 回答只覆盖当前所问，保留必要期限、条件与例外；不展开未请求整表或重复抄写依据。300—500字是软提示，必要信息可超过，不硬截断政策条件。
+- 微信精确入口 `https://chatapi.weixin.qq.com/openai/v1` 配合 `GLM-5.2` 时，provider发送 `chat_template_kwargs:{enable_thinking:false}`，使用同一模型的非思考模式减少服务时延。其他地址/模型的请求参数保持原样；不接受客户端自行指定模型、Key或该开关。
 - 服务端总预算 25 秒（严格小于客户端 30 秒超时并保留传输余量），重试服从剩余预算，provider 失败最多自动重试 1 次，仍失败返回 `503 AI_UNAVAILABLE`。
 - 依据不足/来源冲突返回 `200` 业务拒答：`data.refused=true`，`reason` 为 `INSUFFICIENT_EVIDENCE|SOURCE_CONFLICT` 之一，不调用模型、不编造；模型以文字表达的拒答（`REFUSE_INSUFFICIENT` 标记或简短拒答话术）同样规范化为该结构化拒答。
 - 成功响应 `data`：`answer`（≤12000 字，超出截断）、`refused:false`、`reason:null`、`guide_id`、`category`（首选依据所属指南）、`applicable_scope`、`freshness_notice`、`citations[{id,title,document_no,publisher,published_at,file_type,file_url,official_page_url}]`（整份原文件级引用，`file_url` 为 R2 公网直链）。
