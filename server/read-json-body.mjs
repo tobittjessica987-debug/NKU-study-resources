@@ -2,6 +2,11 @@ import { assertNoReplacementCharacters, decodeUtf8Strict } from "./text-integrit
 
 export const MAX_BODY_BYTES = 2_000_000;
 
+// Public callers may narrow transport limits but must retain text integrity checks.
+export function readPublicJsonBody(req, options = {}) {
+  return readJsonBody(req, { ...options, rejectReplacementCharacters: true });
+}
+
 function requestError(message, statusCode) {
   return Object.assign(new Error(message), { statusCode });
 }

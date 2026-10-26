@@ -503,15 +503,29 @@ curl -sS https://nkustudy.top/api/v1/home
 }
 ```
 
-- `question` 必填，1–1000 字；`history` 最多 9 轮，必须按 `user/assistant` 成对交替、以 `user` 开头（role 只允许 `user/assistant`，历史回答不作为事实来源，每问重新检索；短追问会结合最近一次用户提问检索）；`profile` 可选，`admission_year` 只接受四位整数字面量（如 `2025` 或 `"2025"`）。
-- 请求体上限 64KiB（覆盖合法中文上界约 57.6KB），超限 `413 AI_BODY_TOO_LARGE`。
-- 服务端顺序：Token 验证 → 黑名单/注销检查 → 同用户并发单飞（在途第二问 429）→ 限流 → 输入校验 → 检索 published 逐字块 → 冲突/无依据/引用缺失拒答 → 调用千问 → 文字拒答规范化 → 返回。
-- 限流：每用户每日 20 次、分钟 3 次，全局每日 2000 次（SQLite 持久化窗口）。
+- `question` 必须是原始字符串，1–1000 字；`history` 最多9个完整轮次（偶数条），按`user/assistant`成对交替，每条content必须是原始字符串且最多1000字。`profile.major`必须是字符串，不能由数组/对象强制转换；`admission_year`接受四位年份数字或字符串（JSON解析后按值验证，不声称区分数字2025与等值科学记数法）。
+- 检索、来源冲突判断和模型输入共用有效话题上下文：省略式追问保留最近主题，明确的新主题不再发送旧历史。历史助手回答不作为事实依据。
+- 依据按发布快照中的学院变体、年级、学年/学期和时效元数据保守过滤。当前就读/转出学院不能当作转入目标，专业不自动映射学院；条件不清只用校级一般材料或拒答。历史/已结束材料须有明确历史意图及对应年份；不能据标签认定具体申请窗口仍开放。知识负责人仍需核验来源时效、资格及缺失映射。
+- 请求体按UTF-8字节独立限制为64KiB，公开读取helper向底层解析器传递该限制并保持严格文本校验；超限返回JSON `413 AI_BODY_TOO_LARGE`而不直接重置连接。每字段字符上限不取消整体字节上限；其他路由仍使用各自原限制。
+- 服务端顺序：Token验证 → 受限正文读取 → 再核身份 → 同用户单进程并发单飞 → 输入校验 → 限流 → 适用范围检索及冲突/无依据/引用缺失拒答 → 调用已配置provider → 文字拒答规范化 → 再核身份并返回。
+- 限流默认每用户每日20次、分钟3次、全局每日2000次（SQLite持久化窗口）；实际取值以管理配置为准。本候选不改变线上额度。
+- 检索过滤生成的通用双字词，并优先明确指南标题；标点或明确附加连接词（以及、并且、同时、另外、还有）分隔且各子句可唯一识别主题时，按主题分享原有6块依据预算，保留完整原文。不会降低最低依据门槛，不声称任意多主题语句都能正确分类。
+- 每条模型依据绑定来源编号、规范文件名、文号与原文定位；指南标题不等于正式文件名，汇编内部制度不可串用。任一选中依据缺少有效来源身份时在调用模型前拒答；返回引用卡片结构不变。
+- 回答只覆盖当前所问，保留必要期限、条件与例外；不展开未请求整表或重复抄写依据。300—500字是软提示，必要信息可超过，不硬截断政策条件。
+- 微信精确入口 `https://chatapi.weixin.qq.com/openai/v1` 配合 `GLM-5.2` 时，provider发送 `chat_template_kwargs:{enable_thinking:false}`，使用同一模型的非思考模式减少服务时延。其他地址/模型的请求参数保持原样；不接受客户端自行指定模型、Key或该开关。
 - 服务端总预算 25 秒（严格小于客户端 30 秒超时并保留传输余量），重试服从剩余预算，provider 失败最多自动重试 1 次，仍失败返回 `503 AI_UNAVAILABLE`。
 - 依据不足/来源冲突返回 `200` 业务拒答：`data.refused=true`，`reason` 为 `INSUFFICIENT_EVIDENCE|SOURCE_CONFLICT` 之一，不调用模型、不编造；模型以文字表达的拒答（`REFUSE_INSUFFICIENT` 标记或简短拒答话术）同样规范化为该结构化拒答。
 - 成功响应 `data`：`answer`（≤12000 字，超出截断）、`refused:false`、`reason:null`、`guide_id`、`category`（首选依据所属指南）、`applicable_scope`、`freshness_notice`、`citations[{id,title,document_no,publisher,published_at,file_type,file_url,official_page_url}]`（整份原文件级引用，`file_url` 为 R2 公网直链）。
-- 模型密钥优先存于管理页落盘配置（AiProviderStore，0600）；环境变量 `DASHSCOPE_API_KEY` 仅作首次种子。未配置密钥时稳定返回 `503 AI_UNAVAILABLE`，普通指南不受影响。
+- 模型密钥存于受限0600配置文件，非加密存储；管理读回仍仅掩码。环境变量仅在配置文件明确不存在时作为首次种子；已持久化的空Key不得从环境复活。损坏/不可读/非法地址配置关闭调用并返回`configuration_error:AI_CONFIGURATION_INVALID`，不能静默换供应商。
 - 主要错误：`400 INVALID_AI_QUESTION`、`401 AUTH_REQUIRED`、`413 AI_BODY_TOO_LARGE`、`429 RATE_LIMITED`、`503 AI_UNAVAILABLE`。
+
+#### AI配置保存、测试与地址绑定
+
+`POST /admin-api/ai-settings`与`POST /admin-api/ai-settings/test`共用有效配置计算。测试接受与保存相同的`{settings,api_key?,clear_api_key?}`，兼容既有平铺字段；只预览、不保存，使用当前完整表单中的地址/模型/Key。首次未保存的新配置也可测试；缺Key/关闭状态仍不发请求。
+
+HTTPS地址采用统一规范化，默认443/主机大小写/尾斜杠等价形式保持同一目的地；微信限定`chatapi.weixin.qq.com/openai/v1`，保留现有阿里HTTPS域范围。userinfo、非默认端口、query、fragment及不允许的地址拒绝。最终provider不跟随重定向。更改规范化后的目的地必须显式提供Key或明确清除；只修改同地址模型/限流可保留Key。保存非法配置返回受控400，测试返回受控失败，不得自动换成默认供应商继续携带旧Key。
+
+以上为本地修复候选契约，尚不表示已部署。回退旧r3的AI配置预检及保持AI关闭要求见[部署说明](DEPLOYMENT.md#ai-rollback-guard)。
 
 ### `GET /api/v1/courses`
 

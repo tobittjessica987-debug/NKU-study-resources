@@ -440,7 +440,7 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
                 let body;
                 try {
                   // AI 请求体上限 64KiB：覆盖合法中文上界（约 57.6KB），远低于全局 2MiB 解析器上限。
-                  body = await readBody(req, { maxBytes: 64 * 1024 });
+                  body = await readBody(req, { maxBytes: 64 * 1024, destroyOnLimit: false });
                 } catch (error) {
                   if (error && error.statusCode === 413) throw new PublicApiError(413, "请求内容过大，请缩短问题或历史记录。", "AI_BODY_TOO_LARGE");
                   throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");

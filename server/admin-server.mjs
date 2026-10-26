@@ -46,12 +46,13 @@ import {
   validateContentImage,
 } from "./content-images.mjs";
 import { AiProviderStore } from "./ai-provider-store.mjs";
+import { aiSettingsWriteRequest } from "./ai-provider-config.mjs";
 import { buildCatalogCourseImports } from "./catalog-import.mjs";
 import { ServiceAuthStore } from "./service-auth-store.mjs";
 import { MpFavoritesService } from "./mp-favorites-service.mjs";
 import { CourseCatalogService } from "./course-catalog-service.mjs";
 import { FeishuNotifyService } from "./feishu-notify-service.mjs";
-import { readJsonBody } from "./read-json-body.mjs";
+import { readJsonBody, readPublicJsonBody } from "./read-json-body.mjs";
 import { compareManifestWithDiscovery, mergeCourseR2Discovery, mergeR2Discoveries } from "./r2-sync-merge.mjs";
 import { assertR2CleanupSafety, planR2ManifestMutation, planR2ObjectCopies, strictR2BasePath, strictR2Path } from "./r2-mutation-plan.mjs";
 import { publishAfterR2Prepare, R2MutationQueue, runExclusiveR2Mutation, runSerializedR2Mutation } from "./r2-transaction.mjs";
@@ -420,7 +421,7 @@ async function notifyModerators(payload = {}) {
   if (!result.sent) console.warn(`Feishu notify skipped: ${result.reason || "all bots failed"}`);
   return result;
 }
-const readPublicBody = (req) => readJsonBody(req, { rejectReplacementCharacters: true });
+const readPublicBody = readPublicJsonBody;
 
 const serviceAuthStore = new ServiceAuthStore({ store: jsonStore, filePath: path.join(dataDir, "service-keys.json") });
 const consumeServiceQuota = (caller) => {
@@ -3412,11 +3413,7 @@ const server = createServer(async (req, res) => {
       if (!requirePermission(req, account, "ai.manage", res)) return;
       const body = await readBody(req);
       try {
-        const data = await aiProviderStore.update({
-          settings: body.settings || body,
-          apiKey: body.api_key,
-          clearApiKey: body.clear_api_key === true,
-        });
+        const data = await aiProviderStore.update(aiSettingsWriteRequest(body));
         json(res, 200, { ok: true, data });
       } catch (error) {
         json(res, 400, { ok: false, error: error.message });
@@ -3429,7 +3426,7 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       const startedAt = Date.now();
       try {
-        const runtime = aiProviderStore.runtime();
+        const runtime = aiProviderStore.preview(aiSettingsWriteRequest(body));
         if (!runtime.enabled) {
           json(res, 200, { ok: true, data: { ok: false, reason: "AI_QUESTION_DISABLED", latency_ms: 0 } });
           return;
@@ -3440,15 +3437,15 @@ const server = createServer(async (req, res) => {
         }
         const { createQwenProviderFromEnv } = await import("./qwen-provider.mjs");
         const provider = createQwenProviderFromEnv({
-          DASHSCOPE_API_KEY: body.api_key || runtime.api_key,
-          QWEN_BASE_URL: body.base_url || runtime.base_url,
-          QWEN_MODEL: body.model || runtime.model,
+          DASHSCOPE_API_KEY: runtime.api_key,
+          QWEN_BASE_URL: runtime.base_url,
+          QWEN_MODEL: runtime.model,
           QWEN_MAX_TOKENS: String(runtime.max_tokens),
         });
         const answer = await provider([{ role: "user", content: "请只回复两个字：正常" }], { timeoutMs: 15_000 });
         const latency = Date.now() - startedAt;
         const preview = String(answer || "").trim().slice(0, 40);
-        json(res, 200, { ok: true, data: { ok: true, model: body.model || runtime.model, latency_ms: latency, preview } });
+        json(res, 200, { ok: true, data: { ok: true, model: runtime.model, latency_ms: latency, preview } });
       } catch (error) {
         json(res, 200, { ok: true, data: { ok: false, reason: "PROVIDER_ERROR", error: String(error.message || error).slice(0, 120), latency_ms: Date.now() - startedAt } });
       }
