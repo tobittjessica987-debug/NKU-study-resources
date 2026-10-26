@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createQwenProviderFromSettings, createQwenProviderFromEnv } from "../server/qwen-provider.mjs";
+import { createQwenProviderFromSettings, createQwenProviderFromEnv, validateQwenEndpoint } from "../server/qwen-provider.mjs";
 
 function withFetchStub(stub, fn) {
   const original = globalThis.fetch;
@@ -55,4 +55,37 @@ test("provider errors carry http status and non-sensitive provider code", async 
       (error) => error.status === 401 && error.providerCode === "invalid_api_key" && /qwen http 401/.test(error.message),
     );
   });
+});
+
+test("wechat chatapi openai-compatible endpoint is allowed; other hosts stay rejected", async () => {
+  assert.equal(
+    validateQwenEndpoint("https://chatapi.weixin.qq.com/openai/v1/"),
+    "https://chatapi.weixin.qq.com/openai/v1/chat/completions",
+  );
+  // 微信入口只开放精确路径；任意路径/子域/协议仍拒绝，防止密钥发往其他主机。
+  for (const bad of [
+    "https://chatapi.weixin.qq.com/openai/v2",
+    "https://chatapi.weixin.qq.com/other",
+    "https://evil.weixin.qq.com/openai/v1",
+    "http://chatapi.weixin.qq.com/openai/v1",
+    "https://chatapi.example.com/openai/v1",
+  ]) {
+    assert.throws(() => validateQwenEndpoint(bad), /must be an HTTPS/, bad);
+  }
+  const seen = [];
+  await withFetchStub(async (url, init) => {
+    seen.push({ url: String(url), auth: init.headers.authorization });
+    return { ok: true, json: async () => ({ choices: [{ message: { content: "ok", reasoning_content: "思考过程" } }] }) };
+  }, async () => {
+    const provider = createQwenProviderFromSettings(() => ({
+      enabled: true,
+      api_key: "wechat-key",
+      base_url: "https://chatapi.weixin.qq.com/openai/v1",
+      model: "GLM-5.2",
+      max_tokens: 4096,
+    }));
+    assert.equal(await provider([{ role: "user", content: "hi" }], { timeoutMs: 1000 }), "ok");
+  });
+  assert.equal(seen[0].url, "https://chatapi.weixin.qq.com/openai/v1/chat/completions");
+  assert.equal(seen[0].auth, "Bearer wechat-key");
 });

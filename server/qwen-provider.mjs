@@ -1,10 +1,12 @@
 /**
- * 千问（DashScope OpenAI 兼容模式）provider。
+ * OpenAI 兼容 provider：默认千问（DashScope 兼容模式），另支持微信 AI 开放接口
+ * （chatapi.weixin.qq.com/openai/v1，OpenAI 兼容协议，模型如 GLM-5.2）。
  * 配置来源（按优先级）：管理页落盘的 ai-provider-store 运行时配置 →
  * 环境变量 DASHSCOPE_API_KEY / QWEN_API_KEY（初始种子）。
- * Base URL 必须是阿里云 HTTPS 地址，防止把密钥发往任意主机。
+ * Base URL 必须命中允许清单（阿里云或微信 chatapi 的 HTTPS 地址），防止把密钥发往任意主机。
  */
 const DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+const WECHAT_OPENAI_BASE_URL = "https://chatapi.weixin.qq.com/openai/v1";
 const DEFAULT_MODEL = "qwen-plus";
 const DEFAULT_MAX_TOKENS = 1200;
 
@@ -17,8 +19,10 @@ export function validateQwenEndpoint(baseUrl) {
     throw new Error("QWEN_BASE_URL is not a valid URL.");
   }
   const hostname = parsed.hostname.toLowerCase();
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password || !(hostname === "aliyuncs.com" || hostname.endsWith(".aliyuncs.com"))) {
-    throw new Error("QWEN_BASE_URL must be an HTTPS aliyuncs.com endpoint.");
+  const isAliyun = hostname === "aliyuncs.com" || hostname.endsWith(".aliyuncs.com");
+  const isWechatOpenAi = normalized === WECHAT_OPENAI_BASE_URL;
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || !(isAliyun || isWechatOpenAi)) {
+    throw new Error("QWEN_BASE_URL must be an HTTPS aliyuncs.com or chatapi.weixin.qq.com/openai/v1 endpoint.");
   }
   return `${normalized}/chat/completions`;
 }

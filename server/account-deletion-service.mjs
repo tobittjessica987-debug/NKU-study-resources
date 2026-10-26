@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PublicApiError } from './public-api-errors.mjs';
 import { cleanupAccountContent } from './account-content-cleanup.mjs';
+import { scrubCommunitySupportAccount } from './community-support-service.mjs';
 
 export const ACCOUNT_DELETION_POLICY = 's5-retain-published-v1';
 
@@ -19,11 +20,11 @@ const fixedCode = error => /^[A-Z][A-Z0-9_]{0,79}$/.test(error?.code || '') ? er
  * Content cleanup uses the same file queues as submissions and publications.
  */
 export class AccountDeletionService {
-  constructor({ auth, ledger, store, dataDir, tickets, orders, cleanupAvatars,
+  constructor({ auth, ledger, store, dataDir, tickets, orders, cleanupAvatars, communitySupport = null,
     invalidate = () => {}, audit = () => {}, cleanupContent = cleanupAccountContent,
     now = Date.now, fault = () => {} }) {
     if (!auth || !ledger || !store || !dataDir || !orders || !cleanupAvatars) throw new Error('Account deletion dependencies required');
-    Object.assign(this, { auth, ledger, store, dataDir, tickets, orders, cleanupAvatars, invalidate, audit, cleanupContent, now, fault });
+    Object.assign(this, { auth, ledger, store, dataDir, tickets, orders, cleanupAvatars, communitySupport, invalidate, audit, cleanupContent, now, fault });
     this.running = new Map();
     ensureAccountDeletionJobs(auth.db);
   }
@@ -83,6 +84,11 @@ export class AccountDeletionService {
       const content = await this.cleanupContent({ store: this.store, dataDir: this.dataDir, userId: entry.userId, donationOrderKeys: orderKeys });
       this.invalidate();
       this.fault('afterContent');
+      // The feature may be disabled during rollback, but existing contribution
+      // ownership must still be removed before S5 can report completion.
+      if (this.communitySupport) await this.communitySupport.clearAccount(entry.userId);
+      else scrubCommunitySupportAccount(db, entry.userId);
+      this.fault('afterCommunitySupport');
       const avatars = await this.cleanupAvatars(entry.userId);
       if (avatars?.remaining !== 0 || avatars?.sourceDeleted !== true) throw Object.assign(new Error('Avatar cleanup has not been verified'), { code: 'AVATAR_CLEANUP_PENDING' });
       this.fault('afterAvatars');

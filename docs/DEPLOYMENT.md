@@ -2,6 +2,68 @@
 
 This repository is a source candidate, not authorization to deploy. Production data and secrets remain outside every release. Website administration is the only content-management surface; future `/api/v1` routes are public/user-facing only.
 
+<a id="community-support-rollout"></a>
+
+## 2026-10-24 公共历史基数升级（r3，待服务器执行）
+
+已上线来源为 `/opt/nkustudy-releases/20261024-community-ui11-r2`，本次只改变公共总量，不改变个人花币或等级。交付增量绑定全部220个已部署源码文件，复制完整现行应用至独立r3目录后应用；保留依赖、UI11页面、资源和运行数据路径。参考资料991/评价1477不写死，迁移从当时权威公开目录和评价源重新核验。
+
+1. 一批脚本先在服务运行时完成来源校验、候选安装、以nkustudy身份的合成测试和路由核验。只要失败就不进入迁移。
+2. root将现行env、unit/drop-ins和主Caddy配置保存在0700目录、0600文件中；不输出秘密内容。停掉现有单写服务并确认inactive/MainPID=ControlPID=0之后，由nkustudy执行 `scripts/backup-community-support-baseline.mjs`，复用加密备份与解密读回校验。覆盖SQLite全部表、运行JSON和私密应用配置；独立S5权威账本保持原处，只把checkpoint写入运行备份。外部资源不复制。
+3. 同一oneshot单元在备份成功后才执行 `scripts/migrate-community-support-baseline.mjs --apply`。该脚本也支持离线 `--preview`、`--status`；所有写者停下由外层执行器保证。只读SQLite可能创建锁辅助文件，但不改业务数据或schema。
+4. 唯一迁移标识为 `community-baseline-20261024-v1`。一个SQLite立即事务完成旧规则同步、同sequence历史公共投影、基数字段与回执、revision推进；个人统计前后摘要必须一致。重复执行返回原回执，不重复加数；不重置epoch、JSON sequence或baseline_review_ids。
+5. 新服务保留三个功能开关为1，并持久设置 `COMMUNITY_SUPPORT_BASELINE_REQUIRED=1`。只有迁移回执存在且完整时才开放统计。恢复了迁移前备份、回执缺失或不一致时关闭能力，不自动重新初始化基数。
+6. 核验健康、home最终公共总量、401鉴权、运行路径和迁移回执。失败或连接中断后运行整批脚本的status，保留全部候选、回执、日志与备份，不重复apply、不清文件。迁移可能已提交时固定新代码并关闭功能；不能退回r2，因为其旧投影即使关功能仍会排除历史评价。
+
+既有备份包含新增SQLite元数据；隔离恢复/重建必须保留该记录及最新下载、注销证据。`rebuildReviewProjection()`只重建评价派生数据，不重新取得资料基数，也不是一个公开入口。禁止用旧备份覆盖最新数据后声称个人贡献保持不变。
+
+下方r2段落保留首次上线的历史流程；不能用它重新初始化已迁移的生产服务。r3的具体清单、包哈希和测试结果以随包RELEASE/校验清单为准。本地验证不是目标Linux迁移、生产账号写入或真机验收。
+
+## 2026-10-24 花币后端 UI11 增量发布（r2）
+
+本候选以用户从运行目录 `/opt/nkustudy-releases/20261013-ui11-70815df` 导出的 212 个源码文件为基准。原包 SHA-256 为 `126af2aa60c8a5e6f24e72ae3a426a1e703793dc776d866d0b7c5d2606fe44a1`，源码清单 SHA-256 为 `1c9830b7ca8231ebb1655d832c693280fdec85d347852c1adc771a13ca239cdc`，均已本地独立校验；目录没有 Git 元数据，不将目录后缀当作已核验完整提交。旧 `e8b1022` 仅作本地测试脚手架及 r1 开发基线，r1 全量包不得覆盖 UI11。
+
+交付仅包含花币增量及验证器；主题/图标、管理页、备份分项及课程文件增量同步保留 UI11 原实现。导出包没有完整静态资产及运行数据，不能用它重建整站覆盖。正式接口及一致性边界见 [API.md](API.md#community-support-api)。
+
+### 发布前准备
+
+1. 只读核对当前服务的有效 `WorkingDirectory`、`ExecStart`，并运行增量包的 `apply_delta.py --verify-source /opt/nkustudy-releases/20261013-ui11-70815df` 校验全部 212 个源文件。任何漂移均停止，保留实际后续改动后再整合。
+2. 以当前完整 UI11 应用为底准备一个尚未启用的新 release 目录，保留现有静态源资产；不要改写活跃目录。在新目录运行增量包校验后才应用所列文件，未列文件不改。继续沿用服务账号、Node `>=22.12.0`、原 SQLite/JSON 路径、Caddy 及 R2。锁文件及依赖未改；本机 macOS 依赖软链不随包发布，目标机使用自己经过验证的 Linux 依赖。
+3. 在隔离合成环境先运行 `npm run test:community-support`、`npm run check:api-docs`、`npm run check`。不要给测试注入生产环境文件；测试会创建临时合成目录和短时回环 HTTP 服务，不访问真实微信/R2，不发送真实通知。保留输出作为本地或目标 Linux 证据，不能冒充生产验收。
+4. 按现有受控流程取得一致备份，包含运行 JSON、SQLite（不能遗漏 WAL）及必要配置；独立 S5 权威注销账本单独保留，不包含在运行快照内。UI11 支持分项备份，部署备份必须明确 `siteData=true`、`serverConfig=true`，只同步课程文件不算完整运行备份。源码包不能覆盖运行 JSON、SQLite、凭据或资源。后端测试和真实环境预检是不同门禁。
+
+### 安装与首次启用
+
+三项环境变量均默认关闭：
+
+```ini
+COMMUNITY_SUPPORT_ENABLED=0
+COMMUNITY_SUPPORT_DOWNLOAD_REPORTING=0
+COMMUNITY_SUPPORT_PERSONAL_STATS=0
+```
+
+先保持这三个值，按既有 release 切换流程部署代码，核对服务、首页、登录和正常资源接口。未初始化的关闭状态不会创建贡献表或历史基线；首页的 `community_support` 为 `{version:1,enabled:false}`，新统计写入为 503。
+
+准备开始计数时，在维护窗口保持现有单写进程约束、停止所有运行数据写入并完成一致备份；将 `COMMUNITY_SUPPORT_ENABLED=1`，按已核对的 systemd 服务身份重启。启动先完成原恢复、S3 规范化与 S5 注销重放，再初始化：
+
+- 在 `reviews.json` 添加私有 `community_support_ledger`（epoch、sequence、全部现有评价 ID 排除基线）；原评价内容、公开状态和身份规则保持。
+- 在既有 SQLite 增量创建 `community_support_meta`、`community_support_downloads`、`community_support_reviews`、`community_support_cleared_accounts`、`community_support_rate_limits` 及索引。没有外部手写 SQL 部署步骤。
+- 历史花币从 0 开始；初始化之后新增的评价随真实审核状态计币。此启动有明确持久写入，不能当作只读预检执行。首次初始化中断、来源或数据库缺失/不匹配时会关闭统计能力，保留原件，不自动重置；网站其他功能继续运行。
+
+可先让两个子开关保持 `0`，仅启用公共总量。需要开放下载记账与个人查询时再分别设置为 `1` 并重启。客户端尚未接入时不要宣称已实现“下载→花币→个人等级”完整体验；后台开关不会替代客户端实现。所有新路由沿用 `/api/v1/*`，无需新域名或公网 Node 端口。
+
+### 验收、故障与回退
+
+- 隔离验收：并发重放同一事件 100 次只计 1；正文/归属冲突 409；401/429/503 不计数；匿名不计本人；评价待审→批准→重复批准→隐藏→恢复为 `0→1→1→0→1`；重启/开关不重置；注销及旧备份恢复后不能重新关联本人。既有自动批准仍可有效计币。
+- 生产先做只读健康与能力检查，核对实际 release、三个开关、计数和 revision。真实写入联调使用维护者明确选定的账号与内容，并先核对是否会触发现有通知；本候选未授权发送通知或随意创建生产投稿。真机、真实下载完成事件与客户端页面验收另列。
+- 常规回退优先设置 `COMMUNITY_SUPPORT_ENABLED=0`，保留当前代码、源标记和全部账本。关闭之后审核/注销仍维护一致性；不能删表、清记录或把旧备份直接覆盖回来。
+- 首次启用前可以退回原代码。启用后旧 `e8b1022` 不维护新 sequence；不要让旧代码继续写入后又直接开启本候选。若确须代码回退，保持统计关闭，并由维护者核对期间数据变化及恢复方案。
+- 来源标记损坏、SQL/JSON 对不上或正在写入时，统计返回不可用，首页保留原业务内容。不得通过删除 marker、清空表或伪造成功回执消除错误。
+- 完整旧备份即使内部一致，也可能落后于已发布 revision 和新增下载。恢复前须保留最新贡献数据库/日志证据，在隔离环境核对当前权威状态、最高已发布 revision 及 S5 最新注销账本；没有完整证据就保持能力关闭。本轮没有自动跨备份补账或任意提升 revision 的管理入口。
+- 共享 JSON 目录只允许一个 Node 写进程。SQLite 并发测试不授权部署多实例；额度、伪造事件与日量的产品取舍见 API 文档。
+
+回交只需实际 release/候选哈希、服务版本、三项开关、备份/恢复结果、测试与只读接口结果、未验项。不要回传环境文件、Token、个人信息或完整原始日志。当前任务未连接生产、未执行迁移/重启、未上传小程序。
+
 ## Production fail-closed contract
 
 Set all of these explicitly to absolute paths outside the release tree:

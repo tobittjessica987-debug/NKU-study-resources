@@ -62,6 +62,15 @@ test("disabled flag is honored by runtime projection", async () => {
   assert.equal(runtime.api_key, "sk-live");
 });
 
+test("wechat chatapi base url is accepted; other wechat paths fall back to default", async () => {
+  const { ai } = fixture({});
+  await ai.update({ apiKey: "wx-key", settings: { base_url: "https://chatapi.weixin.qq.com/openai/v1", model: "GLM-5.2" } });
+  assert.equal(ai.runtime().base_url, "https://chatapi.weixin.qq.com/openai/v1");
+  assert.equal(ai.runtime().model, "GLM-5.2");
+  await ai.update({ settings: { base_url: "https://chatapi.weixin.qq.com/openai/v2" } });
+  assert.equal(ai.runtime().base_url, "https://dashscope.aliyuncs.com/compatible-mode/v1", "非清单路径回退默认");
+});
+
 test("cleanup temp dirs", () => {
   // node:test 每个用例独立 fixture；此处仅确保删除 API 存在且不抛错
   const { dir } = fixture({});

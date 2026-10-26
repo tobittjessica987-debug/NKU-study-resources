@@ -22,6 +22,7 @@
     "smoke:public-api": "node scripts/smoke-public-api.mjs",
     "baseline:search": "node scripts/search-index-baseline.mjs",
     "test": "node --test",
+    "test:community-support": "node --test test/community-support-service.test.mjs test/community-support-review-store.test.mjs test/community-support-runtime.test.mjs test/community-support-deletion.test.mjs test/community-support-http.integration.test.mjs test/public-api-router.test.mjs test/moderation-model.test.mjs test/read-json-body.test.mjs test/learning-compass.test.mjs test/review-reaction.test.mjs test/theme-service.test.mjs test/community-support-baseline.test.mjs test/community-support-baseline-cli.test.mjs test/community-support-baseline-backup.test.mjs",
     "preview": "astro preview --host 127.0.0.1"
   },
   "dependencies": {

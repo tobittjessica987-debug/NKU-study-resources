@@ -15,7 +15,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   daily_limit_global: 2000,
 });
 
+const ALLOWED_BASE_URLS = new Set(["https://chatapi.weixin.qq.com/openai/v1"]);
 const ALLOWED_BASE_HOSTS = (host) => host === "aliyuncs.com" || host.endsWith(".aliyuncs.com");
+const isAllowedBaseUrl = (url) => ALLOWED_BASE_HOSTS(new URL(url).hostname.toLowerCase()) || ALLOWED_BASE_URLS.has(url);
 
 function clampInteger(value, fallback, min, max) {
   const number = Number(value);
@@ -27,7 +29,7 @@ function clampSettings(raw) {
   let baseUrl = String(source.base_url ?? DEFAULT_SETTINGS.base_url).trim().replace(/\/+$/, "");
   try {
     const parsed = new URL(baseUrl);
-    if (parsed.protocol !== "https:" || parsed.username || parsed.password || !ALLOWED_BASE_HOSTS(parsed.hostname.toLowerCase())) {
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || !isAllowedBaseUrl(baseUrl)) {
       baseUrl = DEFAULT_SETTINGS.base_url;
     }
   } catch {

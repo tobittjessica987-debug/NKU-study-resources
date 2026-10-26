@@ -46,7 +46,6 @@ import "vditor/dist/index.css";
               <button class="button secondary" id="sync-r2" type="button">从 R2 同步当前课程</button>
               <button class="button secondary" id="manifest-verify" type="button">按 R2 校对清单</button>
               <button class="button secondary" id="sync-r2-all" type="button">从 R2 重建课程树</button>
-              <button class="button secondary" id="add-course" type="button">新增课程</button>
               <button class="button secondary" id="download-json" type="button">下载 JSON</button>
               <button class="button secondary" id="download-backup" type="button">备份</button>
               <button class="button secondary" id="logout" type="button">退出</button>
@@ -523,6 +522,51 @@ import "vditor/dist/index.css";
             </div>
             <div class="editor-settings-grid">
               <details class="card admin-collapsible-card" open>
+                <summary>站点配色（南开紫金为默认，可自定义）</summary>
+                <div class="admin-form" id="theme-settings" style="margin-top: 14px;">
+                  <div class="filter-row">
+                    <button class="button secondary" id="theme-preview-mode" type="button">当前预览：亮色模式（点击切换）</button>
+                    <span class="muted">改动只在本机实时预览，点「保存并应用到全站」后才对访客生效。</span>
+                  </div>
+                  <div class="filter-row" id="theme-colors-light" style="flex-wrap:wrap;gap:10px;"></div>
+                  <div class="filter-row" id="theme-colors-dark" style="flex-wrap:wrap;gap:10px;"></div>
+                  <div class="filter-row">
+                    <button class="button" id="theme-save" type="button">保存并设为默认配色</button>
+                    <button class="button secondary" id="theme-save-local" type="button">仅保存本机预览</button>
+                    <button class="button secondary" id="theme-reset-local" type="button">清除本机预览</button>
+                    <button class="button secondary" id="theme-reset" type="button">恢复默认（我保存过的配色）</button>
+                    <span class="muted" id="theme-status"></span>
+                  </div>
+                  <div class="card" style="margin-top:10px;padding:12px 14px;">
+                    <div class="filter-row">
+                      <strong>配色方案（可保存多套，任选一套应用或设为默认）</strong>
+                      <button class="button secondary" id="theme-preset-add" type="button">把当前配色存为新方案</button>
+                    </div>
+                    <div id="theme-preset-list" style="margin-top:8px;"></div>
+                  </div>
+                </div>
+              </details>
+              <details class="card admin-collapsible-card" open>
+                <summary>站点图标（侧栏 Logo 与浏览器标签图标）</summary>
+                <div class="admin-form" id="site-icon-settings" style="margin-top: 14px;">
+                  <div class="filter-row">
+                    <img id="site-icon-preview" src="/site-icon/icon-512.png" alt="当前站点图标" width="64" height="64"
+                      style="width:64px;height:64px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:var(--surface-soft);flex:none;" />
+                    <div style="flex:1;min-width:0;">
+                      <label class="admin-field">
+                        <span>选择 PNG/JPEG 图片（最长边 ≤4096，将自动生成 512/180/32 三个尺寸）</span>
+                        <input id="site-icon-file" type="file" accept="image/png,image/jpeg" />
+                      </label>
+                    </div>
+                  </div>
+                  <div class="filter-row">
+                    <button class="button" id="site-icon-upload" type="button">上传为新站点图标</button>
+                    <button class="button secondary" id="site-icon-reset" type="button">恢复默认图标</button>
+                    <span class="muted" id="site-icon-status"></span>
+                  </div>
+                </div>
+              </details>
+              <details class="card admin-collapsible-card" open>
                 <summary>用户 Markdown 编辑器</summary>
                 <div class="admin-form" id="editor-user-settings" style="margin-top: 14px;"></div>
               </details>
@@ -620,7 +664,7 @@ import "vditor/dist/index.css";
               </div>
               <div class="filter-row">
                 <label class="admin-field" style="flex:2;">
-                  <span>Base URL（必须是阿里云 HTTPS）</span>
+                  <span>Base URL（阿里云 HTTPS 或 https://chatapi.weixin.qq.com/openai/v1）</span>
                   <input id="ai-base-url" type="text" autocomplete="off" />
                 </label>
                 <label class="admin-field" style="flex:1;">
@@ -825,6 +869,10 @@ import "vditor/dist/index.css";
               <button class="button secondary" id="run-backup-now" type="button">立即执行备份</button>
             </div>
             <div class="card" style="margin: 18px 0;">
+              <h3>手动备份（选择本次内容）</h3>
+              <div class="admin-form" id="manual-backup-parts" style="margin-top: 14px;"></div>
+            </div>
+            <div class="card" style="margin-bottom: 18px;">
               <h3>自动备份规则</h3>
               <div class="admin-form" id="backup-settings-editor" style="margin-top: 14px;"></div>
             </div>
@@ -1171,6 +1219,8 @@ import "vditor/dist/index.css";
     const backupAdminStatus = requireAdminElement("#backup-admin-status", HTMLElement);
     const backupSettingsEditor = requireAdminElement("#backup-settings-editor", HTMLElement);
     const webdavSettingsEditor = requireAdminElement("#webdav-settings-editor", HTMLElement);
+    const manualBackupPartsEditor = requireAdminElement("#manual-backup-parts", HTMLElement);
+    let manualBackupParts: { siteData: boolean; serverConfig: boolean; courseFiles: boolean } = { siteData: true, serverConfig: true, courseFiles: true };
     const accountsAdminPanel = requireAdminElement("#accounts-admin-panel", HTMLElement);
     const accountsAdminStatus = requireAdminElement("#accounts-admin-status", HTMLElement);
     const accountsAdminList = requireAdminElement("#accounts-admin-list", HTMLElement);
@@ -1220,7 +1270,7 @@ import "vditor/dist/index.css";
       "audit.read": "审计查看",
       "ai.manage": "AI 问答",
       "services.manage": "服务密钥",
-      "law.manage": "依法调取（兼容项，所有有效管理员默认可用）",
+      "law.manage": "依法调取",
     };
     const rolePresetFallback: Record<string, string[]> = {
       super_admin: ["accounts.manage", "audit.read", "backup.manage", "content.edit", "content.moderate", "content.read", "storage.delete", "storage.manage"],
@@ -2067,7 +2117,22 @@ import "vditor/dist/index.css";
     async function loadBackupAdmin() {
       const data = await api("/backup-settings");
       backupState = data.data;
+      manualBackupParts = {
+        siteData: backupState.includeSiteData !== false,
+        serverConfig: backupState.includeServerConfig !== false,
+        courseFiles: backupState.includeCourseFiles !== false,
+      };
       renderBackupAdmin();
+      renderManualBackupParts();
+    }
+
+    function renderManualBackupParts() {
+      manualBackupPartsEditor.innerHTML = "";
+      manualBackupPartsEditor.append(
+        checkboxField("站点数据（数据库与内容 JSON 的加密快照）", manualBackupParts.siteData, (value) => { manualBackupParts.siteData = value; }),
+        checkboxField("服务器配置（env / Caddyfile / 服务单元）", manualBackupParts.serverConfig, (value) => { manualBackupParts.serverConfig = value; }),
+        checkboxField("课程文件（WebDAV 增量同步，仅上传有变化的对象）", manualBackupParts.courseFiles, (value) => { manualBackupParts.courseFiles = value; })
+      );
     }
 
     async function loadEditorSettingsAdmin() {
@@ -2721,6 +2786,43 @@ async function loadMpUsersAdmin() {
       return state?.courses.find((item) => item.id === selectedId);
     }
 
+    const TREE_COLLAPSE_STORAGE_KEY = "nkustudy-admin-tree-collapsed-nodes";
+    const TERM_ORDER = ["大一上", "大一下", "大二上", "大二下", "大三上", "大三下", "大四上", "大四下"];
+
+    function termRank(term: string) {
+      if (term === "E课") return 2000;
+      const normalized = String(term || "").replace(/\s+/g, "");
+      const index = TERM_ORDER.indexOf(normalized);
+      if (index >= 0) return index;
+      return 1000;
+    }
+
+    function readCollapsedTreeNodes(): Set<string> {
+      try {
+        const raw = JSON.parse(localStorage.getItem(TREE_COLLAPSE_STORAGE_KEY) || "[]");
+        return new Set(Array.isArray(raw) ? raw.map(String) : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function writeCollapsedTreeNodes(nodes: Set<string>) {
+      localStorage.setItem(TREE_COLLAPSE_STORAGE_KEY, JSON.stringify([...nodes]));
+    }
+
+    const collapsedTreeNodes = readCollapsedTreeNodes();
+    treeEl.addEventListener("toggle", (event) => {
+      const target = event.target as HTMLDetailsElement | null;
+      if (!target || !(target instanceof HTMLDetailsElement) || !target.dataset.collapseKey) return;
+      if (target.open) collapsedTreeNodes.delete(target.dataset.collapseKey);
+      else collapsedTreeNodes.add(target.dataset.collapseKey);
+      writeCollapsedTreeNodes(collapsedTreeNodes);
+    }, true);
+
+    function localeCompareText(a: string | null | undefined, b: string | null | undefined) {
+      return String(a ?? "").localeCompare(String(b ?? ""), "zh-Hans-CN");
+    }
+
     function renderTree() {
       const keyword = searchEl.value.trim().toLowerCase();
       treeEl.innerHTML = "";
@@ -2736,19 +2838,25 @@ async function loadMpUsersAdmin() {
         courses.push(course);
       }
 
-      for (const [term, groups] of terms) {
+      const sortedTerms = [...terms.keys()].sort((a, b) => termRank(a) - termRank(b) || localeCompareText(a, b));
+      for (const term of sortedTerms) {
+        const groups = terms.get(term)!;
         const termDetails = document.createElement("details");
         termDetails.className = "admin-tree-node";
-        termDetails.open = true;
+        termDetails.dataset.collapseKey = `term:${term}`;
+        termDetails.open = !collapsedTreeNodes.has(termDetails.dataset.collapseKey);
         termDetails.innerHTML = `<summary>${escapeHtml(term || "未设置学期")}</summary>`;
 
-        for (const [group, courses] of groups) {
+        const sortedGroups = [...groups.keys()].sort(localeCompareText);
+        for (const group of sortedGroups) {
           const groupDetails = document.createElement("details");
           groupDetails.className = "admin-tree-node admin-tree-group";
-          groupDetails.open = true;
+          groupDetails.dataset.collapseKey = `group:${term}/${group}`;
+          groupDetails.open = !collapsedTreeNodes.has(groupDetails.dataset.collapseKey);
           groupDetails.innerHTML = `<summary>${escapeHtml(group || "未设置分类")}</summary>`;
 
-          for (const course of courses) {
+          const sortedCourses = [...groups.get(group)!].sort((a, b) => localeCompareText(a.title, b.title));
+          for (const course of sortedCourses) {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "admin-tree-course";
@@ -4120,9 +4228,11 @@ async function loadMpUsersAdmin() {
       backupSettingsEditor.append(
         checkboxField("启用每日自动备份", current.autoEnabled !== false, (value) => { current.autoEnabled = value; }),
         field("每日执行时间（北京时间 HH:mm）", current.dailyTime ?? "03:20", (value) => { current.dailyTime = value; }),
+        checkboxField("备份站点数据（数据库与内容 JSON）", current.includeSiteData !== false, (value) => { current.includeSiteData = value; }),
+        checkboxField("包含服务器配置（env/Caddy/服务单元）", current.includeServerConfig !== false, (value) => { current.includeServerConfig = value; }),
         checkboxField("备份到独立私密 R2 存储（需维护者配置）", current.r2DataBackup !== false, (value) => { current.r2DataBackup = value; }),
         checkboxField("启用 WebDAV 备份", current.webdavEnabled === true, (value) => { current.webdavEnabled = value; }),
-        checkboxField("WebDAV 同步课程文件", current.includeCourseFiles !== false, (value) => { current.includeCourseFiles = value; }),
+        checkboxField("WebDAV 同步课程文件（增量，仅上传有变化的对象）", current.includeCourseFiles !== false, (value) => { current.includeCourseFiles = value; }),
         passwordField("备份加密口令（至少16位）", current.encryptionPasswordConfigured, (value) => { current.encryptionPassword = value; })
       );
 
@@ -4464,17 +4574,15 @@ async function loadMpUsersAdmin() {
         updateBasePathField();
         renderTree();
       });
-      const titleField = field("课程名称", course.title, (value) => {
-        course.title = value;
-        course.id = value || course.id;
-        updateBasePathField();
-        selectedId = course.id;
-        editorTitle.textContent = value || "未命名课程";
-        renderTree();
-      });
-      const titleInput = findAdminElement("input", HTMLInputElement, titleField);
+      const titleField = document.createElement("div");
+      titleField.className = "admin-field";
+      const titleLabel = document.createElement("span");
+      titleLabel.textContent = "课程名称（以 R2 目录为准）";
       const titleInputRow = document.createElement("div");
       titleInputRow.className = "admin-field-action-row";
+      const titleText = document.createElement("strong");
+      titleText.textContent = course.title || "未命名课程";
+      titleText.style.alignSelf = "center";
       const openCourseButton = document.createElement("button");
       openCourseButton.type = "button";
       openCourseButton.className = "button secondary";
@@ -4484,10 +4592,8 @@ async function loadMpUsersAdmin() {
         if (!id) return;
         window.open(`/courses/${encodeURIComponent(id)}/`, "_blank", "noopener");
       });
-      if (titleInput) {
-        titleInput.replaceWith(titleInputRow);
-        titleInputRow.append(titleInput, openCourseButton);
-      }
+      titleInputRow.append(titleText, openCourseButton);
+      titleField.append(titleLabel, titleInputRow);
       const basePathField = field("资源目录 basePath", course.basePath, (value, input) => {
         course.basePath = value;
         basePathInput = input;
@@ -4498,9 +4604,6 @@ async function loadMpUsersAdmin() {
         groupField,
         titleField,
         field("课程简称", course.shortName ?? "", (value) => { course.shortName = value.trim(); }),
-        field("课程别名，逗号分隔", (course.aliases ?? []).join(", "), (value) => {
-          course.aliases = value.split(",").map((alias) => alias.trim()).filter(Boolean);
-        }),
         field("考核方式", course.assessment ?? "绩点制", (value) => { course.assessment = value || "绩点制"; }),
         field("更新时间", course.updated, (value) => { course.updated = value; }),
         field("贡献者，逗号分隔", (course.contributors ?? []).join(", "), (value) => {
@@ -4695,34 +4798,6 @@ async function loadMpUsersAdmin() {
       }
     });
 
-    requireAdminElement("#add-course", HTMLButtonElement).addEventListener("click", () => {
-      const title = "新课程";
-      const course = {
-        id: title,
-        term: "大一下",
-        group: "通识必修课",
-        title,
-        shortName: "",
-        aliases: [],
-        summary: "",
-        contributors: [],
-        assessment: "绩点制",
-        updated: new Date().toISOString().slice(0, 10),
-        grades: [],
-        tags: [],
-        basePath: "大一下/通识必修课/新课程/",
-        sections: [
-          { title: "课程大纲", note: "", files: [] },
-          { title: "往年真题", note: "", files: [] },
-          { title: "PPT", note: "", files: [] },
-        ],
-      };
-      loadedManifest().courses.unshift(course);
-      selectedId = course.id;
-      renderTree();
-      renderEditor();
-    });
-
     requireAdminElement("#publish", HTMLButtonElement).addEventListener("click", async () => {
       publishStatus.textContent = "发布中...";
       try {
@@ -4862,12 +4937,32 @@ async function loadMpUsersAdmin() {
     });
 
     requireAdminElement("#run-backup-now", HTMLButtonElement).addEventListener("click", async () => {
-      if (!confirm("立即制作加密完整备份并验证已启用的远端目标？备份开始时会短暂暂停新请求，课程文件较多时可能需要等待。")) return;
+      if (!manualBackupParts.siteData && !manualBackupParts.courseFiles) {
+        alert("请至少选择「站点数据」或「课程文件」其中一项。");
+        return;
+      }
+      const chosen = [
+        manualBackupParts.siteData ? "站点数据" : null,
+        manualBackupParts.courseFiles ? "课程文件（增量）" : null,
+      ].filter(Boolean).join(" + ");
+      if (!confirm("按本次选择立即备份：" + chosen + "（服务器配置仅在站点数据快照内体现）。备份开始时会短暂暂停新请求，课程文件较多时首次可能需要等待，之后仅同步有变化的对象。")) return;
       backupAdminStatus.textContent = "备份执行中...";
       try {
-        const result = await api("/backup-run", { method: "POST", body: "{}" });
+        const result = await api("/backup-run", { method: "POST", body: JSON.stringify({ parts: { ...manualBackupParts } }) }) as AdminTypes.AdminActionResponse & {
+          complete?: boolean; local?: { filename: string };
+          webdav?: { verified: boolean; courseFiles?: { total: number; uploaded: number; skipped: number } }[];
+          r2?: { verified: boolean }[];
+        };
+        const courseStats = (result.webdav || []).reduce((acc: { uploaded: number; skipped: number; total: number }, item) => {
+          const stats: { total?: number; uploaded?: number; skipped?: number } = item.courseFiles || {};
+          acc.uploaded += stats.uploaded || 0;
+          acc.skipped += stats.skipped || 0;
+          acc.total += stats.total || 0;
+          return acc;
+        }, { uploaded: 0, skipped: 0, total: 0 });
         const verified = (result.webdav || []).filter((item) => item.verified).length + (result.r2 || []).filter((item) => item.verified).length;
-        backupAdminStatus.textContent = result.complete ? "本地加密备份已校验，另有 " + verified + " 个远端副本通过读回校验。" : "备份未完整完成，请联系维护者核对失败项。";
+        const courseSummary = courseStats.total ? "课程文件：本次上传 " + courseStats.uploaded + " 个，跳过未变化 " + courseStats.skipped + " 个（共 " + courseStats.total + " 个）。" : "";
+        backupAdminStatus.textContent = result.complete ? "备份完成。" + (result.local ? "本地加密备份已校验，另有 " + verified + " 个远端副本通过读回校验。" : "") + courseSummary : "备份未完整完成，请联系维护者核对失败项。" + courseSummary;
       } catch (error) {
         backupAdminStatus.textContent = adminErrorMessage(error);
       }
@@ -4888,6 +4983,408 @@ async function loadMpUsersAdmin() {
         editorSettingsAdminStatus.textContent = "";
       } catch (error) {
         editorSettingsAdminStatus.textContent = adminErrorMessage(error);
+      }
+    });
+
+    // ---- 站点配色：本地预览（仅本机会话）+ 保存到全站 ----
+    const THEME_VARIABLE_LABELS: Record<string, string> = {
+      "--bg": "页面背景",
+      "--primary": "主色",
+      "--primary-dark": "主色（深）",
+      "--accent": "强调色（金）",
+      "--primary-soft-bg": "浅主色底",
+      "--primary-soft-border": "浅主色边框",
+      "--primary-border": "主色边框",
+      "--primary-bright": "高亮文字",
+      "--primary-strong-border": "深主色边框",
+      "--primary-tint-bg": "主色半透明底",
+      "--primary-deep-tint": "深主色半透明底",
+      "--button-bg": "按钮底色",
+      "--top-link-bg": "顶部链接底色",
+      "--top-link-bg-hover": "顶部链接底色（悬停）",
+      "--top-link-border-hover": "顶部链接边框（悬停）",
+      "--topbar-bg": "顶栏底色",
+      "--sidebar-bg": "侧栏底色",
+    };
+    const THEME_DEFAULTS: Record<"light" | "dark", Record<string, string>> = {
+      light: {
+        "--bg": "#f4f6fb",
+        "--primary": "#4f2683", "--primary-dark": "#3d1e68", "--accent": "#b8912f",
+        "--primary-soft-bg": "#f5f0fb", "--primary-soft-border": "#d9cbee", "--primary-border": "#bfa7e0",
+        "--button-bg": "var(--primary)", "--top-link-bg": "rgba(255, 255, 255, 0.12)",
+        "--top-link-bg-hover": "rgba(255, 255, 255, 0.12)", "--top-link-border-hover": "rgba(255, 255, 255, 0.35)",
+        "--topbar-bg": "var(--primary)", "--sidebar-bg": "var(--surface)",
+      },
+      dark: {
+        "--bg": "#191d20",
+        "--primary": "#8a63c9", "--primary-dark": "#a98ada", "--accent": "#d4b45a",
+        "--primary-bright": "#b9a0e8", "--primary-strong-border": "#5b3a94",
+        "--primary-tint-bg": "rgba(138, 99, 201, 0.18)", "--primary-deep-tint": "rgba(79, 38, 131, 0.32)",
+        "--button-bg": "#4a2d78", "--top-link-bg": "#38235c", "--top-link-bg-hover": "#47296f",
+        "--top-link-border-hover": "#7a57ab", "--topbar-bg": "#2a1a47", "--sidebar-bg": "#1e1a26",
+      },
+    };
+    let themePreviewMode: "light" | "dark" = "light";
+    type ThemeOverrides = Record<"light" | "dark", Record<string, string>>;
+    let themeActive: ThemeOverrides = { light: {}, dark: {} };
+    let themeCustomDefault: ThemeOverrides = { light: {}, dark: {} };
+    let themeCustom: ThemeOverrides = { light: {}, dark: {} };
+    type ThemePreset = { id: string; name: string } & ThemeOverrides;
+    let themePresets: ThemePreset[] = [];
+    const THEME_PREVIEW_KEY = "nkustudy-theme-preview";
+    const persistLocalPreview = () => {
+      // 本机预览写入 localStorage：同源所有页面（含前台）同步生效，仅本浏览器。
+      try {
+        localStorage.setItem(THEME_PREVIEW_KEY, JSON.stringify(themeCustom));
+      } catch { /* 存储失败时仅管理页内预览 */ }
+    };
+    const clearLocalPreview = () => {
+      try { localStorage.removeItem(THEME_PREVIEW_KEY); } catch { /* ignore */ }
+      themePreviewStyle.textContent = "";
+    };
+    const themeStatusLabel = requireAdminElement("#theme-status", HTMLElement);
+    const themePreviewStyle = document.createElement("style");
+    themePreviewStyle.id = "nkustudy-theme-preview";
+    document.head.append(themePreviewStyle);
+    themePreviewStyle.textContent = "";
+
+    const buildThemeCss = (custom: Record<string, string>, extraMode: "light" | "dark") => {
+      const modes: Array<["light" | "dark", string]> = [["light", ":root:root"], ["dark", ':root:root[data-theme="dark"]']];
+      return modes.map(([mode, selector]) => {
+        const merged = { ...THEME_DEFAULTS[mode], ...(mode === extraMode ? (custom || {}) : {}) };
+        const body = Object.entries(merged).map(([k, v]) => `${k}:${v};`).join("\n");
+        return `${selector}{${body}}`;
+      }).join("\n");
+    };
+
+    function renderThemeColorInputs() {
+      for (const mode of ["light", "dark"] as const) {
+        const container = requireAdminElement(mode === "light" ? "#theme-colors-light" : "#theme-colors-dark", HTMLElement);
+        container.innerHTML = "";
+        if (mode !== themePreviewMode) {
+          container.style.display = "none";
+          continue;
+        }
+        container.style.display = "";
+        const title = document.createElement("strong");
+        title.textContent = mode === "light" ? "亮色模式" : "暗色模式";
+        title.style.width = "100%";
+        container.append(title);
+        for (const [variable, label] of Object.entries(THEME_VARIABLE_LABELS)) {
+          if (!(variable in THEME_DEFAULTS[mode])) continue;
+          const wrap = document.createElement("label");
+          wrap.className = "admin-field";
+          wrap.style.flex = "1 1 150px";
+          const caption = document.createElement("span");
+          caption.textContent = label;
+          const colorInput = document.createElement("input");
+          colorInput.type = "color";
+          const current = themeCustom[mode][variable] ?? THEME_DEFAULTS[mode][variable];
+          if (/^#[0-9a-fA-F]{6}$/.test(current)) colorInput.value = current;
+          const textInput = document.createElement("input");
+          textInput.type = "text";
+          textInput.value = current;
+          textInput.style.marginTop = "4px";
+          textInput.placeholder = "#RRGGBB 或 rgba(...)";
+          colorInput.addEventListener("input", () => {
+            textInput.value = colorInput.value;
+            themeCustom[mode][variable] = colorInput.value;
+            applyPreviewStyle();
+            persistLocalPreview();
+          });
+          textInput.addEventListener("change", () => {
+            const value = textInput.value.trim();
+            const valid = /^#[0-9a-fA-F]{6}$/.test(value) || /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\)$/.test(value);
+            if (!valid) {
+              themeStatusLabel.textContent = "色值格式无效（仅支持 #RRGGBB 或 rgba(r,g,b,a)）。";
+              return;
+            }
+            themeStatusLabel.textContent = "";
+            themeCustom[mode][variable] = value;
+            if (/^#[0-9a-fA-F]{6}$/.test(value)) colorInput.value = value;
+            applyPreviewStyle();
+            persistLocalPreview();
+          });
+          wrap.append(caption, colorInput, textInput);
+          container.append(wrap);
+        }
+      }
+    }
+
+    const readLocalPreview = (): ThemeOverrides | null => {
+      try {
+        const raw = localStorage.getItem(THEME_PREVIEW_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        const pick = (mode: "light" | "dark"): Record<string, string> => {
+          const out: Record<string, string> = {};
+          for (const [key, value] of Object.entries(parsed[mode] || {})) {
+            if (typeof key === "string" && key.startsWith("--") && typeof value === "string") out[key] = value;
+          }
+          return out;
+        };
+        return { light: pick("light"), dark: pick("dark") };
+      } catch {
+        return null;
+      }
+    };
+
+    const applyPreviewStyle = () => {
+      themePreviewStyle.textContent = buildThemeCss(themeCustom[themePreviewMode], themePreviewMode);
+    };
+
+    const loadThemeSettings = async () => {
+      const data = await api("/theme-settings") as AdminTypes.AdminActionResponse & { data?: { active?: ThemeOverrides; customDefault?: ThemeOverrides; presets?: ThemePreset[] } };
+      themeActive = data.data?.active || { light: {}, dark: {} };
+      themeCustomDefault = data.data?.customDefault || { light: {}, dark: {} };
+      themePresets = Array.isArray(data.data?.presets) ? data.data!.presets! : [];
+      themeCustom = {
+        light: { ...themeActive.light },
+        dark: { ...themeActive.dark },
+      };
+      const localPreview = readLocalPreview();
+      if (localPreview && (Object.keys(localPreview.light).length || Object.keys(localPreview.dark).length)) {
+        themeCustom = localPreview;
+        applyPreviewStyle();
+        themeStatusLabel.textContent = "已恢复上次保存的本机预览。";
+      }
+      renderThemeColorInputs();
+      renderThemePresetList();
+    };
+
+    const themePreviewModeButton = requireAdminElement("#theme-preview-mode", HTMLButtonElement);
+    themePreviewModeButton.addEventListener("click", () => {
+      themePreviewMode = themePreviewMode === "light" ? "dark" : "light";
+      themePreviewModeButton.textContent = "当前预览：" + (themePreviewMode === "light" ? "亮色模式（点击切换）" : "暗色模式（点击切换）");
+      document.documentElement.dataset.theme = themePreviewMode;
+      renderThemeColorInputs();
+    });
+
+    const buildActivePayload = () => {
+      const active: ThemeOverrides = { light: {}, dark: {} };
+      for (const mode of ["light", "dark"] as const) {
+        for (const [variable, value] of Object.entries(themeCustom[mode] || {})) {
+          if (value !== THEME_DEFAULTS[mode][variable]) active[mode][variable] = value;
+        }
+      }
+      return active;
+    };
+
+    requireAdminElement("#theme-save", HTMLButtonElement).addEventListener("click", async () => {
+      if (!confirm("保存配色并应用到全站？此方案同时会成为你的默认配色（“恢复默认”回到这里），所有访客约 1 分钟内看到新配色。")) return;
+      themeStatusLabel.textContent = "保存中...";
+      try {
+        const data = await api("/theme-settings", { method: "POST", body: JSON.stringify({ data: { active: buildActivePayload() } }) }) as AdminTypes.AdminActionResponse & { data?: { active?: ThemeOverrides; customDefault?: ThemeOverrides } };
+        themeActive = data.data?.active || { light: {}, dark: {} };
+        themeCustomDefault = data.data?.customDefault || themeActive;
+        renderThemePresetList();
+        clearLocalPreview();
+        themeStatusLabel.textContent = "已保存并应用到全站，此方案同时记为你的默认配色。";
+      } catch (error) {
+        themeStatusLabel.textContent = adminErrorMessage(error);
+      }
+    });
+
+    requireAdminElement("#theme-save-local", HTMLButtonElement).addEventListener("click", () => {
+      persistLocalPreview();
+      applyPreviewStyle();
+      themeStatusLabel.textContent = "本机预览已保存：本浏览器打开网站任何页面都会应用这套预览配色（其他访客不受影响）。";
+    });
+
+    const renderThemePresetList = () => {
+      const list = requireAdminElement("#theme-preset-list", HTMLElement);
+      list.innerHTML = "";
+      if (!themePresets.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "尚未保存配色方案。";
+        list.append(empty);
+        return;
+      }
+      const defaultKey = JSON.stringify([themeCustomDefault.light, themeCustomDefault.dark]);
+      for (const preset of themePresets) {
+        const row = document.createElement("div");
+        row.className = "filter-row";
+        row.style.marginTop = "6px";
+        const name = document.createElement("strong");
+        name.textContent = preset.name;
+        name.style.flex = "0 0 auto";
+        const isDefault = JSON.stringify([preset.light, preset.dark]) === defaultKey;
+        if (isDefault) {
+          const badge = document.createElement("span");
+          badge.className = "muted";
+          badge.textContent = "（默认）";
+          name.append(badge);
+        }
+        const applyButton = document.createElement("button");
+        applyButton.type = "button";
+        applyButton.className = "button secondary";
+        applyButton.textContent = "本机预览此方案";
+        applyButton.addEventListener("click", () => {
+          themeCustom = {
+            light: { ...preset.light },
+            dark: { ...preset.dark },
+          };
+          persistLocalPreview();
+          applyPreviewStyle();
+          renderThemeColorInputs();
+          themeStatusLabel.textContent = "已在预览中应用方案「" + preset.name + "」（仅本机）。";
+        });
+        const activateButton = document.createElement("button");
+        activateButton.type = "button";
+        activateButton.className = "button secondary";
+        activateButton.textContent = "应用到全站";
+        activateButton.addEventListener("click", async () => {
+          if (!confirm("将方案「" + preset.name + "」应用到全站？")) return;
+          try {
+            const data = await api("/theme-settings", { method: "POST", body: JSON.stringify({ data: { active: { light: preset.light, dark: preset.dark } } }) }) as AdminTypes.AdminActionResponse & { data?: { active?: ThemeOverrides } };
+            themeActive = data.data?.active || { light: {}, dark: {} };
+            themeStatusLabel.textContent = "方案「" + preset.name + "」已应用到全站。";
+          } catch (error) {
+            themeStatusLabel.textContent = adminErrorMessage(error);
+          }
+        });
+        const defaultButton = document.createElement("button");
+        defaultButton.type = "button";
+        defaultButton.className = "button secondary";
+        defaultButton.textContent = "设为默认";
+        defaultButton.addEventListener("click", async () => {
+          try {
+            const data = await api("/theme-settings", { method: "POST", body: JSON.stringify({ data: { customDefault: { light: preset.light, dark: preset.dark } } }) }) as AdminTypes.AdminActionResponse & { data?: { customDefault?: ThemeOverrides } };
+            themeCustomDefault = data.data?.customDefault || { light: {}, dark: {} };
+            renderThemePresetList();
+            themeStatusLabel.textContent = "方案「" + preset.name + "」已设为默认。";
+          } catch (error) {
+            themeStatusLabel.textContent = adminErrorMessage(error);
+          }
+        });
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "button secondary";
+        deleteButton.textContent = "删除";
+        deleteButton.addEventListener("click", async () => {
+          if (!confirm("删除方案「" + preset.name + "」？")) return;
+          themePresets = themePresets.filter(item => item.id !== preset.id);
+          try {
+            await api("/theme-settings", { method: "POST", body: JSON.stringify({ data: { presets: themePresets.map(({ id, name, light, dark }) => ({ id, name, light, dark })) } }) });
+            renderThemePresetList();
+            themeStatusLabel.textContent = "方案已删除。";
+          } catch (error) {
+            themeStatusLabel.textContent = adminErrorMessage(error);
+          }
+        });
+        row.append(name, applyButton, activateButton, defaultButton, deleteButton);
+        list.append(row);
+      }
+    };
+
+    requireAdminElement("#theme-preset-add", HTMLButtonElement).addEventListener("click", async () => {
+      const name = prompt("为新配色方案命名（1–40 字）：");
+      if (!name || !name.trim()) return;
+      const preset: ThemePreset = {
+        id: "preset-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8),
+        name: name.trim().slice(0, 40),
+        light: { ...themeCustom.light },
+        dark: { ...themeCustom.dark },
+      };
+      const duplicates = themePresets.some(item => item.name === preset.name);
+      if (duplicates) {
+        themeStatusLabel.textContent = "已存在同名方案，请换一个名称。";
+        return;
+      }
+      themePresets = [...themePresets, preset].slice(0, 12);
+      try {
+        await api("/theme-settings", { method: "POST", body: JSON.stringify({ data: { presets: themePresets.map(({ id, name: presetName, light, dark }) => ({ id, name: presetName, light, dark })) } }) });
+        renderThemePresetList();
+        themeStatusLabel.textContent = "方案「" + preset.name + "」已保存。";
+      } catch (error) {
+        themeStatusLabel.textContent = adminErrorMessage(error);
+      }
+    });
+
+    requireAdminElement("#theme-reset-local", HTMLButtonElement).addEventListener("click", () => {
+      themeCustom = {
+        light: { ...themeActive.light },
+        dark: { ...themeActive.dark },
+      };
+      clearLocalPreview();
+      renderThemeColorInputs();
+      themeStatusLabel.textContent = "已清除本机预览（回到当前已保存的配色）。";
+    });
+
+    requireAdminElement("#theme-reset", HTMLButtonElement).addEventListener("click", async () => {
+      const hasCustomDefault = Object.keys(themeCustomDefault.light).length + Object.keys(themeCustomDefault.dark).length > 0;
+      if (!hasCustomDefault) {
+        themeStatusLabel.textContent = "还没有保存过默认配色：先用「保存并设为默认配色」保存一套，之后恢复默认就回到它。";
+        return;
+      }
+      if (!confirm("恢复到你保存过的默认配色？")) return;
+      try {
+        const data = await api("/theme-settings", { method: "DELETE" }) as AdminTypes.AdminActionResponse & { data?: { active?: ThemeOverrides } };
+        themeActive = data.data?.active || { light: {}, dark: {} };
+        themeCustom = {
+          light: { ...themeActive.light },
+          dark: { ...themeActive.dark },
+        };
+        clearLocalPreview();
+        renderThemeColorInputs();
+        themeStatusLabel.textContent = "已恢复默认配色。";
+      } catch (error) {
+        themeStatusLabel.textContent = adminErrorMessage(error);
+      }
+    });
+
+    void loadThemeSettings().catch((error) => {
+      themeStatusLabel.textContent = adminErrorMessage(error);
+    });
+
+    const siteIconFileInput = requireAdminElement("#site-icon-file", HTMLInputElement);
+    const siteIconPreviewImg = requireAdminElement("#site-icon-preview", HTMLImageElement);
+    const siteIconStatusLabel = requireAdminElement("#site-icon-status", HTMLElement);
+    const refreshSiteIconPreview = () => {
+      siteIconPreviewImg.src = "/site-icon/icon-512.png?v=" + Date.now();
+    };
+
+    requireAdminElement("#site-icon-upload", HTMLButtonElement).addEventListener("click", async () => {
+      const file = siteIconFileInput.files?.[0];
+      if (!file) {
+        siteIconStatusLabel.textContent = "请先选择图片文件。";
+        return;
+      }
+      siteIconStatusLabel.textContent = "上传中...";
+      try {
+        const response = await fetch("/admin-api/site-icon", {
+          method: "POST",
+          headers: { "content-type": file.type || "application/octet-stream", "x-nkustudy-admin-request": "1" },
+          credentials: "same-origin",
+          body: file,
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "上传失败。");
+        siteIconStatusLabel.textContent = "已更新站点图标（浏览器标签图标可能有数分钟缓存延迟）。";
+        siteIconFileInput.value = "";
+        refreshSiteIconPreview();
+      } catch (error) {
+        siteIconStatusLabel.textContent = (error as Error).message || "上传失败。";
+      }
+    });
+
+    requireAdminElement("#site-icon-reset", HTMLButtonElement).addEventListener("click", async () => {
+      if (!confirm("恢复为默认站点图标？")) return;
+      siteIconStatusLabel.textContent = "恢复中...";
+      try {
+        const response = await fetch("/admin-api/site-icon", {
+          method: "DELETE",
+          headers: { "x-nkustudy-admin-request": "1" },
+          credentials: "same-origin",
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "操作失败。");
+        siteIconStatusLabel.textContent = "已恢复默认图标。";
+        refreshSiteIconPreview();
+      } catch (error) {
+        siteIconStatusLabel.textContent = (error as Error).message || "操作失败。";
       }
     });
 
@@ -5777,6 +6274,28 @@ async function loadMpUsersAdmin() {
     checkSession();
   </script>
   <style>
+    /* 所有右侧面板统一为占满剩余宽度且内容可收缩，防止备份页等面板宽度随内容浮动/溢出 */
+    #admin-app > div[id$="-admin-panel"],
+    #admin-app > section[id$="-admin-panel"] {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+    #admin-app > div[id$="-admin-panel"] :global(.panel-body),
+    #admin-app > section[id$="-admin-panel"] :global(.panel-body) {
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+    #backup-admin-panel :global(.admin-file-row),
+    #backup-admin-panel :global(.backup-grid),
+    #backup-admin-panel :global(.admin-form) {
+      min-width: 0;
+      max-width: 100%;
+    }
+    #backup-admin-panel :global(.admin-field),
+    #backup-admin-panel :global(.admin-field input),
+    #backup-admin-panel :global(.admin-field button) { min-width: 0; }
     #law-admin-panel .law-filter-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));

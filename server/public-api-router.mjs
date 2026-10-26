@@ -64,7 +64,7 @@ export function decodePathPart(value) {
   }
 }
 
-export function createPublicApiHandler({ service, mpAuthService = null, mpFavoritesService = null, serviceAuthStore = null, consumeServiceQuota = null, notify = null, readBody, clientIp, securityLog = null, phoneVerifier = null, webLoginTickets = null, wxacode = null, webLoginPagePath = "pages/login-confirm/index", wxacodeEnvVersion = "release", avatarService = null, avatarStore = null, deletionService = null, readAvatarUpload = null } = {}) {
+export function createPublicApiHandler({ service, mpAuthService = null, mpFavoritesService = null, serviceAuthStore = null, consumeServiceQuota = null, notify = null, readBody, clientIp, securityLog = null, phoneVerifier = null, webLoginTickets = null, wxacode = null, webLoginPagePath = "pages/login-confirm/index", wxacodeEnvVersion = "release", avatarService = null, avatarStore = null, deletionService = null, readAvatarUpload = null, communitySupport = null, readCommunitySupportBody = readBody } = {}) {
   if (!service || !readBody || !clientIp) throw new Error("Public API router dependencies are required.");
   async function requireService(req) {
     if (!serviceAuthStore) throw new PublicApiError(503, "服务间接口暂未开放。", "SERVICE_AUTH_NOT_CONFIGURED");
@@ -107,7 +107,42 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
         identityUserId = authUser?.id || mpAuthService?.auditUserId?.(authorizationOf(req)) || mpAuthService?.introspectToken?.(authorizationOf(req))?.user_id || null;
       }
       if (req.method === "GET" && url.pathname === "/api/v1/health") data = { ...service.health(), accountDeletion: deletionService?.health() || { configured: false } };
-      else if (req.method === "GET" && url.pathname === "/api/v1/home") data = service.home();
+      else if (req.method === "GET" && url.pathname === "/api/v1/home") {
+        data = service.home();
+        if (communitySupport) {
+          // Statistics are optional: their failure must not hide the existing home.
+          try { data.community_support = communitySupport.snapshot(); }
+          catch { data.community_support = { version: 1, enabled: false }; }
+        }
+      }
+      else if (req.method === "POST" && url.pathname === "/api/v1/community-support/downloads") {
+        if (!communitySupport) throw new PublicApiError(503, "贡献统计暂不可用。", "SUPPORT_UNAVAILABLE");
+        if (url.search) throw new PublicApiError(400, "下载事件参数无效。", "INVALID_SUPPORT_EVENT");
+        let body;
+        try { body = await readCommunitySupportBody(req); }
+        catch { throw new PublicApiError(400, "下载事件正文无效或过大。", "INVALID_SUPPORT_EVENT"); }
+        const authorization = String(req.headers.authorization || "");
+        let userId = null;
+        if (body?.attribution === "account") {
+          if (!/^Bearer [A-Za-z0-9_-]+$/.test(authorization) || !mpAuthService) {
+            throw new PublicApiError(401, "请先登录。", "AUTH_REQUIRED");
+          }
+          userId = mpAuthService.requireUser(authorization).id;
+        } else if (body?.attribution === "community" && authorization) {
+          throw new PublicApiError(400, "公共下载事件不接受账号凭证。", "INVALID_SUPPORT_EVENT");
+        }
+        data = communitySupport.recordDownload(body, { userId, ip: clientIp(req) });
+      }
+      else if (req.method === "GET" && url.pathname === "/api/v1/me/community-support") {
+        const authorization = String(req.headers.authorization || "");
+        if (!/^Bearer [A-Za-z0-9_-]+$/.test(authorization) || !mpAuthService) {
+          throw new PublicApiError(401, "请先登录。", "AUTH_REQUIRED");
+        }
+        const user = mpAuthService.requireUser(authorization);
+        if (url.search) throw new PublicApiError(400, "个人统计不接受查询参数。", "INVALID_SUPPORT_EVENT");
+        if (!communitySupport) throw new PublicApiError(503, "贡献统计暂不可用。", "SUPPORT_UNAVAILABLE");
+        data = communitySupport.myStats(user.id);
+      }
       else if (req.method === "POST" && url.pathname === "/api/v1/auth/verify") {
         await requireService(req);
         const body = await readJsonBody(req);
@@ -404,8 +439,10 @@ export function createPublicApiHandler({ service, mpAuthService = null, mpFavori
                 const user = mpAuthService.requireUser(authorizationOf(req));
                 let body;
                 try {
-                  body = await readBody(req);
-                } catch {
+                  // AI 请求体上限 64KiB：覆盖合法中文上界（约 57.6KB），远低于全局 2MiB 解析器上限。
+                  body = await readBody(req, { maxBytes: 64 * 1024 });
+                } catch (error) {
+                  if (error && error.statusCode === 413) throw new PublicApiError(413, "请求内容过大，请缩短问题或历史记录。", "AI_BODY_TOO_LARGE");
                   throw new PublicApiError(400, "请求正文必须是有效的 JSON。", "INVALID_JSON");
                 }
                 mpAuthService.requireUser(authorizationOf(req));

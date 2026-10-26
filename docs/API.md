@@ -18,6 +18,8 @@
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/health` | 公开 | 运行时数据健康检查 |
 | `GET` | `/api/v1/home` | 公开 | 小程序首页数据 |
+| `POST` | `/api/v1/community-support/downloads` | account 必须 Bearer；community 不带 Authorization | 幂等记录公开资源下载完成事件，默认关闭 |
+| `GET` | `/api/v1/me/community-support` | 仅 Bearer | 本人有效花币统计，默认关闭 |
 | `GET` | `/api/v1/search-index` | 公开 | 完整、版本化的四类搜索快照 |
 | `GET` | `/api/v1/catalog` | 公开 | 选课手册课程目录（课程+教师，支持 q 搜索与分页） |
 | `GET` | `/api/v1/search-data` | 公开、no-store | 前端本地搜索精简数据（课程库/目录池/评价组名称与老师） |
@@ -95,6 +97,11 @@
 | `POST` | `/admin-api/backup-settings` | Cookie（需相应权限） | 更新备份设置和独立保存的密码 |
 | `GET` | `/admin-api/editor-settings` | Cookie（需相应权限） | 读取编辑器设置 |
 | `POST` | `/admin-api/editor-settings` | Cookie（需相应权限） | 更新编辑器设置 |
+| `POST` | `/admin-api/site-icon` | Cookie（content.edit） | 上传站点图标（PNG/JPEG raw body） |
+| `DELETE` | `/admin-api/site-icon` | Cookie（content.edit） | 恢复默认站点图标 |
+| `GET` | `/admin-api/theme-settings` | Cookie（content.read） | 读取站点配色自定义 |
+| `POST` | `/admin-api/theme-settings` | Cookie（content.edit） | 保存站点配色自定义 |
+| `DELETE` | `/admin-api/theme-settings` | Cookie（content.edit） | 恢复默认配色 |
 | `POST` | `/admin-api/backup-run` | Cookie（需相应权限） | 立即执行备份 |
 | `POST` | `/admin-api/backup-test-webdav` | Cookie（需相应权限） | 测试 WebDAV 目标 |
 | `GET` | `/admin-api/visit-stats` | Cookie（需相应权限） | 读取完整访问统计 |
@@ -148,6 +155,72 @@
 | `POST` | `/admin-api/notify-test` | Cookie（backup.manage） | 向选定的单个机器人发送测试卡片 |
 | `POST` | `/admin-api/mp-users/:param/blocked` | Cookie（需相应权限） | 小程序用户加入/移出黑名单（封禁即无法登录） |
 <!-- api-route-registry:end -->
+
+<a id="community-support-api"></a>
+
+## 花、币与等级（2026-10-24 已上线接口，公共基数升级待部署）
+
+沿用现有网站账号、公开资源目录和审核规则，没有新增支付或公开个人贡献接口。r2 已生产部署并通过公网只读核验；r3 公共历史基数补丁已实现但尚待目标服务器迁移。接口 v1 结构和个人统计公式保持，客户端读取服务端最终总量。部署顺序及恢复限制见 [部署说明](DEPLOYMENT.md#community-support-rollout)。
+
+r3 显式迁移完成后，公共鲜花等于一次性权威资料数量基数加全部已成功下载事件；资料基数代表历史资料沉淀，不是历史下载次数，之后不随资料增删重新取值。公共硬币计入历史与新增的全部有效公开评价，按稳定 ID 去重，并随撤下/恢复调整。历史评价没有个人归属，个人花币和等级不补历史，已存在的新贡献不变。home 与下载回执统一返回包含公共基数的最终总量；客户端不再叠加常数。迁移前仍按 r2 的零历史基数运行。
+
+### 能力与开关
+
+`GET /api/v1/home` 保留原字段，增加 `data.community_support`。三个服务器环境开关默认全部为 `0`：`COMMUNITY_SUPPORT_ENABLED`、`COMMUNITY_SUPPORT_DOWNLOAD_REPORTING`、`COMMUNITY_SUPPORT_PERSONAL_STATS`。只有精确 `1` 表示开启；修改后重启生效。
+
+未开启或统计不可用时返回 `{ "version":1, "enabled":false }`，不返回伪零数值；首页其他内容仍可使用。健康且启用时：
+
+```json
+{
+  "version": 1, "enabled": true, "revision": 2,
+  "flowers": 1, "coins": 1, "review_rule": "approved",
+  "download_reporting": true, "personal_stats": true
+}
+```
+
+计数与 revision 为非负安全整数。revision 存入原 SQLite，下载、有效评价变化、个人归属清除在事务中推进，进程重启和开关切换不重置。总量下降也会推进；客户端应拒绝迟到旧 revision。完整旧备份恢复的“新鲜程度”不能由本地哈希证明，须按部署说明人工核对最高已发布 revision，未确认前保持关闭。
+
+### 下载事件
+
+`POST /api/v1/community-support/downloads`，JSON 正文最多 4096 字节，不接受查询参数及下列以外的字段：
+
+```json
+{
+  "event_id": "mp_example_download_0001",
+  "kind": "resource",
+  "resource_id": "现有资源接口返回的稳定ID",
+  "course_id": "对应课程UUID",
+  "attribution": "account"
+}
+```
+
+- `event_id` 为 16～96 位 `[A-Za-z0-9_-]`。仅在 `downloadFile` 返回 HTTP 200 且有本地文件路径后生成；同一次完成事件重试必须复用原 ID、正文和归属，不能另造 ID。
+- `kind=resource` 时，资源及课程 ID 必须匹配当前公开资料目录，ID 长度不超过 200；服务器不接受下载 URL、磁盘路径、用户 ID 或累计数。
+- `kind=guide_source` 时 `resource_id` 为指南来源 ID，`course_id` 省略或为 `""`。只有被公开指南/学院变体引用、ID 无歧义、地址位于既有 `resources.nkustudy.top/guide-sources/` 的原件才可计数。未进入后端目录的客户端本地 PDF 不支持此上报。相同来源重复引用同一文件可接受，同 ID 指向不同文件拒绝。
+- `attribution=account` 必须使用有效 `Authorization: Bearer ...`，Cookie 不能替代；账号仅取自会话，真正写入前再次检查账号和注销状态。匿名、过期、不合法会话返回 401，不降级匿名。
+- `attribution=community` 禁止附带 Authorization，即使携带网页 Cookie 也只计公共数。游客之后登录不补归属；下载期间切换账号应上报 community。
+
+成功 `{code:0,data:{event_id,recorded:true,community_support:{...}}}`。同 ID、同正文和同账号重放仍返回成功但不再次入账、不消耗额度；相同 ID 的正文/归属冲突为 409。被注销清理过归属的 account 事件不能重新绑定或重放。
+
+错误：`400 INVALID_SUPPORT_EVENT`、`401 AUTH_REQUIRED`、`404 RESOURCE_NOT_FOUND`、`409 EVENT_CONFLICT`、`429 RATE_LIMITED`、`503 SUPPORT_UNAVAILABLE`；现有封禁账号规则继续适用。错误不返回 SQL、路径、内部异常或身份数据。计数失败不应阻止客户端使用已下载文件；网络超时不能推断未落账。
+
+持久固定窗口限额：账号总计每分钟 30、每天 200，同账号同资源每分钟 5、每天 50；匿名来源总计每分钟 10、每天 60，同来源同资源每分钟 3、每天 20。限额只对新成功事件消耗；失败事务不增加计数。匿名来源仅保存服务器随机密钥生成的 HMAC 摘要。现有可信代理配置必须保持正确。客户端完成事件仍可伪造，这些额度不构成真实下载/阅读证明，不用于现金或可兑换奖励。
+
+### 本人统计与等级
+
+`GET /api/v1/me/community-support` 仅接受有效 Bearer，不接受包括 `user_id` 在内的任何查询参数，返回 `{code:0,data:{flowers:25,coins:12}}`。不能读取其他账号，响应 `no-store`；个人开关关闭时 503。
+
+等级公式为 `1 + floor(min(flowers, coins) / 10)`；0/0、10/9、10/10、25/12、30/30 分别为 1、1、2、2、4。服务端纯函数验证此口径，接口保留花币两个事实字段供客户端推导。审核冲正后可能降级；等级与捐款、支付和权益无关。
+
+### 评价账本与恢复一致性
+
+- 复用 `isReviewPublicEligible`；保留现有手工审核及配置自动批准规则。新评价只有实际可公开时有效币为 1，待审/隐藏/撤销为 0；重复批准仍为 1，恢复为 1，每条稳定评价 ID 只有一笔当前有效贡献。
+- 第一次启用时固定的全部评价 ID（包括待审评价）仍保存在原历史排除基线中。r3 迁移后它只排除个人补币：历史评价无账号归属地参与公共有效币统计；不修改原评价内容或公开资格、不伪造下载事件。迁移只允许维护脚本显式执行一次，无公开写基数接口。
+- 评价和私有 `community_support_ledger` 标记（epoch、sequence、历史 ID 基线）在同一个 `reviews.json` 原子替换中保存，完整快照就是 SQLite 投影的持久来源。投影失败不撤销已经成功的正常评价操作。所有统计读/下载写入前同步核对快照；尚在写入、发生回滚或投影失败时统计不可用，不返回旧计数冒充最新值。
+- SQLite 事务同时更新有效评价账目与 revision；下载事件、额度和 revision 也同事务提交。**JSON 与 SQLite 之间是可恢复一致性，不宣称跨存储原生同一事务。** 不返回可选的投稿即时到账回执，客户端应在统计接口确认。
+- 沿用现有单服务进程写 JSON 的约束。多个 SQLite 连接的幂等测试不代表支持多个 Node 实例共享同一 JSON 目录。
+- 源标记缺失/回退、epoch 冲突、已安装源标记但数据库缺失等情况关闭能力，不自动创建新基线或清零。损坏的统计标记原样保留；正常网站内容和审核继续使用，统计待维护者修复。
+- 注销保留公共有效总量，清个人贡献、下载/评价归属和账号限流；内部只保留防恢复所需的最小账号清理标记，归属不能重绑。在线注销失败保持 pending；隔离备份恢复重放同样执行清理，失败保留恢复隔离。全量 SQLite 和运行 JSON 均在既有完整备份范围内。
 
 ### 管理员账号与权限
 
@@ -430,14 +503,15 @@ curl -sS https://nkustudy.top/api/v1/home
 }
 ```
 
-- `question` 必填，1–1000 字；`history` 最多 9 轮（role 只允许 `user/assistant`，历史回答不作为事实来源，每问重新检索）；`profile` 可选。
-- 服务端顺序：Token 验证 → 黑名单/注销检查 → 限流 → 输入校验 → 检索 published 逐字块 → 冲突/无依据拒答 → 调用千问 → 返回。
+- `question` 必填，1–1000 字；`history` 最多 9 轮，必须按 `user/assistant` 成对交替、以 `user` 开头（role 只允许 `user/assistant`，历史回答不作为事实来源，每问重新检索；短追问会结合最近一次用户提问检索）；`profile` 可选，`admission_year` 只接受四位整数字面量（如 `2025` 或 `"2025"`）。
+- 请求体上限 64KiB（覆盖合法中文上界约 57.6KB），超限 `413 AI_BODY_TOO_LARGE`。
+- 服务端顺序：Token 验证 → 黑名单/注销检查 → 同用户并发单飞（在途第二问 429）→ 限流 → 输入校验 → 检索 published 逐字块 → 冲突/无依据/引用缺失拒答 → 调用千问 → 文字拒答规范化 → 返回。
 - 限流：每用户每日 20 次、分钟 3 次，全局每日 2000 次（SQLite 持久化窗口）。
-- 30 秒总预算，provider 失败最多自动重试 1 次，仍失败返回 `503 AI_UNAVAILABLE`。
-- 依据不足/来源冲突/越界返回 `200` 业务拒答：`data.refused=true`，`reason` 为 `INSUFFICIENT_EVIDENCE|SOURCE_CONFLICT|OUT_OF_SCOPE` 之一，不调用模型、不编造。
-- 成功响应 `data`：`answer`、`refused:false`、`reason:null`、`applicable_scope`、`freshness_notice`、`citations[{id,title,document_no,publisher,published_at,file_type,file_url,official_page_url}]`（整份原文件级引用，`file_url` 为 R2 公网直链）。
-- 模型密钥只存在于服务器环境变量（`DASHSCOPE_API_KEY`、可选 `QWEN_BASE_URL`/`QWEN_MODEL`/`QWEN_MAX_TOKENS`）；未配置密钥时稳定返回 `503 AI_UNAVAILABLE`，普通指南不受影响。
-- 主要错误：`400 INVALID_AI_QUESTION`、`401 AUTH_REQUIRED`、`429 RATE_LIMITED`、`503 AI_UNAVAILABLE`。
+- 服务端总预算 25 秒（严格小于客户端 30 秒超时并保留传输余量），重试服从剩余预算，provider 失败最多自动重试 1 次，仍失败返回 `503 AI_UNAVAILABLE`。
+- 依据不足/来源冲突返回 `200` 业务拒答：`data.refused=true`，`reason` 为 `INSUFFICIENT_EVIDENCE|SOURCE_CONFLICT` 之一，不调用模型、不编造；模型以文字表达的拒答（`REFUSE_INSUFFICIENT` 标记或简短拒答话术）同样规范化为该结构化拒答。
+- 成功响应 `data`：`answer`（≤12000 字，超出截断）、`refused:false`、`reason:null`、`guide_id`、`category`（首选依据所属指南）、`applicable_scope`、`freshness_notice`、`citations[{id,title,document_no,publisher,published_at,file_type,file_url,official_page_url}]`（整份原文件级引用，`file_url` 为 R2 公网直链）。
+- 模型密钥优先存于管理页落盘配置（AiProviderStore，0600）；环境变量 `DASHSCOPE_API_KEY` 仅作首次种子。未配置密钥时稳定返回 `503 AI_UNAVAILABLE`，普通指南不受影响。
+- 主要错误：`400 INVALID_AI_QUESTION`、`401 AUTH_REQUIRED`、`413 AI_BODY_TOO_LARGE`、`429 RATE_LIMITED`、`503 AI_UNAVAILABLE`。
 
 ### `GET /api/v1/courses`
 
@@ -899,6 +973,14 @@ curl -sS -b admin.cookies https://nkustudy.top/admin-api/about \
 旧两个 POST `{data,expectedRevision}` 仍做整份版本核对，但只适配“一条允许的处置变化”或“仅设置变化”；拒绝增删 ID、原文修改、多条/混合保存和旧 status 隐式批准。UI 已全部使用单条 PATCH；当前没有批量处置、合并或条目删除接口。反馈写需要 content.moderate，评价写需要 content.edit；GET 延续 content.read，依法查询/导出所有有效管理员可用的既有边界不变。
 
 含 UGC 派生结果的 home/courses/review-groups/search-index/search-data 及旧公开列表均 `Cache-Control:no-store`，不复用 304；写入成功主动清快照。部署须同时核对 CDN 缓存规则并清除旧缓存，不能用本机测试声称已经召回浏览器或第三方留存的旧副本。
+
+### `GET /theme.css` 与 `GET/POST/DELETE /admin-api/theme-settings`
+
+`GET /theme.css` 公开输出完整变量集（出厂默认合并当前生效配色 `active`；`:root` 与 `:root[data-theme="dark"]` 两块），缓存 60 秒。管理端 GET 返回 `{active, customDefault}` 两档；POST `{data:{active:{light:{--var:色值},dark:{...}}}}` 更新当前生效配色，`{data:{customDefault:{...}}}` 将方案设为站点默认（此后 DELETE 恢复到该默认）；DELETE 恢复到管理员保存过的默认配色（没有保存过则不做任何回退）。仅接受白名单变量与 `#RRGGBB` / `rgba(r,g,b,a)` 色值，非法条目被丢弃。
+
+### `POST/DELETE /admin-api/site-icon`
+
+POST 以 `image/png` 或 `image/jpeg` 的原始请求体上传站点图标（≤2MB，最长边 ≤4096），服务端用 sharp 生成 512/180/32 三个 PNG 写入运行数据 `site-assets/`（0600）；DELETE 删除覆盖图并回退到构建默认。前台通过 `GET /site-icon/{icon-512,apple-touch-180,favicon-32}.png` 读取，优先覆盖图、无则回退发布树默认（Caddy 需将该前缀转发到本服务）。
 
 ### `GET/POST /admin-api/editor-settings`
 

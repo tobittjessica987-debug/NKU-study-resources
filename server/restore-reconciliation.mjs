@@ -3,7 +3,9 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { DeletionLedger, deletionLedgerHead, validateDeletionLedgerHead, assertIndependentLedgerDirectory, readRuntimeDeletionBinding } from './deletion-ledger.mjs';
 import { digest, readEnvelope, writeEnvelope } from './durable-log.mjs';
-import { AtomicJsonStore, drainJsonWrites } from './atomic-json-store.mjs';
+import { drainJsonWrites } from './atomic-json-store.mjs';
+import { CommunitySupportReviewStore } from './community-support-review-store.mjs';
+import { scrubCommunitySupportAccount } from './community-support-service.mjs';
 import { MpAuthService } from './mp-auth-service.mjs';
 import { DonateOrderStore } from './donate-order-store.mjs';
 import { AvatarStore } from './avatar-store.mjs';
@@ -98,6 +100,7 @@ const failureCodes = new Set([
   'RESTORE_ACCOUNT_INSTANCE_MISMATCH', 'RESTORE_ACCOUNT_MISSING', 'RESTORE_JOB_INTENT_MISMATCH',
   'RESTORE_ORDER_OWNER_MISMATCH', 'RESTORE_PAYMENT_CLEANUP_INCOMPLETE',
   'RESTORE_IDENTITY_CLEANUP_INCOMPLETE', 'RESTORE_CREDENTIAL_CLEANUP_INCOMPLETE',
+  'RESTORE_SUPPORT_CLEANUP_FAILED',
   'RESTORE_ACCOUNT_HIGH_WATER_INVALID', 'RESTORE_ACCOUNT_SEQUENCE_REQUIRED',
   'ACCOUNT_CONTENT_INVALID', 'ACCOUNT_CONTENT_READBACK_MISMATCH', 'ACCOUNT_CONTENT_CLEANUP_INCOMPLETE',
   'RESTORE_REPLAY_INCOMPLETE', 'RESTORE_PROOF_HEAD_MISMATCH', 'RESTORE_PROOF_STATE_CHANGED',
@@ -199,7 +202,11 @@ export async function replayRestoredDeletions({ destination, ledger, freshHead, 
     const hasTable = name => Boolean(db.prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?").get(name));
     const jobsFile = path.join(context.target, RESTORE_DELETION_JOBS_FILENAME);
     const jobs = readJobs(jobsFile, currentHead.lineage);
-    const store = new AtomicJsonStore({ allowedRoot: context.dataDir });
+    // Maintain an existing contribution snapshot sequence while replaying S5.
+    // Old backups without the metadata remain unchanged; no feature bootstrap
+    // or contribution table creation is permitted during isolated replay.
+    const store = new CommunitySupportReviewStore({ allowedRoot: context.dataDir,
+      reviewsFilePath: path.join(context.dataDir, 'reviews.json') });
     auth = new MpAuthService({ dbPath: context.stateFile });
     auth.db.pragma('synchronous = FULL');
     if (hasTable('donate_orders')) { orders = new DonateOrderStore({ dbPath: context.stateFile }); orders.db.pragma('synchronous = FULL'); }
@@ -230,6 +237,9 @@ export async function replayRestoredDeletions({ destination, ledger, freshHead, 
       fault('afterSqlCleanup', entry);
       const content = await cleanupContent({ store, dataDir: context.dataDir, userId: entry.userId, donationOrderKeys: keys });
       report.legacyDonationRecords = Math.max(report.legacyDonationRecords, content?.legacyDonationRecords ?? 0);
+      try { scrubCommunitySupportAccount(db, entry.userId); }
+      catch { throw failure('RESTORE_SUPPORT_CLEANUP_FAILED'); }
+      fault('afterCommunitySupport', entry);
       avatars?.markUserDeletion(entry.userId, { now: entry.requestedAt });
       const account = db.prepare('SELECT * FROM mp_users WHERE id=?').get(entry.userId);
       if (account.deleted_at == null || account.openid != null || account.web_password_hash != null || account.phone || account.phone_verified_at != null

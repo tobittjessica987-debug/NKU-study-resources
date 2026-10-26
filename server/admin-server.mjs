@@ -14,6 +14,8 @@ import path from "node:path";
 import Busboy from "busboy";
 import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { AtomicJsonStore, drainJsonWrites } from "./atomic-json-store.mjs";
+import { CommunitySupportReviewStore } from "./community-support-review-store.mjs";
+import { createCommunitySupportRuntime } from "./community-support-runtime.mjs";
 import { syncCourseResponse } from "./admin-response.mjs";
 import { AdminAccountsStore, ADMIN_PERMISSION_POINTS, ADMIN_ROLE_PRESETS, hasAdminPermission } from "./admin-accounts-store.mjs";
 import { AdminSessionStore } from "./admin-session-store.mjs";
@@ -72,6 +74,8 @@ import { AvatarStore } from "./avatar-store.mjs";
 import { createAvatarService, cleanupUserAvatars, AVATAR_MAX_BYTES } from "./avatar-service.mjs";
 import { createWechatImageModeration } from "./wechat-image-moderation.mjs";
 import sharp from "sharp";
+import { readBodyBytes as readSiteIconBody, readSiteIconFile, writeSiteIconAssets, removeSiteIconAssets } from "./site-icon-service.mjs";
+import { readThemeSettings, normalizeThemeSettings, generateThemeCss, themeSettingsPath } from "./theme-service.mjs";
 import { StaticReleasePublisher } from "./static-release-publisher.mjs";
 import { normalizeFeedbackDocument, normalizeReviewsDocument, isFeedbackPublicEligible, isReviewPublicEligible, newFeedbackModerationFields } from "./moderation-model.mjs";
 import { ModerationService } from "./moderation-service.mjs";
@@ -81,7 +85,7 @@ const runtime = preflightProductionRuntime();
 trustedProxyRules(process.env);
 const dataDir = runtime.dataDir;
 const runtimeDataPaths = runtimeDataPathMap();
-const jsonStore = new AtomicJsonStore({ allowedRoot: dataDir });
+const jsonStore = new CommunitySupportReviewStore({ allowedRoot: dataDir, reviewsFilePath: runtimeDataPaths.reviews });
 const {
   manifest: manifestPath,
   reviews: reviewsPath,
@@ -283,6 +287,14 @@ const mpFavoritesService = new MpFavoritesService({
   readManifest: () => cleanManifestResources(jsonStore.readSync(manifestPath)),
 });
 const learningCompassService = createDefaultLearningCompassService();
+const communitySupport = createCommunitySupportRuntime({
+  db: mpAuthService.db, store: jsonStore, reviewsPath, readReviews,
+  assertActiveUser: (id) => mpAuthService.assertActiveUser(id),
+  readManifest: () => cleanManifestResources(jsonStore.readSync(manifestPath)),
+  learningCompass: learningCompassService,
+  publicResourceOrigin: process.env.PUBLIC_RESOURCE_ORIGIN || "https://resources.nkustudy.top",
+  onError: () => console.error("Community support unavailable; existing website remains enabled."),
+});
 const aiProviderStore = new AiProviderStore({ store: jsonStore, filePath: path.join(dataDir, "ai-provider-settings.json") });
 const guideAssistantQwen = createQwenProviderFromSettings(() => aiProviderStore.runtime());
 const loggedGuideAssistantQwen = async (messages, options = {}) => {
@@ -445,7 +457,7 @@ if (r2Client && r2Bucket && wechatImageModeration.configured) {
 }
 if (deletionLedger) {
   deletionService = new AccountDeletionService({ auth: mpAuthService, ledger: deletionLedger, store: jsonStore,
-    dataDir, tickets: webLoginTickets, orders: donateOrderStore,
+    dataDir, tickets: webLoginTickets, orders: donateOrderStore, communitySupport,
     cleanupAvatars: (userId) => avatarService ? avatarService.deleteForUser(userId)
       : cleanupUserAvatars({ store: avatarStore, deleteObject: deleteAvatarObject, userId }),
     invalidate: () => publicApiService.invalidateSnapshot(), audit: (event) => securityLogStore.record(event) });
@@ -501,7 +513,8 @@ const handlePublicApi = createPublicApiHandler({
   securityLog: securityLogStore,
   phoneVerifier: wechatPhoneVerifier, service: publicApiService, mpAuthService, mpFavoritesService, serviceAuthStore, consumeServiceQuota, notify: notifyModerators, readBody: readPublicBody, clientIp,
   webLoginTickets, wxacode: wxacodeService, webLoginPagePath: "pages/login-confirm/index", wxacodeEnvVersion: process.env.WXACODE_ENV_VERSION || "release",
-  avatarService, avatarStore, deletionService, readAvatarUpload: readAvatarUpload });
+  avatarService, avatarStore, deletionService, readAvatarUpload: readAvatarUpload, communitySupport,
+  readCommunitySupportBody: (req) => readJsonBody(req, { maxBytes: 4096, rejectReplacementCharacters: true, destroyOnLimit: false }) });
 
 function json(res, status, data) {
   res.__recordSubmissionAudit?.(status);
@@ -816,7 +829,7 @@ async function ensureWebdavDirs(dest, relativePath) {
   }
 }
 
-async function createCompleteBackup() {
+async function createCompleteBackup({ includeServerConfig = true } = {}) {
   const password = readBackupSecrets().encryptionPassword;
   if (!password || password.length < 16) throw Object.assign(new Error("请先设置至少16位备份加密口令。"), { statusCode: 503 });
   return snapshotGate.capture(async () => {
@@ -824,7 +837,7 @@ async function createCompleteBackup() {
     await drainJsonWrites();
     const extraFiles = { "admin-secret": secretPath };
     if (fs.existsSync(backupSecretPath)) extraFiles["backup-secrets.json"] = backupSecretPath;
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && includeServerConfig) {
       extraFiles["admin.env"] = process.env.BACKUP_ENV_FILE || "/etc/nkustudy/admin.env";
       extraFiles["Caddyfile"] = process.env.BACKUP_CADDY_FILE || "/etc/caddy/Caddyfile";
       extraFiles["nkustudy-admin.service"] = process.env.BACKUP_SERVICE_FILE || "/etc/systemd/system/nkustudy-admin.service";
@@ -835,46 +848,110 @@ async function createCompleteBackup() {
   });
 }
 
-async function runBackupJob({ manual = false } = {}) {
+const courseFileSyncLedgerPath = path.join(dataDir, "course-file-sync.json");
+
+function readCourseFileSyncLedger() {
+  try {
+    const data = JSON.parse(fs.readFileSync(courseFileSyncLedgerPath, "utf8"));
+    if (data && typeof data === "object" && Array.isArray(data.destinations) === false && typeof data.destinations === "object" && data.destinations) return data;
+  } catch { /* missing or invalid ledger starts empty */ }
+  return { version: 1, updated: today(), destinations: {} };
+}
+
+async function writeCourseFileSyncLedger(ledger) {
+  await backupSecretStore.write(courseFileSyncLedgerPath, { ...ledger, updated: today() }, { mode: 0o600 });
+}
+
+// Incremental course-file sync: skip objects whose R2 size+etag already matches
+// the per-destination ledger, upload and read-back the rest, then persist.
+async function syncCourseFilesToWebdav(dest) {
+  if (!r2Client || !r2Bucket) throw new Error("Course object backup requested without source configuration");
+  const ledger = readCourseFileSyncLedger();
+  const known = ledger.destinations[dest.id] && typeof ledger.destinations[dest.id] === "object" ? ledger.destinations[dest.id] : {};
+  const objects = (await listR2Objects(`${r2Prefix}/`)).filter(item => item.Key && !isOpenListPlaceholder(item.Key));
+  const stats = { total: objects.length, uploaded: 0, skipped: 0 };
+  const next = {};
+  for (const object of objects) {
+    const fingerprint = { size: object.Size ?? 0, etag: String(object.ETag || "").replace(/^"|"$/g, "") };
+    next[object.Key] = fingerprint;
+    const previous = known[object.Key];
+    if (previous && previous.size === fingerprint.size && previous.etag === fingerprint.etag) {
+      stats.skipped++;
+      continue;
+    }
+    const remote = await r2Client.send(new GetObjectCommand({ Bucket: r2Bucket, Key: object.Key }));
+    const bytes = Buffer.from(await remote.Body.transformToByteArray());
+    const relative = `course-files/${object.Key}`;
+    await verifiedUpload(bytes, {
+      put: async value => { await ensureWebdavDirs(dest, relative); const result = await webdavRequest(dest, "PUT", relative, { body: value }); if (!result.ok) throw new Error("Course upload failed"); },
+      get: async () => { const result = await webdavRequest(dest, "GET", relative); if (!result.ok) throw new Error("Course readback failed"); return Buffer.from(await result.arrayBuffer()); },
+    });
+    stats.uploaded++;
+  }
+  ledger.destinations[dest.id] = next;
+  await writeCourseFileSyncLedger(ledger);
+  return stats;
+}
+
+function normalizeBackupParts(parts, settings) {
+  // Manual runs may pass a one-shot { parts } override; scheduled runs use stored settings.
+  const source = parts && typeof parts === "object" ? parts : {};
+  const pick = (value, fallback) => (typeof value === "boolean" ? value : fallback);
+  const effective = {
+    siteData: pick(source.siteData, settings.includeSiteData !== false),
+    serverConfig: pick(source.serverConfig, settings.includeServerConfig !== false),
+    courseFiles: pick(source.courseFiles, settings.includeCourseFiles !== false),
+  };
+  if (!effective.siteData && !effective.courseFiles) {
+    const error = new Error("至少选择一项备份内容。");
+    error.statusCode = 400;
+    error.code = "BACKUP_PARTS_REQUIRED";
+    throw error;
+  }
+  return effective;
+}
+
+async function runBackupJob({ manual = false, parts = null } = {}) {
   if (backupRunning) return { ok: false, complete: false, code: "BACKUP_BUSY", error: "Backup is already running." };
   backupRunning = true;
   const summary = { ok: false, complete: false, manual, startedAt: nowIso(), r2: [], webdav: [], errors: [], error: "" };
   try {
     const settings = readBackupSettings();
-    const backup = await createCompleteBackup();
-    summary.local = { filename: path.basename(backup.file), sha256: backup.sha256, verified: true };
-    const name = path.basename(backup.file);
-    if (settings.r2DataBackup) {
-      summary.r2.push(await uploadPrivateR2Backup({ bytes: backup.bytes, filename: name }));
-    }
-    if (settings.webdavEnabled) {
+    const effectiveParts = normalizeBackupParts(parts, settings);
+    summary.parts = effectiveParts;
+    let backup = null;
+    if (effectiveParts.siteData) {
+      backup = await createCompleteBackup({ includeServerConfig: effectiveParts.serverConfig });
+      summary.local = { filename: path.basename(backup.file), sha256: backup.sha256, verified: true };
+      const name = path.basename(backup.file);
+      if (settings.r2DataBackup) {
+        summary.r2.push(await uploadPrivateR2Backup({ bytes: backup.bytes, filename: name }));
+      }
+      if (settings.webdavEnabled) {
+        const destinations = (settings.destinations || []).filter(dest => dest.enabled !== false && dest.url);
+        if (!destinations.length) summary.errors.push("WebDAV enabled without a destination");
+        for (const dest of destinations) {
+          const entry = { id: dest.id, verified: false };
+          try {
+            const relative = `runtime-backups/${name}`;
+            await verifiedUpload(backup.bytes, {
+              put: async bytes => { await ensureWebdavDirs(dest, relative); const result = await webdavRequest(dest, "PUT", relative, { body: bytes, signal: AbortSignal.timeout(30000) }); if (!result.ok) throw new Error(`WebDAV PUT ${result.status}`); },
+              get: async () => { const result = await webdavRequest(dest, "GET", relative, { signal: AbortSignal.timeout(30000) }); if (!result.ok) throw new Error(`WebDAV GET ${result.status}`); return Buffer.from(await result.arrayBuffer()); },
+            });
+            entry.verified = true;
+            if (effectiveParts.courseFiles) entry.courseFiles = await syncCourseFilesToWebdav(dest);
+          } catch { summary.errors.push(`WebDAV destination ${dest.id}: upload/readback failed`); }
+          summary.webdav.push(entry);
+        }
+      }
+    } else if (effectiveParts.courseFiles && settings.webdavEnabled) {
       const destinations = (settings.destinations || []).filter(dest => dest.enabled !== false && dest.url);
       if (!destinations.length) summary.errors.push("WebDAV enabled without a destination");
       for (const dest of destinations) {
-        const entry = { id: dest.id, verified: false };
+        const entry = { id: dest.id, verified: true, runtimeSkipped: true };
         try {
-          const relative = `runtime-backups/${name}`;
-          await verifiedUpload(backup.bytes, {
-            put: async bytes => { await ensureWebdavDirs(dest, relative); const result = await webdavRequest(dest, "PUT", relative, { body: bytes, signal: AbortSignal.timeout(30000) }); if (!result.ok) throw new Error(`WebDAV PUT ${result.status}`); },
-            get: async () => { const result = await webdavRequest(dest, "GET", relative, { signal: AbortSignal.timeout(30000) }); if (!result.ok) throw new Error(`WebDAV GET ${result.status}`); return Buffer.from(await result.arrayBuffer()); },
-          });
-          entry.verified = true;
-          if (settings.includeCourseFiles) {
-            if (!r2Client || !r2Bucket) throw new Error("Course object backup requested without source configuration");
-            const objects = (await listR2Objects(`${r2Prefix}/`)).filter(item => item.Key && !isOpenListPlaceholder(item.Key));
-            entry.courseFiles = { verified: 0 };
-            for (const object of objects) {
-              const remote = await r2Client.send(new GetObjectCommand({ Bucket: r2Bucket, Key: object.Key }));
-              const bytes = Buffer.from(await remote.Body.transformToByteArray());
-              const relative = `course-files/${object.Key}`;
-              await verifiedUpload(bytes, {
-                put: async value => { await ensureWebdavDirs(dest, relative); const result = await webdavRequest(dest, "PUT", relative, { body: value }); if (!result.ok) throw new Error("Course upload failed"); },
-                get: async () => { const result = await webdavRequest(dest, "GET", relative); if (!result.ok) throw new Error("Course readback failed"); return Buffer.from(await result.arrayBuffer()); },
-              });
-              entry.courseFiles.verified++;
-            }
-          }
-        } catch { summary.errors.push(`WebDAV destination ${dest.id}: upload/readback failed`); }
+          entry.courseFiles = await syncCourseFilesToWebdav(dest);
+        } catch { entry.verified = false; summary.errors.push(`WebDAV destination ${dest.id}: course sync failed`); }
         summary.webdav.push(entry);
       }
     }
@@ -2540,6 +2617,7 @@ if (deletionService) {
   const resumed = await deletionService.resume({ all: true });
   if (resumed.pending) console.error("Account deletion cleanup remains pending; affected accounts stay disabled.");
 }
+await communitySupport.initialize();
 
 const server = createServer(async (req, res) => {
   let url;
@@ -2609,6 +2687,36 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/editor-settings") {
       json(res, 200, { ok: true, data: publicEditorSettings() });
+      return;
+    }
+
+    const themeCssPath = url.pathname;
+    if (req.method === "GET" && themeCssPath === "/theme.css") {
+      const css = generateThemeCss(readThemeSettings(themeSettingsPath(dataDir)));
+      res.writeHead(200, {
+        "content-type": "text/css; charset=utf-8",
+        "cache-control": "public, max-age=60",
+        "content-length": Buffer.byteLength(css),
+      });
+      res.end(css);
+      return;
+    }
+
+    const siteIconPath = url.pathname;
+    if ((req.method === "GET" || req.method === "HEAD") && siteIconPath.startsWith("/site-icon/")) {
+      const name = path.basename(siteIconPath);
+      const icon = readSiteIconFile({ dataDir, publicDir, name });
+      if (!icon) {
+        json(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+      res.writeHead(200, {
+        "content-type": "image/png",
+        "cache-control": "public, max-age=300",
+        "x-site-icon-source": icon.source,
+        "content-length": icon.bytes.length,
+      });
+      res.end(req.method === "HEAD" ? undefined : icon.bytes);
       return;
     }
 
@@ -2780,10 +2888,84 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/admin-api/site-icon") {
+      if (!requirePermission(req, account, "content.edit", res)) return;
+      try {
+        const bytes = await readSiteIconBody(req);
+        const result = await writeSiteIconAssets({ bytes, dataDir, sharpImpl: sharp });
+        req.__audit.action = "site-icon.updated";
+        json(res, 200, { ok: true, data: { source: "custom", written: result.written } });
+      } catch (error) {
+        json(res, error.statusCode || 500, { ok: false, error: error.message, code: error.code || "SITE_ICON_UPLOAD_FAILED" });
+      }
+      return;
+    }
+
+    if (req.method === "DELETE" && url.pathname === "/admin-api/site-icon") {
+      if (!requirePermission(req, account, "content.edit", res)) return;
+      const removed = removeSiteIconAssets(dataDir);
+      req.__audit.action = "site-icon.reset";
+      json(res, 200, { ok: true, data: { source: "default", removed } });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/admin-api/theme-settings") {
+      if (!requirePermission(req, account, "content.read", res)) return;
+      json(res, 200, { ok: true, data: readThemeSettings(themeSettingsPath(dataDir)) });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/admin-api/theme-settings") {
+      if (!requirePermission(req, account, "content.edit", res)) return;
+      const body = await readBody(req);
+      const input = body.data || {};
+      const previous = readThemeSettings(themeSettingsPath(dataDir));
+      // 语义：显式保存 active 且未显式操作默认时，默认跟随本次保存（保存即成为站点默认）；
+      // 只有 presets 的「设为默认」显式传 customDefault，或清除默认的 DELETE 才单独改默认。
+      const hasActive = Object.hasOwn(input, "active") || Object.hasOwn(input, "light") || Object.hasOwn(input, "dark");
+      const nextActive = Object.hasOwn(input, "active") ? input.active : { light: input.light, dark: input.dark };
+      const normalized = normalizeThemeSettings({
+        active: nextActive,
+        customDefault: Object.hasOwn(input, "customDefault") ? input.customDefault
+          : (hasActive ? nextActive : previous.customDefault),
+        presets: Object.hasOwn(input, "presets") ? input.presets : previous.presets,
+      });
+      const next = { ...normalized, updated: nowIso() };
+      await jsonStore.write(themeSettingsPath(dataDir), next);
+      req.__audit.action = "theme-settings.updated";
+      json(res, 200, { ok: true, data: next });
+      return;
+    }
+
+    if (req.method === "DELETE" && url.pathname === "/admin-api/theme-settings") {
+      if (!requirePermission(req, account, "content.edit", res)) return;
+      const previous = readThemeSettings(themeSettingsPath(dataDir));
+      // 恢复默认：仅回到管理员保存过的自定义默认；没有则不做任何回退（出厂配色不是恢复目标）。
+      const next = {
+        version: 2,
+        updated: nowIso(),
+        active: { ...previous.customDefault },
+        customDefault: { ...previous.customDefault },
+        presets: previous.presets || [],
+      };
+      await jsonStore.write(themeSettingsPath(dataDir), next);
+      req.__audit.action = "theme-settings.reset";
+      json(res, 200, { ok: true, data: next });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/admin-api/backup-run") {
       if (!requirePermission(req, account, "backup.manage", res)) return;
-      const result = await runBackupJob({ manual: true });
-      json(res, result.ok === false ? 409 : 200, result);
+      const body = await readBody(req).catch(() => ({}));
+      let parts = null;
+      if (body && typeof body.parts === "object" && body.parts !== null && !Array.isArray(body.parts)) {
+        parts = {};
+        for (const key of ["siteData", "serverConfig", "courseFiles"]) {
+          if (typeof body.parts[key] === "boolean") parts[key] = body.parts[key];
+        }
+      }
+      const result = await runBackupJob({ manual: true, parts });
+      json(res, result.ok === false ? (result.code === "BACKUP_PARTS_REQUIRED" ? 400 : 409) : 200, result);
       return;
     }
 

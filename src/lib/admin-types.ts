@@ -53,6 +53,7 @@ export type WebdavDestination = {
 };
 export type BackupDocument = {
   autoEnabled?: boolean; dailyTime?: string; r2DataBackup?: boolean; webdavEnabled?: boolean;
+  includeSiteData?: boolean; includeServerConfig?: boolean;
   includeCourseFiles?: boolean; encryptionPasswordConfigured?: boolean; encryptionPassword?: string;
   destinations?: WebdavDestination[];
 };

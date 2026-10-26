@@ -54,11 +54,33 @@ const footer = {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="NKUStudy - 南开课程评价与学习资源导航。" />
     <title>{title === "NKUStudy" ? title : `${title} | NKUStudy`}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/site-icon/favicon-32.png" />
+    <link rel="stylesheet" href="/theme.css" />
+    <link rel="apple-touch-icon" href="/site-icon/apple-touch-180.png" />
     <script is:inline>
       (() => {
         const saved = localStorage.getItem("nkustudy-theme");
         const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.theme = saved || (prefersDark ? "dark" : "light");
+        // 本机配色预览：后台面板写入 localStorage，全站页面同步生效（仅本浏览器）。
+        try {
+          const raw = localStorage.getItem("nkustudy-theme-preview");
+          if (raw) {
+            const preview = JSON.parse(raw);
+            const blocks = [];
+            for (const [mode, selector] of [["light", ":root:root"], ["dark", ':root:root[data-theme="dark"]']]) {
+              const entries = Object.entries((preview && preview[mode]) || {}).filter(([k, v]) => typeof k === "string" && k.startsWith("--") && typeof v === "string" && v.length < 64);
+              if (!entries.length) continue;
+              blocks.push(selector + "{" + entries.map(([k, v]) => k + ":" + v + ";").join("") + "}");
+            }
+            if (blocks.length) {
+              const style = document.createElement("style");
+              style.id = "nkustudy-theme-preview";
+              style.textContent = blocks.join("");
+              document.head.append(style);
+            }
+          }
+        } catch { /* 预览数据损坏时静默忽略 */ }
       })();
     </script>
   </head>
@@ -67,7 +89,9 @@ const footer = {
       <aside class="sidebar">
         <div class="brand-row">
           <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true" set:html={icons.book} />
+            <span class="brand-mark brand-mark-image" aria-hidden="true">
+              <img src="/site-icon/icon-512.png" alt="" width="38" height="38" />
+            </span>
             <span class="brand-text">
               <strong>NKUStudy</strong>
               <small>Course Resources</small>

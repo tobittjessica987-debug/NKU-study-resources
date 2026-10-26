@@ -6,7 +6,7 @@ function requestError(message, statusCode) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-export function readJsonBody(req, { maxBytes = MAX_BODY_BYTES, rejectReplacementCharacters = false } = {}) {
+export function readJsonBody(req, { maxBytes = MAX_BODY_BYTES, rejectReplacementCharacters = false, destroyOnLimit = true } = {}) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let byteLength = 0;
@@ -29,7 +29,8 @@ export function readJsonBody(req, { maxBytes = MAX_BODY_BYTES, rejectReplacement
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       byteLength += bytes.length;
       if (byteLength > maxBytes) {
-        fail(requestError("Request body is too large.", 413), { destroy: true });
+        fail(requestError("Request body is too large.", 413), { destroy: destroyOnLimit });
+        if (!destroyOnLimit) req.resume();
         return;
       }
       chunks.push(bytes);

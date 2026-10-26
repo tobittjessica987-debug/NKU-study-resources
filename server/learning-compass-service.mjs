@@ -181,6 +181,17 @@ export function createLearningCompassService(snapshot) {
       return base ? { ...base } : null;
     },
 
+    /** A download event names an unambiguous source actually exposed by a guide. */
+    publicDownloadSourceById(sourceId) {
+      const referenced = snapshot.guides.some((guide) => (guide.sources || []).some((source) => source.id === sourceId)
+        || (guide.variant_details || []).some((variant) => (variant.sections || []).some((section) => (section.source_ids || []).includes(sourceId))));
+      if (!referenced) return null;
+      const matches = [...(snapshot.sources || []), ...snapshot.guides.flatMap((guide) => guide.sources || [])]
+        .filter((source) => source.id === sourceId);
+      if (!matches.length || new Set(matches.map((source) => source.file_url)).size !== 1) return null;
+      return { id: sourceId, file_url: matches[0].file_url };
+    },
+
     /** 供 AI 问答拒答：来源冲突主题关键词。 */
     conflictTopics() {
       return (snapshot.conflicts || []).map((conflict) => ({ topic: conflict.topic, keywords: conflict.keywords.slice() }));
