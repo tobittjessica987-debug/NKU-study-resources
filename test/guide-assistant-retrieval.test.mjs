@@ -7,11 +7,11 @@ const NOW = Date.parse('2026-10-26T10:00:00+08:00');
 const compass = createDefaultLearningCompassService();
 const chunks = compass.retrievalChunks();
 
-async function capture(body) {
+async function capture(body, learningCompass = compass) {
   let messages;
   let prompt;
   const service = createGuideAssistantService({
-    learningCompass: compass,
+    learningCompass,
     now: () => NOW,
     log: (entry) => { if (entry.event === 'prompt_built') prompt = entry; },
     qwen: async (input) => { messages = input; return '请按照所引原文的适用条件办理。'; },
@@ -24,8 +24,41 @@ async function capture(body) {
     assert.ok(chunk, 'each evidence block must retain one complete original chunk');
     return chunk;
   });
-  return { result, messages, prompt, selected };
+  return { result, messages, prompt, selected, evidence };
 }
+
+test('each mixed-source evidence block binds canonical source identity and exact location without resource URLs', async () => {
+  const withPrivateFields = { ...compass, sourceFileById: (id) => ({ ...compass.sourceFileById(id),
+    file_url: 'https://example.invalid/source?token=FAKE_MUST_NOT_ENTER_PROMPT',
+    private_token: 'FAKE_PRIVATE_FIELD',
+  }) };
+  const { selected, evidence, messages } = await capture({ question: '课程总评成绩和GPA如何计算，成绩复核什么时候申请？' }, withPrivateFields);
+  assert.deepEqual(new Set(selected.map((item) => item.source_file_id)), new Set(['SRC-001', 'SRC-003']));
+  for (let index = 0; index < selected.length; index += 1) {
+    const chunk = selected[index];
+    const source = compass.sourceFileById(chunk.source_file_id);
+    const attribution = evidence[index].split('\n').filter((line) => line.startsWith('来源编号：'));
+    assert.equal(attribution.length, 1, 'one source identity line belongs to each evidence block');
+    assert.equal(attribution[0].match(/来源编号：([^；]+)/)?.[1], chunk.source_file_id);
+    assert.equal(attribution[0].match(/原文件：([^；]+)/)?.[1], source.title);
+    assert.equal(attribution[0].match(/文号：([^；]+)/)?.[1], source.document_no || '未标注');
+    assert.equal(attribution[0].match(/原文定位：(.*)。$/)?.[1], chunk.location);
+    assert.ok(evidence[index].includes(chunk.text), 'source binding cannot replace or truncate the full original excerpt');
+  }
+  const promptText = messages.map((message) => message.content).join('\n');
+  assert.ok(!promptText.includes('https://example.invalid'));
+  assert.ok(!promptText.includes('FAKE_MUST_NOT_ENTER_PROMPT'));
+  assert.ok(!promptText.includes('FAKE_PRIVATE_FIELD'));
+});
+
+test('missing source identity refuses before invoking the provider, including partially mapped evidence', async () => {
+  for (const missingId of ['all', 'SRC-003']) {
+    const missing = { ...compass, sourceFileById: (id) => missingId === 'all' || id === missingId ? null : compass.sourceFileById(id) };
+    const { result, messages } = await capture({ question: '课程总评成绩和GPA如何计算，成绩复核什么时候申请？' }, missing);
+    assert.equal(result.reason, 'INSUFFICIENT_EVIDENCE');
+    assert.equal(messages, undefined);
+  }
+});
 
 for (const question of ['课程成绩有异议，如何申请复核？', '成绩复核什么时候申请？']) {
   test(`grade review avoids unrelated full policies: ${question}`, async () => {
@@ -34,7 +67,9 @@ for (const question of ['课程成绩有异议，如何申请复核？', '成绩
     assert.ok(selected.some((item) => item.guide_id === 'grade-review' && item.text.includes('下一学期开学3周内')));
     assert.ok(selected.some((item) => item.guide_id === 'grade-review' && item.text.includes('任课教师不得擅自更改')));
     assert.ok(selected.every((item) => !['bachelor-degree-application', 'credit-recognition-and-exchange', 'resume-study', 'student-rights-discipline-appeals'].includes(item.guide_id)), 'generic application/review terms must not pull unrelated policies into grade review');
-    assert.ok(prompt.prompt_chars < 2200, `unexpected noisy context: ${prompt.prompt_chars} characters`);
+    // Six short-query blocks now carry 541 extra characters of source identity
+    // and citation guidance (2026 -> 2567); the original evidence stays intact.
+    assert.ok(prompt.prompt_chars < 2700, `unexpected noisy context: ${prompt.prompt_chars} characters`);
     assert.ok(result.citations.some((item) => item.id === 'SRC-003'));
   });
 }
@@ -98,7 +133,8 @@ test('another exact guide topic avoids application boilerplate from unrelated do
   const { selected, prompt } = await capture({ question: '休学期满后如何申请复学？' });
   assert.ok(selected.length > 0);
   assert.ok(selected.every((item) => item.guide_id === 'resume-study'));
-  assert.ok(prompt.prompt_chars < 1500);
+  // One source identity line plus guidance adds 186 characters (1351 -> 1537).
+  assert.ok(prompt.prompt_chars < 1700);
 });
 
 test('title weighting cannot promote a single weak match past the evidence threshold', async () => {
